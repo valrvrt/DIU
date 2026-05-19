@@ -1,0 +1,67 @@
+[
+  {
+    "id": 1,
+    "name": "Fremen",
+    "controlled_spaces": ["Fremkit", "Desert Tactics"]
+  },
+  {
+    "id": 2,
+    "name": "Bene Gesserit",
+    "controlled_spaces": ["Secrets", "Espionnage"]
+  },
+  {
+    "id": 3,
+    "name": "Spacing Guild",
+    "controlled_spaces": ["Deliver Supplies", "Heighliner"]
+  },
+  {
+    "id": 4,
+    "name": "Emperor",
+    "controlled_spaces": ["Dutiful Service", "Sardukar"]
+  },
+  {
+    "id": 5,
+    "name": "Left Green",
+    "controlled_spaces": ["High Council", "Imperial Privilege", "Swordmaster"]
+  },
+  {
+    "id": 6,
+    "name": "Right Green",
+    "controlled_spaces": ["Assembly Hall", "Gather Support"]
+  },
+  {
+    "id": 7,
+    "name": "Top Yellow",
+    "controlled_spaces": ["Shipping", "Accept Contract"]
+  },
+  {
+    "id": 8,
+    "name": "Left Blue",
+    "controlled_spaces": ["Sietch Tabr", "Research Station"]
+  },
+  {
+    "id": 9,
+    "name": "Middle Blue",
+    "controlled_spaces": ["Spice Refinery", "Research Station"]
+  },
+  {
+    "id": 10,
+    "name": "Right Blue",
+    "controlled_spaces": ["Spice Refinery", "Arakeen"]
+  },
+  {
+    "id": 11,
+    "name": "Left Yellow",
+    "controlled_spaces": ["Deep Desert"]
+  },
+  {
+    "id": 12,
+    "name": "Middle Yellow",
+    "controlled_spaces": ["Haga Bassin"]
+  },
+  {
+    "id": 13,
+    "name": "Right Yellow",
+    "controlled_spaces": ["Imperial Bassin"]
+  }
+]

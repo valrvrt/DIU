@@ -1,0 +1,20 @@
+{
+  "signet": [
+    {
+      "reward": [{ "type": "resource", "resource": "solari", "amount": 1 }]
+    },
+    {
+      "check": { "type": "alliance", "target": "any", "amount": 1 },
+      "reward": [{ "type": "resource", "resource": "spice", "amount": 1 }]
+    }
+  ],
+  "passive": {
+    "name": "Desert Scouts",
+    "check": [
+      { "type": "resource", "resource": "strength", "amount": 6 },
+      { "phase": "reveal" }
+    ],
+    "required": false,
+    "reward": [{ "type": "recall", "unit": "troop", "amount": 1 }]
+  }
+}

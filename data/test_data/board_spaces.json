@@ -1,0 +1,152 @@
+{
+  "spaces": [
+    {
+      "id": "space_arrakeen",
+      "name": "Arrakeen",
+      "agent_icon": "blue",
+      "faction": null,
+      "cost": {},
+      "required_influence": null,
+      "effects": {
+        "recruit_troops": 1,
+        "draw": 1
+      },
+      "is_combat_space": true,
+      "is_maker_space": false,
+      "spice_bonus": 0,
+      "is_critical_location": true,
+      "control_bonus": {
+        "solari": 1
+      }
+    },
+    {
+      "id": "space_sietch_tabr",
+      "name": "Sietch Tabr",
+      "agent_icon": "yellow",
+      "faction": "fremen",
+      "cost": {},
+      "required_influence": {
+        "fremen": 2
+      },
+      "effects": {
+        "maker_hooks": 1,
+        "water": 1
+      },
+      "is_combat_space": false,
+      "is_maker_space": false,
+      "spice_bonus": 0,
+      "is_critical_location": false,
+      "control_bonus": {}
+    },
+    {
+      "id": "space_desert_deep",
+      "name": "Désert Profond",
+      "agent_icon": "yellow",
+      "faction": null,
+      "cost": {
+        "water": 1
+      },
+      "required_influence": null,
+      "effects": {
+        "spice": 2,
+        "spice_bonus_accumulate": true
+      },
+      "is_combat_space": true,
+      "is_maker_space": true,
+      "spice_bonus": 0,
+      "is_critical_location": false,
+      "control_bonus": {}
+    },
+    {
+      "id": "space_carthag",
+      "name": "Carthag",
+      "agent_icon": "blue",
+      "faction": null,
+      "cost": {},
+      "required_influence": null,
+      "effects": {
+        "recruit_troops": 2,
+        "intrigue_card": 1
+      },
+      "is_combat_space": true,
+      "is_maker_space": false,
+      "spice_bonus": 0,
+      "is_critical_location": false,
+      "control_bonus": {}
+    },
+    {
+      "id": "space_hall_assembly",
+      "name": "Hall de l'Assemblée",
+      "agent_icon": "green",
+      "faction": null,
+      "cost": {
+        "solari": 2
+      },
+      "required_influence": null,
+      "effects": {
+        "intrigue_card": 2,
+        "influence_choice": 1
+      },
+      "is_combat_space": false,
+      "is_maker_space": false,
+      "spice_bonus": 0,
+      "is_critical_location": false,
+      "control_bonus": {}
+    },
+    {
+      "id": "space_heighliner",
+      "name": "Long-Courrier",
+      "agent_icon": "spacing_guild",
+      "faction": "spacing_guild",
+      "cost": {
+        "spice": 2
+      },
+      "required_influence": null,
+      "effects": {
+        "deploy_troops": 5
+      },
+      "is_combat_space": true,
+      "is_maker_space": false,
+      "spice_bonus": 0,
+      "is_critical_location": false,
+      "control_bonus": {}
+    },
+    {
+      "id": "Secrets",
+      "name": "Secrets",
+      "agent_icon": "bene_gesserit",
+      "faction": null,
+      "cost": {},
+      "required_influence": null,
+      "effects": {
+        "intrigue_card": 1
+      },
+      "is_combat_space": false,
+      "is_maker_space": false,
+      "spice_bonus": 0,
+      "is_critical_location": false,
+      "control_bonus": {}
+    },
+    {
+      "id": "Imperial_basin",
+      "name": "Bassin Impérial",
+      "agent_icon": "yellow",
+      "faction": null,
+      "cost": {
+        "water": 1
+      },
+      "required_influence": null,
+      "effects": {
+        "spice": 3,
+        "spice_bonus_accumulate": true
+      },
+      "is_combat_space": true,
+      "is_maker_space": true,
+      "spice_bonus": 0,
+      "is_critical_location": false,
+      "control_bonus": {
+        "spice": 1
+      }
+    }
+  ]
+}

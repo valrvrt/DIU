@@ -1,0 +1,26 @@
+[
+  {
+    "id": 2,
+    "name": "Desert Mouse 1-6 p",
+    "n_players": [3, 4],
+    "tag": "desert-mouse"
+  },
+  {
+    "id": 3,
+    "name": "Ornithopter 1 or 3 p",
+    "n_players": [3, 4],
+    "tag": "ornithopter"
+  },
+  {
+    "id": 4,
+    "name": "Crysknife 4 or 6 p",
+    "n_players": [4],
+    "tag": "crysknife"
+  },
+  {
+    "id": 5,
+    "name": "Desert Mouse 4 or 6 p",
+    "n_players": [3, 4],
+    "tag": "desert-mouse"
+  }
+]

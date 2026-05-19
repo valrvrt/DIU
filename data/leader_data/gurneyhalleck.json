@@ -1,0 +1,13 @@
+{
+  "signet": {
+    "reward": [{ "type": "resource", "resource": "troop", "amount": 1 }]
+  },
+  "passive": {
+    "name": "Always Smiling",
+    "check": [
+      { "type": "resource", "resource": "strength", "amount": 6 },
+      { "phase": "reveal" }
+    ],
+    "reward": [{ "type": "resource", "resource": "persuasion", "amount": 1 }]
+  }
+}

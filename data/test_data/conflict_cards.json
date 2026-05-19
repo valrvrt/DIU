@@ -1,0 +1,103 @@
+{
+  "conflicts": [
+    {
+      "id": "conflict_1_skirmish",
+      "name": "Escarmouche",
+      "type": "Conflict",
+      "tier": 1,
+      "location": null,
+      "battle_icon": "krys",
+      "has_shield": false,
+      "rewards": [
+        {
+          "position": 1,
+          "solari": 3,
+          "spice": 1
+        },
+        {
+          "position": 2,
+          "solari": 1
+        },
+        {
+          "position": 3,
+          "water": 1
+        }
+      ]
+    },
+    {
+      "id": "conflict_2_arrakeen",
+      "name": "Bataille pour Arrakeen",
+      "type": "Conflict",
+      "tier": 2,
+      "location": "arrakeen",
+      "battle_icon": "ornithopter",
+      "has_shield": true,
+      "rewards": [
+        {
+          "position": 1,
+          "victory_points": 1,
+          "control_location": "arrakeen",
+          "troops": 1
+        },
+        {
+          "position": 2,
+          "solari": 2,
+          "troops": 1
+        },
+        {
+          "position": 3,
+          "solari": 1
+        }
+      ]
+    },
+    {
+      "id": "conflict_2_desert_power",
+      "name": "Puissance du Désert",
+      "type": "Conflict",
+      "tier": 2,
+      "location": null,
+      "battle_icon": "desert_mouse",
+      "has_shield": false,
+      "rewards": [
+        {
+          "position": 1,
+          "spice": 2,
+          "influence_choice": 1
+        },
+        {
+          "position": 2,
+          "spice": 1
+        },
+        {
+          "position": 3,
+          "water": 1
+        }
+      ]
+    },
+    {
+      "id": "conflict_3_control_arrakis",
+      "name": "Contrôle d'Arrakis",
+      "type": "Conflict",
+      "tier": 3,
+      "location": null,
+      "battle_icon": "krys",
+      "has_shield": false,
+      "rewards": [
+        {
+          "position": 1,
+          "victory_points": 2,
+          "spice": 2
+        },
+        {
+          "position": 2,
+          "victory_points": 1,
+          "spice": 1
+        },
+        {
+          "position": 3,
+          "spice": 1
+        }
+      ]
+    }
+  ]
+}

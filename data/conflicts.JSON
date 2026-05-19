@@ -1,0 +1,794 @@
+{
+  "schema_version": 1,
+  "conflicts": [
+    {
+      "id": 1,
+      "name": "Skirmish (Crysknife)",
+      "tag": "crysknife",
+      "level": 1,
+      "shieldwall": false,
+      "rewards": {
+        "1": [
+          {
+            "type": "influence",
+            "target": "any",
+            "amount": 1,
+            "times": 1
+          }
+        ],
+        "2": [
+          {
+            "type": "draw",
+            "deck": "intrigue",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 1
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 1
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 2,
+      "name": "Skirmish (Desert Mouse)",
+      "tag": "desert-mouse",
+      "level": 1,
+      "shieldwall": false,
+      "rewards": {
+        "1": [
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 2
+          }
+        ],
+        "2": [
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 3
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 2
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 3,
+      "name": "Skirmish (Ornithopter)",
+      "tag": "ornithopter",
+      "level": 1,
+      "shieldwall": false,
+      "rewards": {
+        "1": [
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 1
+          },
+          {
+            "type": "draw",
+            "deck": "intrigue",
+            "amount": 1
+          }
+        ],
+        "2": [
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 2
+          },
+          {
+            "type": "draw",
+            "deck": "intrigue",
+            "amount": 1
+          }
+        ],
+        "3": [
+          {
+            "type": "draw",
+            "deck": "intrigue",
+            "amount": 1
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 4,
+      "name": "Seize Spice Refinery",
+      "tag": "crysknife",
+      "level": 2,
+      "shieldwall": true,
+      "rewards": {
+        "1": [
+          {
+            "type": "play",
+            "unit": "spy",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 2
+          },
+          {
+            "type": "control",
+            "location": "spice_refinery"
+          }
+        ],
+        "2": [
+          {
+            "type": "draw",
+            "deck": "intrigue",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 2
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 5,
+      "name": "Shadow Contest",
+      "tag": "ornithopter",
+      "level": 2,
+      "shieldwall": false,
+      "rewards": {
+        "1": [
+          {
+            "type": "influence",
+            "target": "bene_gesserit",
+            "amount": 1,
+            "times": 1
+          },
+          {
+            "type": "draw",
+            "deck": "intrigue",
+            "amount": 1
+          }
+        ],
+        "2": [
+          {
+            "type": "draw",
+            "deck": "intrigue",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 6,
+      "name": "Protect the Sietches",
+      "tag": "desert-mouse",
+      "level": 2,
+      "shieldwall": false,
+      "rewards": {
+        "1": [
+          {
+            "type": "influence",
+            "target": "fremen",
+            "amount": 1,
+            "times": 1
+          },
+          {
+            "type": "resource",
+            "resource": "water",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ],
+        "2": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 3
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 2
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 7,
+      "name": "Siege of Arrakeen",
+      "tag": "ornithopter",
+      "level": 2,
+      "shieldwall": false,
+      "rewards": {
+        "1": [
+          {
+            "type": "control",
+            "location": "arrakeen"
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 2
+          },
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 2
+          }
+        ],
+        "2": [
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 4
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 3
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 8,
+      "name": "CHOAM Security",
+      "tag": "crysknife",
+      "level": 2,
+      "shieldwall": false,
+      "rewards": {
+        "1": [
+          {
+            "type": "influence",
+            "target": "spacing_guild",
+            "amount": 1,
+            "times": 1
+          },
+          {
+            "type": "draw",
+            "deck": "contract",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ],
+        "2": [
+          {
+            "type": "resource",
+            "resource": "water",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 2
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 2
+          }
+        ],
+        "3": [
+          {
+            "type": "draw",
+            "deck": "intrigue",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 9,
+      "name": "Test of Loyalty",
+      "tag": "ornithopter",
+      "level": 2,
+      "shieldwall": false,
+      "rewards": {
+        "1": [
+          {
+            "type": "resource",
+            "resource": "spy",
+            "amount": 1
+          },
+          {
+            "type": "influence",
+            "target": "emperor",
+            "amount": 1,
+            "times": 1
+          },
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 2
+          }
+        ],
+        "2": [
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 4
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 3
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 10,
+      "name": "Spice Freights",
+      "tag": "crysknife",
+      "level": 2,
+      "shieldwall": false,
+      "rewards": {
+        "1": [
+          {
+            "type": "influence",
+            "target": "any",
+            "amount": 1,
+            "times": 1
+          },
+          {
+            "type": "conditional",
+            "cost": [
+              {
+                "type": "resource",
+                "resource": "spice",
+                "amount": 3
+              }
+            ],
+            "reward": [
+              {
+                "type": "resource",
+                "resource": "victory_point",
+                "amount": 1
+              }
+            ]
+          }
+        ],
+        "2": [
+          {
+            "type": "resource",
+            "resource": "water",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 11,
+      "name": "Secure Imperial Bassin",
+      "tag": "desert-mouse",
+      "level": 2,
+      "shieldwall": true,
+      "rewards": {
+        "1": [
+          {
+            "type": "control",
+            "location": "imperial_bassin"
+          },
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 2
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ],
+        "2": [
+          {
+            "type": "resource",
+            "resource": "water",
+            "amount": 2
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "water",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 12,
+      "name": "Trade Dispute",
+      "tag": "desert-mouse",
+      "level": 2,
+      "shieldwall": false,
+      "rewards": {
+        "1": [
+          {
+            "type": "draw",
+            "deck": "contract",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "water",
+            "amount": 1
+          },
+          {
+            "type": "trash",
+            "deck": ["hand", "played"],
+            "amount": 1
+          }
+        ],
+        "2": [
+          {
+            "type": "resource",
+            "resource": "water",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 1
+          },
+          {
+            "type": "trash",
+            "deck": ["hand", "played"],
+            "amount": 1
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "water",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 1
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 13,
+      "name": "Battle for Spice Refinery",
+      "tag": "desert-mouse",
+      "level": 3,
+      "shieldwall": true,
+      "rewards": {
+        "1": [
+          {
+            "type": "resource",
+            "resource": "victory_point",
+            "amount": 1
+          },
+          {
+            "type": "control",
+            "location": "spice_refinery"
+          },
+          {
+            "type": "conditional",
+            "cost": [
+              {
+                "type": "resource",
+                "resource": "solari",
+                "amount": 6
+              }
+            ],
+            "reward": [
+              {
+                "type": "resource",
+                "resource": "victory_point",
+                "amount": 1
+              }
+            ]
+          }
+        ],
+        "2": [
+          {
+            "type": "draw",
+            "deck": "intrigue",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 3
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 3
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 14,
+      "name": "Propaganda",
+      "tag": "unknown",
+      "level": 3,
+      "shieldwall": false,
+      "rewards": {
+        "1": [
+          {
+            "type": "influence",
+            "target": "any",
+            "amount": 1,
+            "times": 2
+          }
+        ],
+        "2": [
+          {
+            "type": "draw",
+            "deck": "intrigue",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 3
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 3
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 15,
+      "name": "Battle for Imperial Bassin",
+      "tag": "ornithopter",
+      "level": 3,
+      "shieldwall": true,
+      "rewards": {
+        "1": [
+          {
+            "type": "resource",
+            "resource": "victory_point",
+            "amount": 1
+          },
+          {
+            "type": "control",
+            "location": "imperial_bassin"
+          },
+          {
+            "type": "conditional",
+            "cost": [
+              {
+                "type": "resource",
+                "resource": "spice",
+                "amount": 4
+              }
+            ],
+            "reward": [
+              {
+                "type": "resource",
+                "resource": "victory_point",
+                "amount": 1
+              }
+            ]
+          }
+        ],
+        "2": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 5
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 3
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 16,
+      "name": "Battle for Arrakeen",
+      "tag": "crysknife",
+      "level": 3,
+      "shieldwall": true,
+      "rewards": {
+        "1": [
+          {
+            "type": "resource",
+            "resource": "victory_point",
+            "amount": 1
+          },
+          {
+            "type": "control",
+            "location": "arrakeen"
+          },
+          {
+            "type": "conditional",
+            "cost": [
+              {
+                "type": "resource",
+                "resource": "spy",
+                "amount": 2
+              }
+            ],
+            "reward": [
+              {
+                "type": "resource",
+                "resource": "victory_point",
+                "amount": 1
+              }
+            ]
+          }
+        ],
+        "2": [
+          {
+            "type": "draw",
+            "deck": "intrigue",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 1
+          },
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 3
+          }
+        ],
+        "3": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 2
+          },
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 2
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,773 @@
+[
+  {
+    "id": 1,
+    "name": "Bene Gesserit Operative",
+    "quantity": 3,
+    "cost": 3,
+    "factions": ["bene_gesserit"],
+    "agent_icons": ["bene_gesserit"],
+    "agent_effects": {
+      "base": {
+        "spy": 1
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1
+      },
+      "effect_1": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "spies_placed": {"min": 2}
+          }
+        },
+        "effects": {
+          "persuasion": 2
+        }
+      }
+    }
+  },
+  {
+    "id": 2,
+    "name": "Branching Paths",
+    "quantity": 3,
+    "cost": 3,
+    "factions": ["bene_gesserit"],
+    "agent_icons": ["bene_gesserit", "landsraad"],
+    "agent_effects": {
+      "prerequisite": {
+        "condition": {
+          "type": "cost",
+          "cost": {
+            "trash_intrigue": 1
+          }
+        },
+        "effects": {
+          "intrigue": 1,
+          "spice": 2
+        }
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 2
+      }
+    }
+  },
+  {
+    "id": 3,
+    "name": "Calculus of Power",
+    "quantity": 3,
+    "cost": 3,
+    "factions": ["emperor"],
+    "agent_icons": ["landsraad", "spy"],
+    "agent_effects": {
+      "prerequisite": {
+        "condition": {
+          "type": "cost",
+          "cost": {
+            "trash": {
+              "imperium": 1
+            }
+          }
+        },
+        "effects": {
+          "draw": {
+            "imperium": 1
+          }
+        }
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 2
+      },
+      "effect_1": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "cards_in_play": {
+              "faction": "emperor",
+              "min": 1
+            }
+          }
+        },
+        "effects": {
+          "swords": 3
+        }
+      }
+    }
+  },
+  {
+    "id": 4,
+    "name": "Captured Mentat",
+    "quantity": 2,
+    "cost": 5,
+    "factions": [],
+    "agent_icons": ["spice_trade", "fremen"],
+    "agent_effects": {
+      "prerequisite": {
+        "condition": {
+          "type": "cost",
+          "cost": {
+            "discard": {
+              "imperium": 1
+            }
+          }
+        },
+        "effects": {
+          "intrigue": 1,
+          "draw": {
+            "imperium": 1
+          }
+        }
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1
+      },
+      "effect_1": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "influence_any": {
+              "min": 1
+            }
+          }
+        },
+        "effects": {
+          "influence_choice": 1
+        }
+      }
+    }
+  },
+  {
+    "id": 5,
+    "name": "Cargo Runner",
+    "quantity": 3,
+    "cost": 3,
+    "factions": ["spacing_guild"],
+    "agent_icons": ["spice_trade", "landsraad", "fremen"],
+    "agent_effects": {
+      "effect_1": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "completed_contracts": {"min": 2}
+          }
+        },
+        "effects": {
+          "draw": {
+            "imperium": 1
+          }
+        }
+      },
+      "effect_2": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "completed_contracts": {"min": 4}
+          }
+        },
+        "effects": {
+          "draw": {
+            "imperium": 1
+          }
+        }
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1
+      }
+    }
+  },
+  {
+    "id": 6,
+    "name": "Crysknife",
+    "quantity": 2,
+    "cost": 2,
+    "factions": ["fremen"],
+    "agent_icons": ["fremen"],
+    "agent_effects": {
+      "base": {
+        "water": 1,
+        "troops": 1
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1
+      },
+      "effect_1": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "influence": {
+              "faction": "fremen",
+              "min": 2
+            }
+          }
+        },
+        "effects": {
+          "swords": 2
+        }
+      }
+    }
+  },
+  {
+    "id": 7,
+    "name": "Desert Ambush",
+    "quantity": 2,
+    "cost": 4,
+    "factions": ["fremen"],
+    "agent_icons": ["fremen"],
+    "agent_effects": {
+      "base": {
+        "troops": 2
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1,
+        "swords": 2
+      },
+      "effect_1": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "alliance": "fremen"
+          }
+        },
+        "effects": {
+          "swords": 2
+        }
+      }
+    }
+  },
+  {
+    "id": 8,
+    "name": "Dune Crawler",
+    "quantity": 2,
+    "cost": 5,
+    "factions": ["fremen"],
+    "agent_icons": ["fremen"],
+    "agent_effects": {
+      "base": {
+        "spice": 2,
+        "troops": 2
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 2
+      },
+      "effect_1": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "cards_in_play": {
+              "faction": "fremen",
+              "min": 2
+            }
+          }
+        },
+        "effects": {
+          "persuasion": 2
+        }
+      }
+    }
+  },
+  {
+    "id": 9,
+    "name": "Emperor's Blade",
+    "quantity": 2,
+    "cost": 5,
+    "factions": ["emperor"],
+    "agent_icons": ["emperor"],
+    "agent_effects": {
+      "base": {
+        "troops": 3,
+        "solari": 2
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 2,
+        "swords": 2
+      }
+    }
+  },
+  {
+    "id": 10,
+    "name": "Fedaykin",
+    "quantity": 2,
+    "cost": 6,
+    "factions": ["fremen"],
+    "agent_icons": ["fremen"],
+    "agent_effects": {
+      "base": {
+        "troops": 3
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 2,
+        "swords": 3
+      }
+    }
+  },
+  {
+    "id": 11,
+    "name": "Fremen Camp",
+    "quantity": 3,
+    "cost": 2,
+    "factions": ["fremen"],
+    "agent_icons": ["fremen"],
+    "agent_effects": {
+      "base": {
+        "water": 1,
+        "troops": 1
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1
+      }
+    }
+  },
+  {
+    "id": 12,
+    "name": "Fremen Warriors",
+    "quantity": 2,
+    "cost": 3,
+    "factions": ["fremen"],
+    "agent_icons": ["fremen"],
+    "agent_effects": {
+      "base": {
+        "troops": 2
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1,
+        "swords": 1
+      }
+    }
+  },
+  {
+    "id": 13,
+    "name": "Guild Administrator",
+    "quantity": 2,
+    "cost": 4,
+    "factions": ["spacing_guild"],
+    "agent_icons": ["spacing_guild"],
+    "agent_effects": {
+      "base": {
+        "solari": 4
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 2
+      },
+      "effect_1": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "influence": {
+              "faction": "spacing_guild",
+              "min": 2
+            }
+          }
+        },
+        "effects": {
+          "persuasion": 2
+        }
+      }
+    }
+  },
+  {
+    "id": 14,
+    "name": "Guild Banker",
+    "quantity": 2,
+    "cost": 4,
+    "factions": ["spacing_guild"],
+    "agent_icons": ["spacing_guild"],
+    "agent_effects": {
+      "base": {
+        "solari": 5
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 3
+      }
+    }
+  },
+  {
+    "id": 15,
+    "name": "Hardy Warriors",
+    "quantity": 3,
+    "cost": 1,
+    "factions": [],
+    "agent_icons": ["landsraad"],
+    "agent_effects": {
+      "base": {
+        "troops": 2
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1
+      }
+    }
+  },
+  {
+    "id": 16,
+    "name": "Imperial Spy",
+    "quantity": 2,
+    "cost": 3,
+    "factions": ["emperor"],
+    "agent_icons": ["emperor", "spy"],
+    "agent_effects": {
+      "base": {
+        "spy": 1
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1
+      },
+      "effect_1": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "influence": {
+              "faction": "emperor",
+              "min": 2
+            }
+          }
+        },
+        "effects": {
+          "intrigue": 1
+        }
+      }
+    }
+  },
+  {
+    "id": 17,
+    "name": "Kwisatz Haderach",
+    "quantity": 1,
+    "cost": 8,
+    "factions": ["bene_gesserit", "fremen"],
+    "agent_icons": ["bene_gesserit", "fremen"],
+    "agent_effects": {
+      "base": {
+        "water": 2,
+        "troops": 2,
+        "intrigue": 1
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 3,
+        "swords": 2
+      },
+      "effect_1": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "alliance": "bene_gesserit"
+          }
+        },
+        "effects": {
+          "draw": {
+            "imperium": 1
+          }
+        }
+      },
+      "effect_2": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "alliance": "fremen"
+          }
+        },
+        "effects": {
+          "troops": 2
+        }
+      }
+    }
+  },
+  {
+    "id": 18,
+    "name": "Opulent Largesse",
+    "quantity": 2,
+    "cost": 5,
+    "factions": ["emperor"],
+    "agent_icons": ["emperor"],
+    "agent_effects": {
+      "base": {
+        "solari": 6
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 3
+      }
+    }
+  },
+  {
+    "id": 19,
+    "name": "Rallying Cry",
+    "quantity": 2,
+    "cost": 2,
+    "factions": [],
+    "agent_icons": ["landsraad"],
+    "agent_effects": {
+      "base": {
+        "troops": 3
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1
+      }
+    }
+  },
+  {
+    "id": 20,
+    "name": "Sardaukar",
+    "quantity": 2,
+    "cost": 6,
+    "factions": ["emperor"],
+    "agent_icons": ["emperor"],
+    "agent_effects": {
+      "base": {
+        "troops": 4
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 2,
+        "swords": 2
+      }
+    }
+  },
+  {
+    "id": 21,
+    "name": "Scout",
+    "quantity": 3,
+    "cost": 2,
+    "factions": [],
+    "agent_icons": ["landsraad"],
+    "agent_effects": {
+      "base": {
+        "draw": {
+          "imperium": 1
+        }
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1
+      }
+    }
+  },
+  {
+    "id": 22,
+    "name": "Smuggling Contract",
+    "quantity": 2,
+    "cost": 3,
+    "factions": ["spacing_guild"],
+    "agent_icons": ["spacing_guild"],
+    "agent_effects": {
+      "base": {
+        "solari": 3,
+        "contract": 1
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 2
+      }
+    }
+  },
+  {
+    "id": 23,
+    "name": "Spice Trader",
+    "quantity": 3,
+    "cost": 2,
+    "factions": [],
+    "agent_icons": ["landsraad", "spacing_guild"],
+    "agent_effects": {
+      "base": {
+        "spice": 2
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1
+      }
+    }
+  },
+  {
+    "id": 24,
+    "name": "Stillsuits",
+    "quantity": 2,
+    "cost": 1,
+    "factions": ["fremen"],
+    "agent_icons": ["fremen"],
+    "agent_effects": {
+      "base": {
+        "water": 2
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1
+      }
+    }
+  },
+  {
+    "id": 25,
+    "name": "Thumper",
+    "quantity": 2,
+    "cost": 4,
+    "factions": ["fremen"],
+    "agent_icons": ["fremen"],
+    "agent_effects": {
+      "base": {
+        "spice": 2,
+        "water": 1
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 2
+      },
+      "effect_1": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "alliance": "fremen"
+          }
+        },
+        "effects": {
+          "sandworm": 1
+        }
+      }
+    }
+  },
+  {
+    "id": 26,
+    "name": "Treachery",
+    "quantity": 2,
+    "cost": 4,
+    "factions": [],
+    "agent_icons": ["landsraad"],
+    "agent_effects": {
+      "base": {
+        "intrigue": 2
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 2
+      }
+    }
+  },
+  {
+    "id": 27,
+    "name": "Truthsayer",
+    "quantity": 2,
+    "cost": 3,
+    "factions": ["bene_gesserit"],
+    "agent_icons": ["bene_gesserit"],
+    "agent_effects": {
+      "base": {
+        "intrigue": 1,
+        "draw": {
+          "imperium": 1
+        }
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 2
+      }
+    }
+  },
+  {
+    "id": 28,
+    "name": "Voice of Command",
+    "quantity": 2,
+    "cost": 5,
+    "factions": ["bene_gesserit"],
+    "agent_icons": ["bene_gesserit"],
+    "agent_effects": {
+      "base": {
+        "intrigue": 2,
+        "draw": {
+          "imperium": 1
+        }
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 3
+      }
+    }
+  },
+  {
+    "id": 29,
+    "name": "Waterflute",
+    "quantity": 2,
+    "cost": 1,
+    "factions": ["fremen"],
+    "agent_icons": ["fremen"],
+    "agent_effects": {
+      "base": {
+        "water": 1
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 1
+      }
+    }
+  },
+  {
+    "id": 30,
+    "name": "Worm Riders",
+    "quantity": 2,
+    "cost": 6,
+    "factions": ["fremen"],
+    "agent_icons": ["fremen"],
+    "agent_effects": {
+      "base": {
+        "spice": 3,
+        "water": 1
+      }
+    },
+    "reveal_effects": {
+      "base": {
+        "persuasion": 2
+      },
+      "effect_1": {
+        "condition": {
+          "type": "check",
+          "requirements": {
+            "alliance": "fremen"
+          }
+        },
+        "effects": {
+          "sandworm": 1
+        }
+      }
+    }
+  }
+]

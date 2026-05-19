@@ -1,0 +1,57 @@
+{
+  "signet": [
+    {
+      "id": 1,
+      "type": "choice",
+      "required": true,
+      "options": [
+        {
+          "id": "trash",
+          "cost": [{ "type": "resource", "resource": "solari", "amount": 1 }],
+          "reward": [
+            { "type": "trash", "deck": ["hand", "played"], "amount": 1 }
+          ]
+        },
+        {
+          "id": "spy",
+          "reward": [{ "type": "play", "unit": "spy", "amount": 1 }]
+        }
+      ]
+    },
+    { "id": 2, "type": "trash", "deck": ["hand", "played"], "amount": 1 },
+    {
+      "id": 3,
+      "type": "choice",
+      "required": true,
+      "options": [
+        {
+          "id": "trash",
+          "reward": [
+            { "type": "trash", "deck": ["hand", "played"], "amount": 1 }
+          ]
+        },
+        {
+          "id": "spy",
+          "reward": [{ "type": "play", "unit": "spy", "amount": 1 }]
+        }
+      ]
+    },
+    {
+      "id": 3.1,
+      "reward": [{ "type": "resource", "resource": "spice", "amount": 2 }]
+    },
+    {
+      "id": 4,
+      "repeatable": true,
+      "reward": [
+        { "type": "resource", "resource": "troop", "amount": 1 },
+        { "type": "play", "unit": "spy", "amount": 1 }
+      ]
+    }
+  ],
+  "passive": {
+    "name": "Devious Strenght",
+    "cost": [{ "type": "recall", "unit": "spy", "amount": 1 }],
+    "reward": [{ "type": "ressources", "resource": "swords", "amount": 2 }]
+  }
+}

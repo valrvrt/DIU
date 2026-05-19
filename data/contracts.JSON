@@ -1,0 +1,140 @@
+[
+  {
+    "id": 1,
+    "check": [{"type": "bought", "card": "The Spice Must Flow"}],
+    "reward": [
+      {"type": "influence", "target": "spacing_guild", "amount": 1},
+      {"type": "resource", "resource": "solari", "amount": 3}
+    ]
+  },
+  {
+    "id": 2,
+    "check": [{"type": "agent_on", "location": "Arrakeen"}],
+    "reward": [{"type": "resource", "resource": "water", "amount": 1}]
+  },
+  {
+    "id": 3,
+    "check": [{"type": "agent_on", "location": "Arrakeen"}],
+    "reward": [
+      {"type": "resource", "resource": "troop", "amount": 1},
+      {"type": "play", "unit": "spy", "amount": 1}
+    ]
+  },
+  {
+    "id": 4,
+    "check": [{"type": "agent_on", "location": "Deliver Supplies"}],
+    "reward": [{"type": "resource", "resource": "solari", "amount": 3}]
+  },
+  {
+    "id": 5,
+    "check": [{"type": "agent_on", "location": "Espionage"}],
+    "reward": [{"type": "resource", "resource": "solari", "amount": 3}]
+  },
+  {
+    "id": 6,
+    "check": [{"type": "agent_on", "location": "Espionage"}],
+    "reward": [
+      {"type": "resource", "resource": "solari", "amount": 1},
+      {"type": "accept", "deck": "contract", "amount": 1}
+    ]
+  },
+  {
+    "id": 7,
+    "check": [{"type": "harvest", "amount": 3}],
+    "reward": [{"type": "resource", "resource": "solari", "amount": 1}]
+  },
+  {
+    "id": 8,
+    "check": [{"type": "harvest", "amount": 3}],
+    "reward": [{"type": "accept", "deck": "contract", "amount": 1}]
+  },
+  {
+    "id": 9,
+    "check": [{"type": "harvest", "amount": 4}],
+    "reward": [{"type": "resource", "resource": "solari", "amount": 4}]
+  },
+  {
+    "id": 10,
+    "check": [{"type": "harvest", "amount": 4}],
+    "reward": [
+      {"type": "resource", "resource": "solari", "amount": 2},
+      {"type": "accept", "deck": "contract", "amount": 1}
+    ]
+  },
+  {
+    "id": 11,
+    "check": [{"type": "agent_on", "location": "Heighliner"}],
+    "reward": [{"type": "resource", "resource": "water", "amount": 2}]
+  },
+  {
+    "id": 12,
+    "check": [{"type": "agent_on", "location": "Heighliner"}],
+    "reward": [{"type": "resource", "resource": "troop", "amount": 2}]
+  },
+  {
+    "id": 13,
+    "check": [{"type": "agent_on", "location": "Heighliner"}],
+    "reward": [
+      {"type": "resource", "resource": "solari", "amount": 3},
+      {"type": "accept", "deck": "contract", "amount": 1}
+    ]
+  },
+  {
+    "id": 14,
+    "check": [{"type": "agent_on", "location": "High Council"}],
+    "reward": [{"type": "influence", "target": "bene_gesserit", "amount": 1}]
+  },
+  {
+    "id": 15,
+    "check": [{"type": "agent_on", "location": "High Council"}],
+    "reward": [{"type": "resource", "resource": "solari", "amount": 3}]
+  },
+  {
+    "id": 16,
+    "check": [{"type": "agent_on", "location": "High Council"}],
+    "reward": [{"type": "accept", "deck": "contract", "amount": 1}]
+  },
+  {
+    "id": 17,
+    "check": [{"type": "always"}],
+    "reward": [{"type": "resource", "resource": "solari", "amount": 2}]
+  },
+  {
+    "id": 18,
+    "check": [{"type": "agent_on", "location": "Research Station"}],
+    "reward": [
+      {"type": "resource", "resource": "solari", "amount": 2},
+      {"type": "play", "unit": "spy", "amount": 1}
+    ]
+  },
+  {
+    "id": 19,
+    "check": [{"type": "agent_on", "location": "Research Station"}],
+    "reward": [{"type": "resource", "resource": "solari", "amount": 3}]
+  },
+  {
+    "id": 20,
+    "check": [{"type": "agent_on", "location": "Sardukar"}],
+    "reward": [{"type": "draw", "deck": "deck", "amount": 2}]
+  },
+  {
+    "id": 21,
+    "check": [{"type": "agent_on", "location": "Sardukar"}],
+    "reward": [{"type": "recall", "unit": "agent", "amount": 1}]
+  },
+  {
+    "id": 22,
+    "check": [{"type": "agent_on", "location": "Secrets"}],
+    "reward": [{"type": "accept", "deck": "contract", "amount": 1}]
+  },
+  {
+    "id": 23,
+    "check": [{"type": "agent_on", "location": "Spice Refinery"}],
+    "reward": [{"type": "resource", "resource": "water", "amount": 1}]
+  },
+  {
+    "id": 24,
+    "check": [{"type": "agent_on", "location": "Spice Refinery"}],
+    "reward": [{"type": "draw", "deck": "deck", "amount": 2}]
+  }
+]

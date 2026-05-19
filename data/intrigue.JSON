@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "intrigues": [
+    {
+      "id": 1,
+      "name": "Backed by CHOAM",
+      "effects": [
+        {
+          "type": "choice",
+          "options": [
+            {
+              "id": "option1",
+              "phase": "plot",
+              "cost": [
+                {
+                  "type": "influence",
+                  "target": "any",
+                  "amount": 1
+                }
+              ],
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "solari",
+                  "amount": 4
+                }
+              ]
+            },
+            {
+              "id": "option2",
+              "phase": "combat",
+              "condition": {
+                "type": "contracts_completed",
+                "amount": 4
+              },
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "swords",
+                  "amount": 4
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": 2,
+      "name": "Buy Access",
+      "effects": [
+        {
+          "type": "action",
+          "phase": "plot",
+          "cost": [
+            {
+              "type": "resource",
+              "resource": "solari",
+              "amount": 5
+            }
+          ],
+          "reward": [
+            {
+              "type": "influence",
+              "target": "any",
+              "amount": 1,
+              "times": 2
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": 3,
+      "name": "Call to Arms",
+      "effects": [
+        {
+          "type": "conditional_reward",
+          "phase": "plot",
+          "condition": {
+            "type": "buy_imperium",
+            "target": "any"
+          },
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "troop",
+              "target": "any",
+              "amount": 1
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": 4,
+      "name": "Change Allegiances",
+      "effects": [
+        {
+          "type": "choice",
+          "phase": "plot",
+          "options": [
+            {
+              "id": "option1",
+              "cost": [
+                {
+                  "type": "influence",
+                  "target": "any",
+                  "amount": 1
+                }
+              ],
+              "reward": [
+                {
+                  "type": "influence",
+                  "target": "any",
+                  "amount": 1
+                }
+              ]
+            },
+            {
+              "id": "option2",
+              "cost": [
+                {
+                  "type": "resource",
+                  "resource": "spice",
+                  "amount": 3
+                }
+              ],
+              "reward": [
+                {
+                  "type": "influence",
+                  "target": "any",
+                  "amount": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": 5,
+      "name": "CHOAM Profits",
+      "effects": [
+        {
+          "type": "endgame_condition",
+          "condition": {
+            "type": "influence_threshold",
+            "target": "any",
+            "amount": 2
+          },
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "victory_point",
+              "amount": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
