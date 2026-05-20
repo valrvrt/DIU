@@ -13,8 +13,8 @@ from pathlib import Path
 from datetime import datetime
 
 
-def find_latest_log():
-    """Find the most recent game log file."""
+def get_all_logs():
+    """Get all game log files sorted by modification time (newest first)."""
     log_dir = Path("game_logs")
     if not log_dir.exists():
         print("Error: game_logs directory not found")
@@ -25,7 +25,67 @@ def find_latest_log():
         print("Error: No game log files found")
         sys.exit(1)
 
-    return max(log_files, key=lambda f: f.stat().st_mtime)
+    # Sort by modification time, newest first
+    return sorted(log_files, key=lambda f: f.stat().st_mtime, reverse=True)
+
+
+def find_latest_log():
+    """Find the most recent game log file."""
+    return get_all_logs()[0]
+
+
+def choose_log_interactive():
+    """Let user choose which log to view."""
+    log_files = get_all_logs()
+
+    print("=" * 80)
+    print("Available Game Logs (newest first)")
+    print("=" * 80)
+
+    for i, log_file in enumerate(log_files, 1):
+        # Get file modification time
+        mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
+        time_str = mtime.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Try to read game info
+        try:
+            with open(log_file, 'r') as f:
+                data = json.load(f)
+
+            game_id = data.get('game_id', '?')
+            event_count = data.get('total_events', len(data.get('events', [])))
+
+            # Find player count from setup event
+            player_count = '?'
+            for event in data.get('events', []):
+                if event.get('event_type') == 'game_setup':
+                    player_count = event.get('player_count', '?')
+                    break
+
+            print(f"{i:2}. [{time_str}] Game {game_id} - {player_count}P - {event_count} events")
+        except:
+            print(f"{i:2}. [{time_str}] {log_file.name}")
+
+    print("=" * 80)
+
+    while True:
+        try:
+            choice = input("\nEnter log number to view (or 'q' to quit): ").strip().lower()
+
+            if choice == 'q':
+                print("Exiting...")
+                sys.exit(0)
+
+            index = int(choice) - 1
+            if 0 <= index < len(log_files):
+                return log_files[index]
+            else:
+                print(f"Please enter a number between 1 and {len(log_files)}")
+        except ValueError:
+            print("Please enter a valid number or 'q' to quit")
+        except KeyboardInterrupt:
+            print("\nExiting...")
+            sys.exit(0)
 
 
 def format_timestamp(ts):
@@ -169,14 +229,14 @@ def display_game_log(log_file):
 def main():
     """Main entry point."""
     if len(sys.argv) > 1:
+        # File specified via command line
         log_file = Path(sys.argv[1])
         if not log_file.exists():
             print(f"Error: File not found: {log_file}")
             sys.exit(1)
     else:
-        print("No file specified, using most recent log...")
-        log_file = find_latest_log()
-        print(f"Reading: {log_file}")
+        # No file specified - show interactive chooser
+        log_file = choose_log_interactive()
         print()
 
     display_game_log(log_file)
