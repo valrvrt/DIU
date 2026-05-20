@@ -385,16 +385,35 @@ class GameLoop:
             else:
                 # Bot turn
                 print(f"\n🤖 {current_player.name} (BOT) is thinking...")
-                time.sleep(0.5)
                 result = self.bot.take_turn(current_player.player_id, self.game)
 
                 if result.get("success"):
                     action_type = result.get("action", result.get("action_type", "unknown"))
-                    print(f"   ✓ {current_player.name} performed: {action_type}")
+
+                    # Show detailed info based on action type
+                    if action_type == "place_agent":
+                        card_name = result.get("card", "?")
+                        location_name = result.get("location", "?")
+                        print(f"   ✓ {current_player.name} placed agent: {card_name} → {location_name}")
+
+                        # Show what they gained (check player state changes)
+                        player = self.game.get_player(current_player.player_id)
+                        gains = []
+                        if player.fremen_influence > 0 or player.bene_gesserit_influence > 0 or player.spacing_guild_influence > 0 or player.emperor_influence > 0:
+                            gains.append(f"Influence: F{player.fremen_influence} B{player.bene_gesserit_influence} S{player.spacing_guild_influence} E{player.emperor_influence}")
+                        if player.solari > 0:
+                            gains.append(f"{player.solari} solari")
+                        if player.spice > 0:
+                            gains.append(f"{player.spice} spice")
+                        if gains:
+                            print(f"      Gained: {', '.join(gains)}")
+                    elif action_type == "reveal":
+                        persuasion = result.get("total_persuasion", 0)
+                        print(f"   ✓ {current_player.name} revealed (persuasion: {persuasion})")
+                    else:
+                        print(f"   ✓ {current_player.name} performed: {action_type}")
                 else:
                     print(f"   ✗ Action failed: {result.get('error', 'Unknown error')}")
-
-                time.sleep(0.5)
 
             # Advance turn if appropriate
             if not phase_manager.should_advance_phase():
