@@ -319,7 +319,8 @@ class PhaseManager:
                 self.game.board.current_conflict = new_conflict
 
             # Draw starting hand (5 cards) for each player
-            if self.deck_manager:
+            # BUT: Skip on round 1, players already have starting hand from setup
+            if self.deck_manager and self.game.current_round > 1:
                 for player in self.game.players:
                     self.deck_manager.draw_starting_hand(player.player_id)
 

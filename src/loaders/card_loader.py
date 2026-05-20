@@ -105,7 +105,7 @@ def load_intrigue_cards() -> List[IntrigueCard]:
 
 def load_conflict_cards() -> List[ConflictCard]:
     """Load all Conflict cards."""
-    file_path = _get_data_path("conflict_cards.json")
+    file_path = _get_data_path("conflicts.JSON")
 
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -113,16 +113,16 @@ def load_conflict_cards() -> List[ConflictCard]:
     cards = []
     for card_data in data['conflicts']:
         card = ConflictCard(
-            id=card_data['id'],
+            id=str(card_data['id']),
             name=card_data['name'],
             card_type=CardType.CONFLICT,
-            type=card_data['type'],
+            type=card_data.get('type', 'conflict'),  # Default type for conflicts
             level=card_data.get('level', 1),  # Conflict level (1, 2, or 3)
             tag=card_data.get('tag', ''),  # Tag for objectives
             rewards=card_data.get('rewards', {}),  # Dict mapping rank to effects
             location=card_data.get('location'),
             battle_icon=card_data.get('battle_icon'),
-            wall=card_data.get('has_shield', False)
+            wall=card_data.get('shieldwall', False)  # Fixed: use 'shieldwall' key
         )
         cards.append(card)
 

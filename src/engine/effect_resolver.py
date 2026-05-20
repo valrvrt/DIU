@@ -64,6 +64,14 @@ class EffectResolver:
             # Complex effects
             "choice": self._handle_choice,
             "conditional": self._handle_conditional,
+
+            # Shorthand effect types (delegate to resource handler)
+            "persuasion": self._handle_persuasion_shorthand,
+            "sword": self._handle_sword_shorthand,
+            "solari": self._handle_solari_shorthand,
+            "spice": self._handle_spice_shorthand,
+            "water": self._handle_water_shorthand,
+            "troop": self._handle_troop_shorthand,
         }
 
     # ==================== MAIN RESOLUTION ENTRY POINT ====================
@@ -199,7 +207,7 @@ class EffectResolver:
         elif resource == "troop" or resource == "troops":  # Handle both singular and plural
             # Add troops to garrison
             player.troops_in_garrison += total_amount
-        elif resource == "sword":
+        elif resource == "sword" or resource == "swords":  # Handle both singular and plural
             # Temporary combat resource
             if not hasattr(player, "temp_swords"):
                 player.temp_swords = 0
@@ -1052,3 +1060,83 @@ class EffectResolver:
                 "success": False,
                 "error": f"Unknown choice type: {choice_type}"
             }
+
+    # ==================== SHORTHAND EFFECT HANDLERS ====================
+
+    def _handle_persuasion_shorthand(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Handle shorthand: {"type": "persuasion", "amount": 2}"""
+        return self._handle_resource(
+            player_id,
+            {"type": "resource", "resource": "persuasion", "amount": effect.get("amount", 0)},
+            context
+        )
+
+    def _handle_sword_shorthand(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Handle shorthand: {"type": "sword", "amount": 1}"""
+        return self._handle_resource(
+            player_id,
+            {"type": "resource", "resource": "sword", "amount": effect.get("amount", 0)},
+            context
+        )
+
+    def _handle_solari_shorthand(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Handle shorthand: {"type": "solari", "amount": 2}"""
+        return self._handle_resource(
+            player_id,
+            {"type": "resource", "resource": "solari", "amount": effect.get("amount", 0)},
+            context
+        )
+
+    def _handle_spice_shorthand(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Handle shorthand: {"type": "spice", "amount": 2}"""
+        return self._handle_resource(
+            player_id,
+            {"type": "resource", "resource": "spice", "amount": effect.get("amount", 0)},
+            context
+        )
+
+    def _handle_water_shorthand(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Handle shorthand: {"type": "water", "amount": 1}"""
+        return self._handle_resource(
+            player_id,
+            {"type": "resource", "resource": "water", "amount": effect.get("amount", 0)},
+            context
+        )
+
+    def _handle_troop_shorthand(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Handle shorthand: {"type": "troop", "amount": 2}"""
+        return self._handle_resource(
+            player_id,
+            {"type": "resource", "resource": "troop", "amount": effect.get("amount", 0)},
+            context
+        )
