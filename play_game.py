@@ -457,6 +457,22 @@ class GameLoop:
         print(f"\n⚙️  AGENTS: {player.agents_available}/{player.total_available_agents} available")
         print(f"💰 RESOURCES: Solari:{player.solari} Spice:{player.spice} Water:{player.water} Troops:{player.troops_in_garrison}")
 
+        # Calculate reveal preview
+        total_persuasion = sum(
+            eff.get("amount", 0)
+            for card in player.hand.cards
+            for eff in (card.reveal_effects if hasattr(card, 'reveal_effects') and isinstance(card.reveal_effects, list) else [])
+            if eff.get("type") == "resource" and eff.get("resource") == "persuasion"
+        )
+        total_swords = sum(
+            eff.get("amount", 0)
+            for card in player.hand.cards
+            for eff in (card.reveal_effects if hasattr(card, 'reveal_effects') and isinstance(card.reveal_effects, list) else [])
+            if eff.get("type") == "resource" and eff.get("resource") == "sword"
+        )
+
+        print(f"\n📊 REVEAL PREVIEW: {total_persuasion} persuasion, {total_swords} swords")
+
         print("\nOptions:")
         print("  [1-5] - Play card number")
         print("  [R]   - Reveal hand and end agent phase")
@@ -513,35 +529,52 @@ class GameLoop:
                     if 0 <= loc_idx < len(locations):
                         location, placement_type = locations[loc_idx]
 
+                        # Ask about troop deployment if combat space
+                        troops_to_deploy = 0
+                        if location.is_combat_space and player.troops_in_garrison > 0:
+                            print(f"\n⚔️  Combat space! Deploy troops? (You have {player.troops_in_garrison} in garrison)")
+                            troop_input = input(f"Deploy how many? (0-{min(player.troops_in_garrison, 2)}): ").strip()
+                            try:
+                                troops_to_deploy = int(troop_input)
+                                if troops_to_deploy < 0 or troops_to_deploy > min(player.troops_in_garrison, 2):
+                                    print("Invalid amount, deploying 0")
+                                    troops_to_deploy = 0
+                            except ValueError:
+                                troops_to_deploy = 0
+
                         action = PlaceAgentAction(
                             player_id=player_id,
                             card=card,
                             location=location,
                             placement_type=placement_type,
-                            troops_to_deploy=0
+                            troops_to_deploy=troops_to_deploy
                         )
                         result = action_exec.execute_place_agent(action)
 
                         if result.get("success"):
                             print(f"\n✓ Placed agent at {location.name}!")
 
-                            # Show what you gained
-                            effects = result.get("effects_applied", [])
-                            if effects:
-                                print("  Effects:")
-                                for eff in effects:
-                                    if eff.get("type") == "resource":
-                                        print(f"    → +{eff.get('amount', 0)} {eff.get('resource', '?')}")
-                                    elif eff.get("type") == "influence":
+                            # Show what you gained from location
+                            location_effects = result.get("location_effects")
+                            if location_effects and location_effects.get("applied"):
+                                print("  Location rewards:")
+                                for eff in location_effects["applied"]:
+                                    eff_type = eff.get("type")
+                                    if eff_type == "resource":
+                                        res = eff.get("resource", "?")
+                                        amt = eff.get("amount", 0)
+                                        print(f"    → +{amt} {res}")
+                                    elif eff_type == "influence":
                                         target = eff.get("target", "?")
                                         amt = eff.get("amount", 0)
-                                        print(f"    → +{amt} {target} influence")
-                                    elif eff.get("type") == "draw":
+                                        curr = eff.get("new_value", "?")
+                                        print(f"    → +{amt} {target} influence (now {curr})")
+                                    elif eff_type == "draw":
                                         deck = eff.get("deck", "?")
                                         amt = eff.get("amount", 0)
                                         print(f"    → Drew {amt} card(s) from {deck}")
                                     else:
-                                        print(f"    → {eff.get('type', '?')}")
+                                        print(f"    → {eff_type}")
                         else:
                             print(f"\n✗ Failed: {result.get('error', 'Unknown error')}")
                     else:

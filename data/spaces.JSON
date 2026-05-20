@@ -467,5 +467,16 @@
       { "type": "draw", "deck": "deck", "amount": 1 },
       { "type": "accept", "deck": "contract", "amount": 1 }
     ]
+  },
+  {
+    "id": 22,
+    "name": "Arrakeen",
+    "agent_icon": "blue",
+    "combat_space": true,
+    "critical": true,
+    "reward": [
+      { "type": "draw", "deck": "deck", "amount": 1 },
+      { "type": "resource", "resource": "troop", "amount": 1 }
+    ]
   }
 ]
