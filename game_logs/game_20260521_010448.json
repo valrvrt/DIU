@@ -481,6 +481,215 @@
         "success": true
       },
       "timestamp": "2026-05-21T01:07:55.558946"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "acquire_card",
+      "options": [
+        "pass"
+      ],
+      "chosen": "pass",
+      "reasoning": "No affordable cards or random choice to pass",
+      "timestamp": "2026-05-21T01:12:37.654653"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "place_agent",
+      "options": [
+        "Dune, the Desert Planet -> Haga Bassin",
+        "Dune, the Desert Planet -> Imperial Bassin",
+        "Dune, the Desert Planet -> Accept Contract"
+      ],
+      "chosen": "Dune, the Desert Planet -> Haga Bassin",
+      "reasoning": "Random selection from 3 valid placements",
+      "timestamp": "2026-05-21T01:12:37.659467"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Dune, the Desert Planet",
+        "location": "Haga Bassin",
+        "placement_type": "yellow",
+        "success": true
+      },
+      "timestamp": "2026-05-21T01:12:37.660725"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "decision_type": "place_agent",
+      "options": [
+        "Diplomacy -> Fremkit",
+        "Diplomacy -> Desert Tactics",
+        "Diplomacy -> Secrets",
+        "Diplomacy -> Espionage",
+        "Diplomacy -> Dutiful Service"
+      ],
+      "chosen": "Diplomacy -> Dutiful Service",
+      "reasoning": "Random selection from 5 valid placements",
+      "timestamp": "2026-05-21T01:12:37.662351"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Diplomacy",
+        "location": "Dutiful Service",
+        "placement_type": "emperor",
+        "success": true
+      },
+      "timestamp": "2026-05-21T01:12:37.663674"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "acquire_card",
+      "options": [
+        "pass"
+      ],
+      "chosen": "pass",
+      "reasoning": "No affordable cards or random choice to pass",
+      "timestamp": "2026-05-21T01:12:45.754010"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-21T01:12:45.756578"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 3,
+        "cards_revealed": 3
+      },
+      "timestamp": "2026-05-21T01:12:45.758364"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-21T01:12:45.759910"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 3
+      },
+      "timestamp": "2026-05-21T01:12:45.761311"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 2,
+      "timestamp": "2026-05-21T01:12:45.762761"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 2,
+      "timestamp": "2026-05-21T01:12:46.269335"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 2,
+      "timestamp": "2026-05-21T01:12:46.778820"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 3,
+      "timestamp": "2026-05-21T01:12:47.287095"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 3,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "dd",
+          "vp": 1,
+          "resources": {
+            "solari": 2,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 2
+          }
+        },
+        {
+          "player_id": "p3",
+          "name": "Bot 3",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 1,
+            "water": 2
+          }
+        }
+      ],
+      "timestamp": "2026-05-21T01:12:47.290931"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 3,
+      "timestamp": "2026-05-21T01:12:47.797872"
     }
   ]
 }
