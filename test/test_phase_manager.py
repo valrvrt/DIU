@@ -158,19 +158,19 @@ def test_phase_loops_after_recall():
 
 
 def test_game_over_when_vp_threshold():
-    """Test that game ends when player reaches 10 VP."""
+    """Test that game ends when player reaches 10 VP at end of RECALL phase."""
     print("\n=== Test: Game Over at VP Threshold ===")
 
     game, player1, player2 = setup_test_game()
     phase_manager = PhaseManager(game)
 
-    # Give player1 10 VP
+    # Give player1 10 VP and set to RECALL phase
     player1.victory_points = 10
+    game.current_phase = GamePhase.RECALL
 
-    assert phase_manager._is_game_over() == True, "Game should be over at 10 VP"
+    assert phase_manager._is_game_over() == True, "Game should be over at 10 VP in RECALL phase"
 
     # Check that next phase is GAME_OVER
-    game.current_phase = GamePhase.RECALL
     next_phase = phase_manager._get_next_phase(GamePhase.RECALL)
     assert next_phase == GamePhase.GAME_OVER, f"Expected GAME_OVER, got {next_phase}"
 

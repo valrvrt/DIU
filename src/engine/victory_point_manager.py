@@ -1,5 +1,5 @@
 """
-Victory Point Manager - Calculates and updates victory points from various sources.
+Victory Point Manager - Calculate and update victory points from various sources.
 
 Responsibilities:
 - Calculate VP from conflict/objective tag pairs
@@ -9,24 +9,11 @@ Responsibilities:
 
 from typing import Dict, Any
 from ..models.game import Game
-from .game_state import GameState
+from ..engine.game_state import GameState
 
 
 class VictoryPointManager:
-    """
-    Manages victory point calculations from tag pairs.
-
-    Tag Pair Rules:
-    - Each PAIR of same-tag cards = 1 VP
-    - Sources: conflict_cards_won + objectives
-    - Tags: "crysknife", "desert-mouse", "ornithopter"
-
-    Examples:
-    - 2 crysknife = 1 pair = 1 VP
-    - 4 crysknife = 2 pairs = 2 VP
-    - 1 crysknife + 1 desert-mouse = 0 pairs = 0 VP
-    - 3 crysknife + 1 objective(crysknife) = 4 total = 2 pairs = 2 VP
-    """
+    """Calculate and update victory points from various sources."""
 
     def __init__(self, game: Game):
         self.game = game
@@ -35,6 +22,17 @@ class VictoryPointManager:
     def calculate_conflict_tag_pairs_vp(self, player_id: str) -> int:
         """
         Calculate VP from matching conflict/objective tags.
+
+        Rules:
+        - Each PAIR of same-tag cards = 1 VP
+        - Sources: conflict_cards_won + objectives
+        - Tags: "crysknife", "desert-mouse", "ornithopter"
+
+        Examples:
+        - 2 crysknife = 1 pair = 1 VP
+        - 4 crysknife = 2 pairs = 2 VP
+        - 1 crysknife + 1 desert-mouse = 0 pairs = 0 VP
+        - 3 crysknife + 1 objective(crysknife) = 4 total = 2 pairs = 2 VP
 
         Returns:
             Total VP from tag pairs
@@ -50,14 +48,14 @@ class VictoryPointManager:
         if hasattr(player, 'conflict_cards_won'):
             for conflict in player.conflict_cards_won:
                 tag = getattr(conflict, 'tag', None)
-                if tag:
+                if tag and tag != "":
                     tag_counts[tag] = tag_counts.get(tag, 0) + 1
 
         # Count from objectives
         if hasattr(player, 'objectives'):
             for objective in player.objectives:
                 tag = getattr(objective, 'tag', None)
-                if tag:
+                if tag and tag != "":
                     tag_counts[tag] = tag_counts.get(tag, 0) + 1
 
         # Calculate pairs (floor division by 2)
@@ -75,30 +73,27 @@ class VictoryPointManager:
 
         Returns:
             {
-                "old_vp": int,
-                "new_vp": int,
+                "success": bool,
                 "tag_vp": int,
-                "vp_gained": int
+                "vp_gained": int  # Difference from previous
             }
         """
         player = self.state.get_player_by_id(player_id)
         if not player:
-            return {"error": "Player not found"}
+            return {"success": False, "error": "Player not found"}
 
         # Calculate VP from tags
         tag_vp = self.calculate_conflict_tag_pairs_vp(player_id)
 
-        # Store or update tag VP (need to track separately to avoid double-counting)
+        # Store or update tag VP (track separately to avoid double-counting)
         old_tag_vp = getattr(player, 'tag_pair_vp', 0)
         vp_diff = tag_vp - old_tag_vp
 
-        old_total_vp = player.victory_points
         player.victory_points += vp_diff
         player.tag_pair_vp = tag_vp  # Track for future updates
 
         return {
-            "old_vp": old_total_vp,
-            "new_vp": player.victory_points,
+            "success": True,
             "tag_vp": tag_vp,
             "vp_gained": vp_diff
         }
@@ -136,32 +131,3 @@ class VictoryPointManager:
             "tag_pairs": tag_vp,
             "other": max(0, other_vp)
         }
-
-    def get_tag_count_breakdown(self, player_id: str) -> Dict[str, int]:
-        """
-        Get detailed breakdown of tag counts.
-
-        Returns:
-            Dict of tag -> count
-        """
-        player = self.state.get_player_by_id(player_id)
-        if not player:
-            return {}
-
-        tag_counts = {}
-
-        # Count from won conflicts
-        if hasattr(player, 'conflict_cards_won'):
-            for conflict in player.conflict_cards_won:
-                tag = getattr(conflict, 'tag', None)
-                if tag:
-                    tag_counts[tag] = tag_counts.get(tag, 0) + 1
-
-        # Count from objectives
-        if hasattr(player, 'objectives'):
-            for objective in player.objectives:
-                tag = getattr(objective, 'tag', None)
-                if tag:
-                    tag_counts[tag] = tag_counts.get(tag, 0) + 1
-
-        return tag_counts

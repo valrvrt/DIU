@@ -152,6 +152,45 @@ class ActionExecutor:
         # Track pending choices (for multi-step resolution)
         self.pending_choices: Dict[str, Dict[str, Any]] = {}
 
+    def _normalize_effects(self, effects: Any) -> List[Dict[str, Any]]:
+        """
+        Normalize effects from various formats to standard effect list.
+
+        Handles:
+        1. List format: [{"type": "resource", "resource": "persuasion", "amount": 2}]
+        2. Dict with "base": {"base": {"persuasion": 2}} or {"base": [...]}
+        3. Simplified dict: {"persuasion": 2, "swords": 1}
+
+        Returns:
+            List of effect dicts in standard format
+        """
+        # Already a list
+        if isinstance(effects, list):
+            return effects
+
+        # Dict format
+        if isinstance(effects, dict):
+            # Check for "base" key
+            if "base" in effects:
+                base_effects = effects["base"]
+                # Recursively normalize the base
+                return self._normalize_effects(base_effects)
+
+            # Simplified format: {"persuasion": 2, "swords": 1}
+            # Convert to effect list
+            normalized = []
+            for resource, amount in effects.items():
+                if isinstance(amount, int):  # Safety check
+                    normalized.append({
+                        "type": "resource",
+                        "resource": resource,
+                        "amount": amount
+                    })
+            return normalized
+
+        # Unknown format, return empty list
+        return []
+
     # ==================== AGENT TURN ACTIONS ====================
 
     def execute_place_agent(self, action: PlaceAgentAction) -> Dict[str, Any]:
@@ -234,13 +273,17 @@ class ActionExecutor:
         # Most cards have agent effects that trigger when played
         card_agent_results = None
         if hasattr(action.card, 'agent_effects') and action.card.agent_effects:
-            card_agent_results = self.effect_resolver.resolve_effects(
-                action.player_id,
-                action.card.agent_effects,
-                context={"phase": "agent", "card": action.card.name}
-            )
-            if not card_agent_results["success"]:
-                return card_agent_results
+            # Normalize agent_effects to standard format
+            effects_to_resolve = self._normalize_effects(action.card.agent_effects)
+
+            if effects_to_resolve and len(effects_to_resolve) > 0:
+                card_agent_results = self.effect_resolver.resolve_effects(
+                    action.player_id,
+                    effects_to_resolve,
+                    context={"phase": "agent", "card": action.card.name}
+                )
+                if not card_agent_results["success"]:
+                    return card_agent_results
 
         # Step 8: Resolve location effects (using EffectResolver with JSON data)
         location_results = None
@@ -412,23 +455,30 @@ class ActionExecutor:
 
         for card in unplayed_cards:
             if hasattr(card, 'reveal_effects') and card.reveal_effects:
-                result = self.effect_resolver.resolve_effects(
-                    action.player_id,
-                    card.reveal_effects,
-                    context={"phase": "reveal", "card": card.name}
-                )
+                # reveal_effects can be:
+                # 1. List: [{"type": "resource", "resource": "persuasion", "amount": 2}]
+                # 2. Dict with "base": {"base": {"persuasion": 2}} or {"base": [...]}
+                # 3. Simplified dict: {"persuasion": 2, "swords": 1}
+                effects_to_resolve = self._normalize_effects(card.reveal_effects)
 
-                if not result["success"]:
-                    return result
+                if effects_to_resolve and len(effects_to_resolve) > 0:
+                    result = self.effect_resolver.resolve_effects(
+                        action.player_id,
+                        effects_to_resolve,
+                        context={"phase": "reveal", "card": card.name}
+                    )
 
-                reveal_results.append({
-                    "card": card.name,
-                    "result": result
-                })
+                    if not result["success"]:
+                        return result
 
-                # Track all effects applied
-                all_effects_applied.extend(result.get("effects_applied", []))
-                all_choices_required.extend(result.get("choices_required", []))
+                    reveal_results.append({
+                        "card": card.name,
+                        "result": result
+                    })
+
+                    # Track all effects applied
+                    all_effects_applied.extend(result.get("effects_applied", []))
+                    all_choices_required.extend(result.get("choices_required", []))
 
         # Step 5: Move hand cards to played_cards_this_turn
         # All remaining hand cards are now revealed (they join the played cards)

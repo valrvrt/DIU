@@ -34,9 +34,10 @@ class EffectResolver:
     - Parameters specific to that type (resource, target, amount, etc.)
     """
 
-    def __init__(self, game: Game):
+    def __init__(self, game: Game, influence_manager=None):
         self.game = game
         self.state = GameState(game)
+        self.influence_manager = influence_manager  # Optional InfluenceManager for VP bonuses
 
         # Registry of effect type handlers
         self.handlers: Dict[str, Callable] = {
@@ -109,6 +110,10 @@ class EffectResolver:
         choices_required = []
 
         for effect in effects:
+            # Skip if effect is not a dict (malformed data)
+            if not isinstance(effect, dict):
+                continue
+
             effect_type = effect.get("type")
 
             if not effect_type:
@@ -191,7 +196,7 @@ class EffectResolver:
             player.spice += total_amount
         elif resource == "water":
             player.water += total_amount
-        elif resource == "troop":
+        elif resource == "troop" or resource == "troops":  # Handle both singular and plural
             # Add troops to garrison
             player.troops_in_garrison += total_amount
         elif resource == "sword":
@@ -587,28 +592,46 @@ class EffectResolver:
             }
 
         # Apply to specific faction
-        if target == "fremen":
-            player.fremen_influence += total_influence
-        elif target == "bene_gesserit":
-            player.bene_gesserit_influence += total_influence
-        elif target == "spacing_guild":
-            player.spacing_guild_influence += total_influence
-        elif target == "emperor":
-            player.emperor_influence += total_influence
-        else:
-            return {
-                "success": False,
-                "error": f"Unknown faction target: {target}"
-            }
+        # Use InfluenceManager if available (handles VP bonuses and alliances)
+        if self.influence_manager:
+            result = self.influence_manager.add_influence(player_id, target, total_influence)
+            if not result.get("success"):
+                return result
 
-        return {
-            "success": True,
-            "applied": {
-                "type": "influence",
-                "target": target,
-                "amount": total_influence
+            return {
+                "success": True,
+                "applied": {
+                    "type": "influence",
+                    "target": target,
+                    "amount": total_influence,
+                    "vp_gained": result.get("vp_gained", 0),
+                    "alliance_gained": result.get("alliance_gained", False)
+                }
             }
-        }
+        else:
+            # Fallback: direct influence addition (backward compatibility)
+            if target == "fremen":
+                player.fremen_influence += total_influence
+            elif target == "bene_gesserit":
+                player.bene_gesserit_influence += total_influence
+            elif target == "spacing_guild":
+                player.spacing_guild_influence += total_influence
+            elif target == "emperor":
+                player.emperor_influence += total_influence
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown faction target: {target}"
+                }
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "influence",
+                    "target": target,
+                    "amount": total_influence
+                }
+            }
 
     def _handle_control(
         self,

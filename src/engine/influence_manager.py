@@ -1,30 +1,20 @@
 """
-Influence Manager - Manages influence tracks, alliances, and influence-based VP.
+Influence Manager - Handle influence tracks, alliances, and influence-based VP.
 
 Responsibilities:
 - Add influence to faction tracks
-- Award +1 VP when reaching 2 influence
+- Award +1 VP when reaching 2 influence on a track
 - Manage alliances (4+ influence AND more than all other players)
-- Track alliance status changes
+- Track alliance bonuses
 """
 
 from typing import Dict, Any, List, Tuple
 from ..models.game import Game
-from .game_state import GameState
+from ..engine.game_state import GameState
 
 
 class InfluenceManager:
-    """
-    Manages influence tracks and alliances.
-
-    VP Rules:
-    - 2 influence on a track = +1 VP (one-time bonus)
-
-    Alliance Rules:
-    - 4+ influence AND more than all other players = Alliance
-    - Only one player can have alliance per faction
-    - Alliances provide ongoing bonuses (faction-specific)
-    """
+    """Manage influence tracks, alliances, and influence-based VP."""
 
     def __init__(self, game: Game):
         self.game = game
@@ -43,7 +33,6 @@ class InfluenceManager:
             {
                 "success": bool,
                 "faction": str,
-                "old_influence": int,
                 "new_influence": int,
                 "vp_gained": int,  # From reaching 2 threshold
                 "alliance_gained": bool,
@@ -54,21 +43,13 @@ class InfluenceManager:
         if not player:
             return {"success": False, "error": "Player not found"}
 
-        # Validate faction
-        valid_factions = ["fremen", "bene_gesserit", "spacing_guild", "emperor"]
-        if faction not in valid_factions:
-            return {
-                "success": False,
-                "error": f"Invalid faction: {faction}. Must be one of {valid_factions}"
-            }
-
         track_attr = f"{faction}_influence"
         old_influence = getattr(player, track_attr, 0)
         new_influence = old_influence + amount
 
         setattr(player, track_attr, new_influence)
 
-        # Check for 2-influence VP bonus
+        # Check for 2-influence VP bonus (only awarded once when crossing threshold)
         vp_gained = 0
         if old_influence < 2 <= new_influence:
             player.victory_points += 1
@@ -84,7 +65,6 @@ class InfluenceManager:
         return {
             "success": True,
             "faction": faction,
-            "old_influence": old_influence,
             "new_influence": new_influence,
             "vp_gained": vp_gained,
             "alliance_gained": alliance_gained,
@@ -99,6 +79,9 @@ class InfluenceManager:
             (alliance_gained: bool, players_who_lost: List[str])
         """
         player = self.state.get_player_by_id(player_id)
+        if not player:
+            return False, []
+
         track_attr = f"{faction}_influence"
         alliance_attr = f"{faction}_alliance"
 
@@ -150,12 +133,12 @@ class InfluenceManager:
         alliance_attr = f"{faction}_alliance"
         has_alliance = getattr(player, alliance_attr, False)
 
-        # Faction-specific bonuses (can be loaded from JSON later)
+        # Alliance bonuses by faction
         bonuses = {
-            "fremen": {"troop_strength": 1},  # +1 troop strength in combat
-            "bene_gesserit": {"draw_intrigue": 1},  # Draw +1 intrigue
+            "fremen": {"combat_strength": 1},  # +1 combat strength
+            "bene_gesserit": {"intrigue_draw": 1},  # Draw +1 intrigue at round start
             "spacing_guild": {"solari_per_turn": 1},  # +1 solari each turn
-            "emperor": {"influence_cost": -1}  # -1 cost for influence effects
+            "emperor": {"influence_discount": 1}  # -1 to influence costs
         }
 
         return {
@@ -163,21 +146,20 @@ class InfluenceManager:
             "bonus": bonuses.get(faction, {}) if has_alliance else {}
         }
 
-    def get_all_alliances(self, player_id: str) -> List[str]:
+    def check_all_alliances(self, player_id: str) -> Dict[str, bool]:
         """
-        Get all factions where player has alliance.
+        Check which alliances a player currently has.
 
         Returns:
-            List of faction names
+            Dict mapping faction name to alliance status
         """
         player = self.state.get_player_by_id(player_id)
         if not player:
-            return []
+            return {}
 
-        alliances = []
+        alliances = {}
         for faction in ["fremen", "bene_gesserit", "spacing_guild", "emperor"]:
             alliance_attr = f"{faction}_alliance"
-            if getattr(player, alliance_attr, False):
-                alliances.append(faction)
+            alliances[faction] = getattr(player, alliance_attr, False)
 
         return alliances

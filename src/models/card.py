@@ -60,7 +60,7 @@ class ConflictCard(Card):
     id: str = ""
     level: int = 1  # Conflict level (1, 2, or 3)
     tag: str = ""  # Tag for objective matching ("crysknife", "desert-mouse", "ornithopter")
-    rewards: list[dict[str, int]] = field(default_factory=list)
+    rewards: dict = field(default_factory=dict)  # Dict mapping rank ("1", "2", "3") to effects list
     location: Optional[str] = None
     battle_icon: Optional[str] = None
     wall: bool = False

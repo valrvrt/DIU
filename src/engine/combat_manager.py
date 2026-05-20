@@ -30,7 +30,7 @@ class CombatManager:
     5. Cleanup (troops to reserve, winner gets conflict card)
     """
 
-    def __init__(self, game: Game, effect_resolver: 'EffectResolver' = None):
+    def __init__(self, game: Game, effect_resolver: 'EffectResolver' = None, victory_point_manager=None):
         self.game = game
         self.state = GameState(game)
 
@@ -40,6 +40,9 @@ class CombatManager:
         else:
             from .effect_resolver import EffectResolver
             self.effect_resolver = EffectResolver(game)
+
+        # Optional VictoryPointManager for tag pair VP updates
+        self.victory_point_manager = victory_point_manager
 
     # ==================== COMBAT RESOLUTION ====================
 
@@ -90,6 +93,10 @@ class CombatManager:
                     player = self.state.get_player_by_id(player_id)
                     if player:
                         player.conflict_cards_won.append(conflict)
+
+                        # Update tag pair VP if VictoryPointManager is available
+                        if self.victory_point_manager:
+                            self.victory_point_manager.update_player_vp_from_tags(player_id)
             # If tied for 1st (rankings[1] has multiple players), no one gets the card
 
 

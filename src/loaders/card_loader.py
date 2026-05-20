@@ -119,7 +119,7 @@ def load_conflict_cards() -> List[ConflictCard]:
             type=card_data['type'],
             level=card_data.get('level', 1),  # Conflict level (1, 2, or 3)
             tag=card_data.get('tag', ''),  # Tag for objectives
-            rewards=card_data.get('rewards', []),
+            rewards=card_data.get('rewards', {}),  # Dict mapping rank to effects
             location=card_data.get('location'),
             battle_icon=card_data.get('battle_icon'),
             wall=card_data.get('has_shield', False)

@@ -428,6 +428,7 @@ class PhaseManager:
         Game ends at END OF RECALL phase if:
         1. Any player has 10+ VP
         2. Round 10 has been completed
+        3. Conflict deck is empty
         """
         # Only check at end of RECALL phase
         if self.game.current_phase != GamePhase.RECALL:
@@ -440,6 +441,10 @@ class PhaseManager:
 
         # Check round limit (game ends after round 10)
         if self.game.current_round >= 10:
+            return True
+
+        # Check if conflict deck is empty
+        if len(self.game.board.conflict_deck) == 0:
             return True
 
         return False

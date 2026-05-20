@@ -126,13 +126,14 @@ def test_reveal_calculates_persuasion():
     result = action_exec.execute_place_agent(action)
     assert result["success"] == True
 
-    # Reveal (1 played + 4 in hand = 5 cards × 2 persuasion = 10 total)
+    # Reveal (4 cards still in hand × 2 persuasion = 8 total)
+    # Note: The 1 played card does NOT get reveal effects (only agent effects)
     reveal_action = RevealAction(player_id="player1")
     result = action_exec.execute_reveal(reveal_action)
 
     assert result["success"] == True
-    assert result["total_persuasion"] == 10
-    assert player.temp_persuasion == 10
+    assert result["total_persuasion"] == 8  # Only unplayed cards get reveal effects
+    assert player.temp_persuasion == 8
     assert player.has_revealed_this_round == True
 
     print("✓ Reveal calculates persuasion correctly")
@@ -424,11 +425,12 @@ def test_complete_reveal_acquire_flow():
     assert result["success"] == True
     assert len(player.played_cards_this_turn) == 1
 
-    # 3. Reveal (5 cards × 2 persuasion = 10)
+    # 3. Reveal (4 cards still in hand × 2 persuasion = 8)
+    # Note: The 1 played card does NOT get reveal effects
     reveal_action = RevealAction(player_id="player1")
     result = action_exec.execute_reveal(reveal_action)
     assert result["success"] == True
-    assert player.temp_persuasion == 10
+    assert player.temp_persuasion == 8
     assert len(player.played_cards_this_turn) == 5  # All cards now tracked
 
     # 4. Acquire card (cost 5)
@@ -436,7 +438,7 @@ def test_complete_reveal_acquire_flow():
     acquire_action = AcquireCardAction(player_id="player1", card=card_to_acquire, source="row")
     result = action_exec.execute_acquire_card(acquire_action)
     assert result["success"] == True
-    assert player.temp_persuasion == 5
+    assert player.temp_persuasion == 3  # 8 - 5 = 3
 
     # Acquired card goes directly to discard (not played_cards_this_turn)
     assert player.discard_pile.size == 1  # Acquired card

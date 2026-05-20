@@ -80,17 +80,24 @@ def setup_test_game():
         spice=1
     )
 
-    # Create conflict card
+    # Create conflict card with proper rewards format (dict mapping rank to effects)
     conflict = ConflictCard(
         id="test_conflict",
         name="Test Conflict",
         type="Conflict",
         card_type=CardType.CONFLICT,
-        rewards=[
-            {"victory_points": 2, "solari": 3},  # 1st place
-            {"victory_points": 1},                # 2nd place
-            {"spice": 1}                         # 3rd place
-        ]
+        rewards={
+            "1": [  # 1st place
+                {"type": "resource", "resource": "victory_point", "amount": 2},
+                {"type": "resource", "resource": "solari", "amount": 3}
+            ],
+            "2": [  # 2nd place
+                {"type": "resource", "resource": "victory_point", "amount": 1}
+            ],
+            "3": [  # 3rd place
+                {"type": "resource", "resource": "spice", "amount": 1}
+            ]
+        }
     )
 
     # Create board
@@ -342,8 +349,8 @@ def test_winner_gets_conflict_card():
 
 
 def test_tied_winners_both_get_conflict_card():
-    """Test that tied winners both get the conflict card."""
-    print("\n=== Test: Tied Winners Get Conflict Card ===")
+    """Test that tied winners get NO conflict card (per game rules)."""
+    print("\n=== Test: Tied 1st Place - No Conflict Card ===")
 
     game, player1, player2, player3, conflict = setup_test_game()
     combat_manager = CombatManager(game)
@@ -357,11 +364,11 @@ def test_tied_winners_both_get_conflict_card():
 
     result = combat_manager.resolve_conflict()
 
-    # Both tied winners get the card
-    assert len(player1.conflict_cards_won) == 1, "Player 1 should have won conflict card"
-    assert len(player2.conflict_cards_won) == 1, "Player 2 should have won conflict card"
+    # Per game rules: tied 1st place = NO ONE gets conflict card
+    assert len(player1.conflict_cards_won) == 0, "Tied player 1 should NOT get conflict card"
+    assert len(player2.conflict_cards_won) == 0, "Tied player 2 should NOT get conflict card"
 
-    print("✓ Tied winners both get conflict card")
+    print("✓ Tied 1st place correctly awards no conflict card")
 
 
 # ==================== CLEANUP TESTS ====================

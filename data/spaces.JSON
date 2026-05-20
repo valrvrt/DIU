@@ -61,8 +61,8 @@
     "combat_space": false,
     "maker": false,
     "reward": [
-      {"type": "draw", "deck": "intrigue", "amount": 1},
-      {"type": "steal", "deck": "intrigue", "amount": 1},
+      { "type": "draw", "deck": "intrigue", "amount": 1 },
+      { "type": "steal", "deck": "intrigue", "amount": 1 },
       {
         "type": "influence",
         "target": "bene_gesserit",
@@ -86,8 +86,8 @@
       }
     ],
     "reward": [
-      {"type": "draw", "deck": "deck", "amount": 1},
-      {"type": "play", "unit": "spy", "amount": 1},
+      { "type": "draw", "deck": "deck", "amount": 1 },
+      { "type": "play", "unit": "spy", "amount": 1 },
       {
         "type": "influence",
         "target": "bene_gesserit",
@@ -104,7 +104,7 @@
     "combat_space": false,
     "maker": false,
     "reward": [
-      {"type": "resource", "resource": "water", "amount": 1},
+      { "type": "resource", "resource": "water", "amount": 1 },
       {
         "type": "influence",
         "target": "spacing_guild",
@@ -120,9 +120,9 @@
     "agent_icon": "spacing_guild",
     "combat_space": true,
     "maker": false,
-    "cost": [{"type": "resource", "resource": "spice", "amount": 5}],
+    "cost": [{ "type": "resource", "resource": "spice", "amount": 5 }],
     "reward": [
-      {"type": "resource", "resource": "troop", "amount": 5},
+      { "type": "resource", "resource": "troop", "amount": 5 },
       {
         "type": "influence",
         "target": "spacing_guild",
@@ -139,7 +139,7 @@
     "combat_space": false,
     "maker": false,
     "reward": [
-      {"type": "accept", "deck": "contract", "amount": 1},
+      { "type": "accept", "deck": "contract", "amount": 1 },
       {
         "type": "influence",
         "target": "emperor",
@@ -163,8 +163,8 @@
       }
     ],
     "reward": [
-      {"type": "draw", "deck": "intrigue", "amount": 1},
-      {"type": "resource", "resource": "troop", "amount": 4},
+      { "type": "draw", "deck": "intrigue", "amount": 1 },
+      { "type": "resource", "resource": "troop", "amount": 4 },
       {
         "type": "influence",
         "target": "emperor",
@@ -179,7 +179,7 @@
     "agent_icon": "yellow",
     "combat_space": true,
     "maker": true,
-    "cost": [{"type": "resource", "resource": "water", "amount": 3}],
+    "cost": [{ "type": "resource", "resource": "water", "amount": 3 }],
     "reward": [
       {
         "type": "choice",
@@ -216,7 +216,7 @@
     "agent_icon": "yellow",
     "combat_space": true,
     "maker": true,
-    "cost": [{"type": "resource", "resource": "water", "amount": 1}],
+    "cost": [{ "type": "resource", "resource": "water", "amount": 1 }],
     "reward": [
       {
         "type": "choice",
@@ -269,7 +269,7 @@
     "agent_icon": "blue",
     "combat_space": true,
     "maker": false,
-    "check": [{"type": "influence", "target": "fremen", "amount": 2}],
+    "check": [{ "type": "influence", "target": "fremen", "amount": 2 }],
     "reward": [
       {
         "type": "choice",
@@ -318,10 +318,10 @@
     "agent_icon": "blue",
     "combat_space": true,
     "maker": false,
-    "cost": [{"type": "resource", "resource": "water", "amount": 2}],
+    "cost": [{ "type": "resource", "resource": "water", "amount": 2 }],
     "reward": [
-      {"type": "resource", "resource": "troop", "amount": 2},
-      {"type": "draw", "deck": "deck", "amount": 2}
+      { "type": "resource", "resource": "troop", "amount": 2 },
+      { "type": "draw", "deck": "deck", "amount": 2 }
     ]
   },
   {
@@ -330,6 +330,7 @@
     "agent_icon": "blue",
     "combat_space": true,
     "maker": false,
+    "critical": true,
     "reward": [
       {
         "type": "choice",
@@ -337,12 +338,16 @@
         "options": [
           {
             "id": "option1",
-            "reward": [{"type": "resource", "resource": "solari", "amount": 2}]
+            "reward": [
+              { "type": "resource", "resource": "solari", "amount": 2 }
+            ]
           },
           {
             "id": "option2",
-            "cost": [{"type": "resource", "resource": "spice", "amount": 1}],
-            "reward": [{"type": "resource", "resource": "solari", "amount": 4}]
+            "cost": [{ "type": "resource", "resource": "spice", "amount": 1 }],
+            "reward": [
+              { "type": "resource", "resource": "solari", "amount": 4 }
+            ]
           }
         ]
       }
@@ -354,7 +359,7 @@
     "agent_icon": "green",
     "combat_space": false,
     "maker": false,
-    "cost": [{"type": "resource", "resource": "solari", "amount": 5}],
+    "cost": [{ "type": "resource", "resource": "solari", "amount": 5 }],
     "reward": [
       {
         "type": "choice",
@@ -362,15 +367,15 @@
         "options": [
           {
             "id": "take_seat",
-            "reward": [{"type": "council_seat", "value": true}]
+            "reward": [{ "type": "council_seat", "value": true }]
           },
           {
             "id": "use_seat",
-            "check": [{"type": "council_seat", "value": true}],
+            "check": [{ "type": "council_seat", "value": true }],
             "reward": [
-              {"type": "resource", "resource": "spice", "amount": 2},
-              {"type": "draw", "deck": "intrigue", "amount": 1},
-              {"type": "resource", "resource": "troop", "amount": 3}
+              { "type": "resource", "resource": "spice", "amount": 2 },
+              { "type": "draw", "deck": "intrigue", "amount": 1 },
+              { "type": "resource", "resource": "troop", "amount": 3 }
             ]
           }
         ]
@@ -383,13 +388,13 @@
     "agent_icon": "green",
     "combat_space": false,
     "maker": false,
-    "check": [{"type": "influence", "target": "emperor", "amount": 2}],
-    "cost": [{"type": "resource", "resource": "solari", "amount": 3}],
+    "check": [{ "type": "influence", "target": "emperor", "amount": 2 }],
+    "cost": [{ "type": "resource", "resource": "solari", "amount": 3 }],
     "reward": [
-      {"type": "trash", "deck": "owned_intrigue", "amount": 1},
-      {"type": "draw", "deck": "intrigue", "amount": 1},
-      {"type": "draw", "deck": "deck", "amount": 1},
-      {"type": "recall", "unit": "agent", "amount": 1}
+      { "type": "trash", "deck": "owned_intrigue", "amount": 1 },
+      { "type": "draw", "deck": "intrigue", "amount": 1 },
+      { "type": "draw", "deck": "deck", "amount": 1 },
+      { "type": "recall", "unit": "agent", "amount": 1 }
     ]
   },
   {
@@ -398,8 +403,8 @@
     "agent_icon": "green",
     "combat_space": false,
     "maker": false,
-    "cost": [{"type": "resource", "resource": "solari", "amount": 8}],
-    "reward": [{"type": "resource", "resource": "agent", "amount": 1}]
+    "cost": [{ "type": "resource", "resource": "solari", "amount": 8 }],
+    "reward": [{ "type": "resource", "resource": "agent", "amount": 1 }]
   },
   {
     "id": 18,
@@ -408,8 +413,8 @@
     "combat_space": false,
     "maker": false,
     "reward": [
-      {"type": "draw", "deck": "intrigue", "amount": 1},
-      {"type": "resource", "resource": "persuasion", "amount": 1}
+      { "type": "draw", "deck": "intrigue", "amount": 1 },
+      { "type": "resource", "resource": "persuasion", "amount": 1 }
     ]
   },
   {
@@ -425,14 +430,14 @@
         "options": [
           {
             "id": "option1",
-            "reward": [{"type": "resource", "resource": "troop", "amount": 2}]
+            "reward": [{ "type": "resource", "resource": "troop", "amount": 2 }]
           },
           {
             "id": "option2",
-            "cost": [{"type": "resource", "resource": "solari", "amount": 2}],
+            "cost": [{ "type": "resource", "resource": "solari", "amount": 2 }],
             "reward": [
-              {"type": "resource", "resource": "troop", "amount": 2},
-              {"type": "resource", "resource": "water", "amount": 1}
+              { "type": "resource", "resource": "troop", "amount": 2 },
+              { "type": "resource", "resource": "water", "amount": 1 }
             ]
           }
         ]
@@ -445,11 +450,11 @@
     "agent_icon": "yellow",
     "combat_space": false,
     "maker": false,
-    "check": [{"type": "influence", "target": "spacing_guild", "amount": 2}],
-    "cost": [{"type": "resource", "resource": "spice", "amount": 3}],
+    "check": [{ "type": "influence", "target": "spacing_guild", "amount": 2 }],
+    "cost": [{ "type": "resource", "resource": "spice", "amount": 3 }],
     "reward": [
-      {"type": "resource", "resource": "solari", "amount": 5},
-      {"type": "influence", "target": "any", "amount": 1, "times": 1}
+      { "type": "resource", "resource": "solari", "amount": 5 },
+      { "type": "influence", "target": "any", "amount": 1, "times": 1 }
     ]
   },
   {
@@ -459,8 +464,8 @@
     "combat_space": false,
     "maker": false,
     "reward": [
-      {"type": "draw", "deck": "deck", "amount": 1},
-      {"type": "accept", "deck": "contract", "amount": 1}
+      { "type": "draw", "deck": "deck", "amount": 1 },
+      { "type": "accept", "deck": "contract", "amount": 1 }
     ]
   }
 ]
