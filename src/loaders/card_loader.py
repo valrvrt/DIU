@@ -105,7 +105,7 @@ def load_intrigue_cards() -> List[IntrigueCard]:
 
 def load_conflict_cards() -> List[ConflictCard]:
     """Load all Conflict cards."""
-    file_path = _get_data_path("conflicts.JSON")
+    file_path = _get_data_path("conflict_cards.json")
 
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)

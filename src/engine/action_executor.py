@@ -176,16 +176,26 @@ class ActionExecutor:
                 # Recursively normalize the base
                 return self._normalize_effects(base_effects)
 
-            # Simplified format: {"persuasion": 2, "swords": 1}
+            # Simplified format: {"persuasion": 2, "swords": 1, "draw": 1}
             # Convert to effect list
+            # IMPORTANT: Some keys are effect types, not resources
+            effect_type_keys = {"draw", "influence", "trash", "steal", "recall", "play", "accept"}
+
             normalized = []
-            for resource, amount in effects.items():
+            for key, amount in effects.items():
                 if isinstance(amount, int):  # Safety check
-                    normalized.append({
-                        "type": "resource",
-                        "resource": resource,
-                        "amount": amount
-                    })
+                    if key in effect_type_keys:
+                        # These are effect types, not resources
+                        # For now, skip them - they need more complex handling
+                        # TODO: Implement proper conversion for these
+                        continue
+                    else:
+                        # Regular resources
+                        normalized.append({
+                            "type": "resource",
+                            "resource": key,
+                            "amount": amount
+                        })
             return normalized
 
         # Unknown format, return empty list
