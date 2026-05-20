@@ -297,15 +297,22 @@ class ActionExecutor:
 
         # Step 8: Resolve location effects (using EffectResolver with JSON data)
         location_results = None
-        if hasattr(action.location, 'reward') and action.location.reward:
-            # Load effects from spaces.JSON format
-            location_results = self.effect_resolver.resolve_effects(
-                action.player_id,
-                action.location.reward,
-                context={"phase": "agent", "location": action.location.name}
-            )
-            if not location_results["success"]:
-                return location_results
+        if hasattr(action.location, 'effects') and action.location.effects:
+            # BoardSpace.effects contains the location's rewards
+            # Can be list (new format) or dict (old format)
+            effects_to_resolve = action.location.effects
+            # Ensure it's a list for the resolver
+            if not isinstance(effects_to_resolve, list):
+                effects_to_resolve = self._normalize_effects(effects_to_resolve)
+
+            if effects_to_resolve:
+                location_results = self.effect_resolver.resolve_effects(
+                    action.player_id,
+                    effects_to_resolve,
+                    context={"phase": "agent", "location": action.location.name}
+                )
+                if not location_results["success"]:
+                    return location_results
 
         # Step 9: Deploy troops if combat location
         # Player specifies troops_to_deploy (from their choice)
