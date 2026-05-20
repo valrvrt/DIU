@@ -443,6 +443,8 @@ class GameLoop:
             result = action_exec.execute_reveal(action)
             if result.get("success"):
                 print(f"✓ Revealed hand! Persuasion: {result.get('total_persuasion', 0)}")
+                # Go to acquisition phase
+                self._human_acquisition_phase(player_id, player, action_gen, action_exec)
             return
 
         # Show hand
@@ -529,18 +531,37 @@ class GameLoop:
                     if 0 <= loc_idx < len(locations):
                         location, placement_type = locations[loc_idx]
 
+                        # Show location rewards preview
+                        if hasattr(location, 'effects') and location.effects:
+                            print(f"\n📦 This location will give:")
+                            for eff in (location.effects if isinstance(location.effects, list) else []):
+                                etype = eff.get("type")
+                                if etype == "resource":
+                                    print(f"  → {eff.get('amount', 0)} {eff.get('resource', '?')}")
+                                elif etype == "influence":
+                                    print(f"  → {eff.get('amount', 0)} {eff.get('target', '?')} influence")
+                                elif etype == "draw":
+                                    print(f"  → Draw {eff.get('amount', 0)} card(s)")
+
                         # Ask about troop deployment if combat space
                         troops_to_deploy = 0
-                        if location.is_combat_space and player.troops_in_garrison > 0:
-                            print(f"\n⚔️  Combat space! Deploy troops? (You have {player.troops_in_garrison} in garrison)")
-                            troop_input = input(f"Deploy how many? (0-{min(player.troops_in_garrison, 2)}): ").strip()
-                            try:
-                                troops_to_deploy = int(troop_input)
-                                if troops_to_deploy < 0 or troops_to_deploy > min(player.troops_in_garrison, 2):
-                                    print("Invalid amount, deploying 0")
+                        if location.is_combat_space:
+                            available = player.troops_in_garrison
+                            # Account for troops we'll gain from this location
+                            for eff in (location.effects if isinstance(location.effects, list) else []):
+                                if eff.get("type") == "resource" and eff.get("resource") == "troop":
+                                    available += eff.get("amount", 0)
+
+                            if available > 0:
+                                print(f"\n⚔️  Combat space! You'll have {available} troops available after rewards")
+                                troop_input = input(f"Deploy how many? (0-{min(available, 4)}): ").strip()
+                                try:
+                                    troops_to_deploy = int(troop_input)
+                                    if troops_to_deploy < 0 or troops_to_deploy > min(available, 4):
+                                        print("Invalid amount, deploying 0")
+                                        troops_to_deploy = 0
+                                except ValueError:
                                     troops_to_deploy = 0
-                            except ValueError:
-                                troops_to_deploy = 0
 
                         action = PlaceAgentAction(
                             player_id=player_id,
@@ -556,9 +577,9 @@ class GameLoop:
 
                             # Show what you gained from location
                             location_effects = result.get("location_effects")
-                            if location_effects and location_effects.get("applied"):
+                            if location_effects and location_effects.get("effects_applied"):
                                 print("  Location rewards:")
-                                for eff in location_effects["applied"]:
+                                for eff in location_effects["effects_applied"]:
                                     eff_type = eff.get("type")
                                     if eff_type == "resource":
                                         res = eff.get("resource", "?")
@@ -567,12 +588,11 @@ class GameLoop:
                                     elif eff_type == "influence":
                                         target = eff.get("target", "?")
                                         amt = eff.get("amount", 0)
-                                        curr = eff.get("new_value", "?")
-                                        print(f"    → +{amt} {target} influence (now {curr})")
+                                        print(f"    → +{amt} {target} influence")
                                     elif eff_type == "draw":
                                         deck = eff.get("deck", "?")
                                         amt = eff.get("amount", 0)
-                                        print(f"    → Drew {amt} card(s) from {deck}")
+                                        print(f"    → Drew {amt} card(s)")
                                     else:
                                         print(f"    → {eff_type}")
                         else:
