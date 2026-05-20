@@ -11,92 +11,113 @@ from ..models.card import (
 
 
 def _get_data_path(filename: str) -> Path:
-    """Get path to test_data file."""
-    return Path(__file__).parent.parent.parent / "data" / "test_data" / filename
+    """Get path to data file."""
+    return Path(__file__).parent.parent.parent / "data" / filename
 
 
 def load_starter_deck() -> List[ImperiumCard]:
     """Load the 7 starter cards every player begins with."""
-    file_path = _get_data_path("starter_deck.json")
+    file_path = _get_data_path("imperium.JSON")
 
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     cards = []
-    for card_data in data['cards']:
-        card = ImperiumCard(
-            id=card_data['id'],
-            name=card_data['name'],
-            card_type=CardType.IMPERIUM,
-            type=card_data['type'],
-            factions=card_data.get('factions', []),
-            starting_hand=card_data.get('starting_hand', False),
-            cost=card_data['cost'],
-            on_acquire_effects=card_data.get('on_acquire_effects', {}),
-            agent_icons=card_data.get('agent_icons', []),
-            agent_effects=card_data.get('agent_effects', {}),
-            reveal_effects=card_data.get('reveal_effects', {})
-        )
-        cards.append(card)
+    for card_data in data:
+        # Only load cards marked as starting deck
+        if not card_data.get('starting_deck', False):
+            continue
+
+        # Get the amount (how many copies of this card in starter deck)
+        amount = card_data.get('amount', 1)
+
+        for _ in range(amount):
+            card = ImperiumCard(
+                id=str(card_data['id']),
+                name=card_data['name'],
+                card_type=CardType.IMPERIUM,
+                type="Imperium",
+                factions=card_data.get('factions', []),
+                starting_hand=True,
+                cost=0,  # Starter cards are free
+                on_acquire_effects=[],
+                agent_icons=card_data.get('agent_icon', []),
+                agent_effects=card_data.get('agent_effects', []),
+                reveal_effects=card_data.get('reveal_effects', [])
+            )
+            cards.append(card)
 
     return cards
 
 
 def load_imperium_cards() -> List[ImperiumCard]:
-    """Load all Imperium cards for the market."""
-    file_path = _get_data_path("imperium_cards.json")
+    """Load all Imperium cards for the market (excluding starter cards)."""
+    file_path = _get_data_path("imperium.JSON")
 
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     cards = []
-    for card_data in data['cards']:
-        card = ImperiumCard(
-            id=card_data['id'],
-            name=card_data['name'],
-            card_type=CardType.IMPERIUM,
-            type=card_data['type'],
-            factions=card_data.get('factions', []),
-            starting_hand=card_data.get('starting_hand', False),
-            cost=card_data['cost'],
-            on_acquire_effects=card_data.get('on_acquire_effects', {}),
-            agent_icons=card_data.get('agent_icons', []),
-            agent_effects=card_data.get('agent_effects', {}),
-            reveal_effects=card_data.get('reveal_effects', {})
-        )
-        cards.append(card)
+    for card_data in data:
+        # Skip starter deck cards
+        if card_data.get('starting_deck', False):
+            continue
+
+        # Get the quantity (how many copies of this card in the market deck)
+        quantity = card_data.get('quantity', card_data.get('amount', 1))
+
+        for _ in range(quantity):
+            card = ImperiumCard(
+                id=str(card_data['id']),
+                name=card_data['name'],
+                card_type=CardType.IMPERIUM,
+                type=card_data.get('type', 'Imperium'),
+                factions=card_data.get('faction', []) if isinstance(card_data.get('faction'), list) else ([card_data.get('faction')] if card_data.get('faction') else []),
+                starting_hand=False,
+                cost=card_data.get('cost', 0),
+                on_acquire_effects=card_data.get('on_acquire_effects', []),
+                agent_icons=card_data.get('agent_icon', []) if isinstance(card_data.get('agent_icon'), list) else [card_data.get('agent_icon')] if card_data.get('agent_icon') else [],
+                agent_effects=card_data.get('agent_effects', []),
+                reveal_effects=card_data.get('reveal_effects', card_data.get('reward', []))
+            )
+            cards.append(card)
 
     return cards
 
 
 def load_intrigue_cards() -> List[IntrigueCard]:
     """Load all Intrigue cards."""
-    file_path = _get_data_path("intrigue_cards.json")
+    file_path = _get_data_path("intrigue.JSON")
 
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     cards = []
-    for card_data in data['cards']:
-        # Convert phase strings to IntriguePhase enum values
+    for card_data in data['intrigues']:
+        # Extract phases from effects if available
         phases = []
-        for phase_str in card_data.get('phases', []):
-            if phase_str == "Plot":
-                phases.append(IntriguePhase.PLOT)
-            elif phase_str == "Combat":
-                phases.append(IntriguePhase.COMBAT)
-            elif phase_str == "End_Game":
-                phases.append(IntriguePhase.END_GAME)
+        effects = card_data.get('effects', [])
+
+        # Try to infer phases from effect structure
+        for effect in effects if isinstance(effects, list) else []:
+            if isinstance(effect, dict):
+                phase_str = effect.get('phase', '')
+                if phase_str == "plot":
+                    phases.append(IntriguePhase.PLOT)
+                elif phase_str == "combat":
+                    phases.append(IntriguePhase.COMBAT)
+                elif phase_str == "endgame" or phase_str == "end_game":
+                    phases.append(IntriguePhase.END_GAME)
 
         card = IntrigueCard(
-            id=card_data['id'],
+            id=str(card_data['id']),
             name=card_data['name'],
             card_type=CardType.INTRIGUE,
-            type=card_data['type'],
-            phases=phases,
-            cost=card_data.get('cost', {}),
-            played_gain=card_data.get('effects', {}),
-            conditional_gain=card_data.get('conditions', {})
+            type="Intrigue",  # Default type
+            phases=phases if phases else [IntriguePhase.PLOT],  # Default to PLOT if no phase found
+            cost=[],
+            played_gain=card_data.get('effects', []),
+            conditional_gain=[]
         )
         cards.append(card)
 
@@ -105,7 +126,7 @@ def load_intrigue_cards() -> List[IntrigueCard]:
 
 def load_conflict_cards() -> List[ConflictCard]:
     """Load all Conflict cards."""
-    file_path = _get_data_path("conflict_cards.json")
+    file_path = _get_data_path("conflicts.JSON")
 
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -131,22 +152,37 @@ def load_conflict_cards() -> List[ConflictCard]:
 
 def load_contract_cards() -> List[ContractCard]:
     """Load all Contract cards (CHOAM module)."""
-    file_path = _get_data_path("contract_cards.json")
+    file_path = _get_data_path("contracts.JSON")
 
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     cards = []
-    for card_data in data['contracts']:
+    for card_data in data:
+        # Extract completion type from check field
+        check = card_data.get('check', [{}])[0] if card_data.get('check') else {}
+        check_type = check.get('type', 'always')
+
+        # Map check types to completion types
+        completion_type_map = {
+            'bought': 'acquire_card',
+            'agent_on': 'location',
+            'harvest': 'harvest',
+            'always': 'immediate'
+        }
+
+        completion_type = completion_type_map.get(check_type, 'immediate')
+        completion_target = check.get('location') or check.get('card')
+
         card = ContractCard(
-            id=card_data['id'],
-            name=card_data['name'],
+            id=str(card_data['id']),
+            name=f"Contract #{card_data['id']}",  # Generate name from ID
             card_type=CardType.CONTRACT,
-            type=card_data['type'],
-            completion_type=card_data['completion_type'],
-            completion_target=card_data.get('completion_target'),
-            required_spice=card_data.get('required_spice', 0),
-            rewards=card_data.get('rewards', {})
+            type="Contract",
+            completion_type=completion_type,
+            completion_target=completion_target,
+            required_spice=check.get('amount', 0) if check_type == 'harvest' else 0,
+            rewards=card_data.get('reward', [])
         )
         cards.append(card)
 
@@ -155,21 +191,23 @@ def load_contract_cards() -> List[ContractCard]:
 
 def load_leaders() -> List[LeaderCard]:
     """Load all Leader cards."""
-    file_path = _get_data_path("leaders.json")
+    file_path = _get_data_path("leaders.JSON")
 
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     leaders = []
-    for leader_data in data['leaders']:
+    for leader_data in data:
+        signet_ability = leader_data.get('signet_ability', {})
+
         leader = LeaderCard(
-            id=leader_data['id'],
+            id=str(leader_data['id']),
             name=leader_data['name'],
             card_type=CardType.LEADER,
-            type=leader_data['type'],
-            ring=leader_data.get('signet_ring_ability', {}).get('effects', {}),
-            passive_condition=leader_data.get('passive_ability', {}).get('condition', {}),
-            passive_gain=leader_data.get('passive_ability', {}).get('effects', {})
+            type="Leader",
+            ring=signet_ability.get('effects', []),
+            passive_condition=[],
+            passive_gain=[]
         )
         leaders.append(leader)
 

@@ -8,13 +8,13 @@ from ..models.boardspace import BoardSpace, ObservationPost
 
 
 def _get_data_path(filename: str) -> Path:
-    """Get path to test_data file."""
-    return Path(__file__).parent.parent.parent / "data" / "test_data" / filename
+    """Get path to data file."""
+    return Path(__file__).parent.parent.parent / "data" / filename
 
 
 def load_board_spaces() -> List[BoardSpace]:
     """Load all board spaces."""
-    file_path = _get_data_path("board_spaces.json")
+    file_path = _get_data_path("spaces.JSON")
 
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -58,11 +58,11 @@ def load_observation_posts() -> List[ObservationPost]:
         data = json.load(f)
 
     posts = []
-    for post_data in data['observation_posts']:
+    for post_data in data:
         post = ObservationPost(
-            id=post_data['id'],
+            id=str(post_data['id']),
             name=post_data['name'],
-            connected_locations=post_data.get('connected_locations', [])
+            connected_locations=post_data.get('controlled_spaces', post_data.get('connected_locations', []))
         )
         posts.append(post)
 

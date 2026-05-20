@@ -307,6 +307,11 @@ class PhaseManager:
             for player in self.game.players:
                 player.agents_available = player.total_available_agents
 
+            # CRITICAL: Clear all board spaces for next round
+            if self.game.board and self.game.board.spaces:
+                for space in self.game.board.spaces:
+                    space.occupied_by = None
+
     def _initialize_phase(self, phase: GamePhase):
         """Setup actions when entering a phase."""
         if phase == GamePhase.BEGIN_ROUND:
