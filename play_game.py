@@ -495,7 +495,7 @@ def main():
     )
 
     action_generator = ActionGenerator(game, phase_manager)
-    action_executor = ActionExecutor(game, phase_manager, deck_manager)
+    action_executor = ActionExecutor(game, phase_manager, deck_manager, effect_resolver)
 
     managers = {
         "phase_manager": phase_manager,

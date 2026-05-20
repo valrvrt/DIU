@@ -1,0 +1,1549 @@
+{
+  "game_id": "20260520_231144",
+  "events": [
+    {
+      "event_type": "game_start",
+      "game_id": "20260520_231144",
+      "timestamp": "2026-05-20T23:11:44.108772"
+    },
+    {
+      "event_type": "game_setup",
+      "player_count": 3,
+      "bot_only": true,
+      "setup_info": {
+        "human_player_id": "p0",
+        "first_player_idx": 1,
+        "first_player_name": "Bot 1",
+        "objectives": [
+          "Ornithopter 1 or 3 p",
+          "Desert Mouse 1-6 p",
+          "Desert Mouse 4 or 6 p"
+        ],
+        "conflict_deck_size": 10,
+        "imperium_deck_size": 0,
+        "intrigue_deck_size": 4,
+        "contract_deck_size": 2
+      },
+      "timestamp": "2026-05-20T23:11:44.108905"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "setup",
+      "new_phase": "begin_round",
+      "round": 1,
+      "timestamp": "2026-05-20T23:11:45.618120"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 1,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "Bot 0",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-20T23:11:45.619683"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 1,
+      "timestamp": "2026-05-20T23:11:46.126166"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:11:46.631285"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 3,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:11:46.633164"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "place_agent",
+      "options": [
+        "Dune, la Plan\u00e8te des Sables -> Fremkit",
+        "Dune, la Plan\u00e8te des Sables -> Desert Tactics"
+      ],
+      "chosen": "Dune, la Plan\u00e8te des Sables -> Fremkit",
+      "reasoning": "Random selection from 2 valid placements",
+      "timestamp": "2026-05-20T23:11:47.643541"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Dune, la Plan\u00e8te des Sables",
+        "location": "Fremkit",
+        "placement_type": "fremen",
+        "success": true
+      },
+      "timestamp": "2026-05-20T23:11:47.644449"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "decision_type": "place_agent",
+      "options": [
+        "Dune, la Plan\u00e8te des Sables -> Desert Tactics"
+      ],
+      "chosen": "Dune, la Plan\u00e8te des Sables -> Desert Tactics",
+      "reasoning": "Random selection from 1 valid placements",
+      "timestamp": "2026-05-20T23:11:48.651474"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Dune, la Plan\u00e8te des Sables",
+        "location": "Desert Tactics",
+        "placement_type": "fremen",
+        "success": true
+      },
+      "timestamp": "2026-05-20T23:11:48.652647"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "acquire_card",
+      "options": [
+        "pass"
+      ],
+      "chosen": "pass",
+      "reasoning": "No affordable cards or random choice to pass",
+      "timestamp": "2026-05-20T23:11:49.656576"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:11:50.666484"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 3,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:11:50.674256"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:11:51.684951"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 5,
+        "cards_revealed": 4
+      },
+      "timestamp": "2026-05-20T23:11:51.685806"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 1,
+      "timestamp": "2026-05-20T23:11:52.191713"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 1,
+      "timestamp": "2026-05-20T23:11:52.696719"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 1,
+      "timestamp": "2026-05-20T23:11:53.201371"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 2,
+      "timestamp": "2026-05-20T23:11:53.708663"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 2,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "Bot 0",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-20T23:11:53.710710"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 2,
+      "timestamp": "2026-05-20T23:11:54.213176"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:11:54.714628"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:11:54.715926"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:11:55.719234"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 5,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:11:55.721540"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:11:56.729817"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 5,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:11:56.732229"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 2,
+      "timestamp": "2026-05-20T23:11:57.235675"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 2,
+      "timestamp": "2026-05-20T23:11:57.738398"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 2,
+      "timestamp": "2026-05-20T23:11:58.243728"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 3,
+      "timestamp": "2026-05-20T23:11:58.748702"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 3,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "Bot 0",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-20T23:11:58.751611"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 3,
+      "timestamp": "2026-05-20T23:11:59.258993"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:11:59.766501"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:11:59.769431"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:00.775253"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:00.777951"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:01.786990"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:01.790577"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 3,
+      "timestamp": "2026-05-20T23:12:02.293647"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 3,
+      "timestamp": "2026-05-20T23:12:02.803550"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 3,
+      "timestamp": "2026-05-20T23:12:03.312146"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 4,
+      "timestamp": "2026-05-20T23:12:03.815115"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 4,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "Bot 0",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-20T23:12:03.815702"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 4,
+      "timestamp": "2026-05-20T23:12:04.321339"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:04.830227"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:04.833947"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:05.843536"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 5,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:05.846745"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:06.855252"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:06.859181"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 4,
+      "timestamp": "2026-05-20T23:12:07.365987"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 4,
+      "timestamp": "2026-05-20T23:12:07.871344"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 4,
+      "timestamp": "2026-05-20T23:12:08.380727"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 5,
+      "timestamp": "2026-05-20T23:12:08.890300"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 5,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "Bot 0",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-20T23:12:08.894237"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 5,
+      "timestamp": "2026-05-20T23:12:09.401296"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:09.905824"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 5,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:09.910252"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:10.920333"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:10.922889"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:11.934263"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 6,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:11.936636"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 5,
+      "timestamp": "2026-05-20T23:12:12.443161"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 5,
+      "timestamp": "2026-05-20T23:12:12.950641"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 5,
+      "timestamp": "2026-05-20T23:12:13.456957"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 6,
+      "timestamp": "2026-05-20T23:12:13.962745"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 6,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "Bot 0",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-20T23:12:13.967304"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 6,
+      "timestamp": "2026-05-20T23:12:14.474327"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:14.980691"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:14.985274"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:15.993386"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 3,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:15.997409"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:17.006501"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 3,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:17.010872"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 6,
+      "timestamp": "2026-05-20T23:12:17.518207"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 6,
+      "timestamp": "2026-05-20T23:12:18.027782"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 6,
+      "timestamp": "2026-05-20T23:12:18.535107"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 7,
+      "timestamp": "2026-05-20T23:12:19.043960"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 7,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "Bot 0",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-20T23:12:19.048262"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 7,
+      "timestamp": "2026-05-20T23:12:19.555679"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:20.062440"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 3,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:20.065316"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:21.073953"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:21.078433"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:22.087844"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:22.091026"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 7,
+      "timestamp": "2026-05-20T23:12:22.596093"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 7,
+      "timestamp": "2026-05-20T23:12:23.103858"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 7,
+      "timestamp": "2026-05-20T23:12:23.612401"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 8,
+      "timestamp": "2026-05-20T23:12:24.120790"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 8,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "Bot 0",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-20T23:12:24.124048"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 8,
+      "timestamp": "2026-05-20T23:12:24.628964"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:25.133815"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 5,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:25.134922"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:26.143528"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:26.147924"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:27.153795"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:27.157478"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 8,
+      "timestamp": "2026-05-20T23:12:27.662693"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 8,
+      "timestamp": "2026-05-20T23:12:28.171603"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 8,
+      "timestamp": "2026-05-20T23:12:28.679087"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 9,
+      "timestamp": "2026-05-20T23:12:29.191131"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 9,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "Bot 0",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-20T23:12:29.195739"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 9,
+      "timestamp": "2026-05-20T23:12:29.701159"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:30.209701"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:30.212838"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:31.221482"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 6,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:31.224446"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:32.230330"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 6,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:32.233556"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 9,
+      "timestamp": "2026-05-20T23:12:32.736697"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 9,
+      "timestamp": "2026-05-20T23:12:33.243462"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 9,
+      "timestamp": "2026-05-20T23:12:33.752358"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 10,
+      "timestamp": "2026-05-20T23:12:34.259940"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 10,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "Bot 0",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-20T23:12:34.262785"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 10,
+      "timestamp": "2026-05-20T23:12:34.776730"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:35.288537"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:35.292687"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:36.298573"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 3,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:36.299817"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-20T23:12:37.311142"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p0",
+      "player_name": "Bot 0",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 5,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-20T23:12:37.315596"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 10,
+      "timestamp": "2026-05-20T23:12:37.821656"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 10,
+      "timestamp": "2026-05-20T23:12:38.327882"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 10,
+      "timestamp": "2026-05-20T23:12:38.836821"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "game_over",
+      "round": 10,
+      "timestamp": "2026-05-20T23:12:39.343445"
+    },
+    {
+      "event_type": "game_end",
+      "winner": {
+        "player_id": "p0",
+        "name": "Bot 0",
+        "vp": 0
+      },
+      "final_scores": [
+        {
+          "player_id": "p0",
+          "name": "Bot 0",
+          "vp": 0,
+          "spice": 0
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "spice": 0
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "spice": 0
+        }
+      ],
+      "timestamp": "2026-05-20T23:12:39.348250"
+    }
+  ]
+}

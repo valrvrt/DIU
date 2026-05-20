@@ -140,11 +140,13 @@ class ActionExecutor:
         self,
         game: Game,
         phase_manager: Optional['PhaseManager'] = None,
-        deck_manager: Optional['DeckManager'] = None
+        deck_manager: Optional['DeckManager'] = None,
+        effect_resolver: Optional['EffectResolver'] = None
     ):
         self.game = game
         self.state = GameState(game)
-        self.effect_resolver = EffectResolver(game)
+        # Use provided effect_resolver if available, otherwise create new one
+        self.effect_resolver = effect_resolver if effect_resolver else EffectResolver(game)
         self.contract_manager = ContractManager(game)
         self.phase_manager = phase_manager  # Optional for backward compatibility
         self.deck_manager = deck_manager  # Optional deck manager
