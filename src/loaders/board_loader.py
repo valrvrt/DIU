@@ -19,8 +19,15 @@ def load_board_spaces() -> List[BoardSpace]:
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
+    # Handle both formats: array at root or dict with 'spaces' key
+    if isinstance(data, list):
+        space_list = data
+    else:
+        space_list = data.get('spaces', data)
+
     spaces = []
-    for space_data in data['spaces']:
+    for space_data in space_list:
+        # Handle both old and new format
         space = BoardSpace(
             id=space_data['id'],
             name=space_data['name'],
@@ -28,9 +35,12 @@ def load_board_spaces() -> List[BoardSpace]:
             faction=space_data.get('faction'),
             cost=space_data.get('cost', {}),
             required_influence=space_data.get('required_influence'),
-            effects=space_data.get('effects', {}),
-            is_combat_space=space_data.get('is_combat_space', False),
-            is_maker_space=space_data.get('is_maker_space', False),
+            # 'reward' in new format, 'effects' in old format
+            effects=space_data.get('reward', space_data.get('effects', {})),
+            # 'combat_space' in new format, 'is_combat_space' in old format
+            is_combat_space=space_data.get('combat_space', space_data.get('is_combat_space', False)),
+            # 'maker' in new format, 'is_maker_space' in old format
+            is_maker_space=space_data.get('maker', space_data.get('is_maker_space', False)),
             spice_bonus=space_data.get('spice_bonus', 0),
             is_critical_location=space_data.get('is_critical_location', False),
             control_bonus=space_data.get('control_bonus', {})

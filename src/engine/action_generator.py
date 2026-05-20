@@ -173,13 +173,28 @@ class ActionGenerator:
         if not location.cost:
             return True
 
-        for resource, amount in location.cost.items():
-            if resource == "water" and player.water < amount:
-                return False
-            elif resource == "solari" and player.solari < amount:
-                return False
-            elif resource == "spice" and player.spice < amount:
-                return False
+        # Handle both formats: dict (old) and list of effects (new)
+        if isinstance(location.cost, dict):
+            # Old format: {"water": 1, "solari": 2}
+            for resource, amount in location.cost.items():
+                if resource == "water" and player.water < amount:
+                    return False
+                elif resource == "solari" and player.solari < amount:
+                    return False
+                elif resource == "spice" and player.spice < amount:
+                    return False
+        elif isinstance(location.cost, list):
+            # New format: [{"type": "resource", "resource": "water", "amount": 1}]
+            for cost_effect in location.cost:
+                if cost_effect.get("type") == "resource":
+                    resource = cost_effect.get("resource")
+                    amount = cost_effect.get("amount", 0)
+                    if resource == "water" and player.water < amount:
+                        return False
+                    elif resource == "solari" and player.solari < amount:
+                        return False
+                    elif resource == "spice" and player.spice < amount:
+                        return False
 
         return True
 
