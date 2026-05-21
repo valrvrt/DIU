@@ -765,6 +765,10 @@ class GameLoop:
                 available = choice_data.get("available_cards", [])
                 amount = choice_data.get("amount", 1)
 
+                # Skip if amount is 0 or no cards available
+                if amount <= 0 or len(available) == 0:
+                    continue
+
                 print(f"\n🗑️  Choose {amount} card(s) to trash:")
                 for i, card_info in enumerate(available, 1):
                     card = card_info["card"]

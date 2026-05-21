@@ -404,6 +404,13 @@ class EffectResolver:
         deck_sources = effect.get("deck")
         amount = effect.get("amount", 0)
 
+        # If amount is 0 or negative, nothing to trash
+        if amount <= 0:
+            return {
+                "success": True,
+                "applied": {"type": "trash", "amount": 0, "cards_trashed": []}
+            }
+
         if not deck_sources:
             return {"success": False, "error": "Trash effect missing 'deck' field"}
 
