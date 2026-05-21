@@ -665,6 +665,11 @@ class GameLoop:
                                     else:
                                         print(f"    → {eff_type}")
 
+                            # Handle choices (trash, choice effects, etc.)
+                            choices_required = result.get("choices_required", [])
+                            if choices_required:
+                                self._handle_choices(player_id, player, choices_required, action_exec)
+
                             # NOW ask about troop deployment if combat space
                             if location.is_combat_space:
                                 # Calculate troops gained this turn from location
@@ -718,6 +723,61 @@ class GameLoop:
         except ValueError:
             print("\n✗ Invalid input")
             self._human_agent_phase(player_id, player, action_gen, action_exec)
+
+    def _handle_choices(self, player_id: str, player, choices_required: list, action_exec):
+        """Handle choice prompts (trash, choice effects, etc.)."""
+        for choice_data in choices_required:
+            choice_type = choice_data.get("type")
+
+            if choice_type == "trash":
+                # Show available cards to trash
+                available = choice_data.get("available_cards", [])
+                amount = choice_data.get("amount", 1)
+
+                print(f"\n🗑️  Choose {amount} card(s) to trash:")
+                for i, card_info in enumerate(available, 1):
+                    card = card_info["card"]
+                    source = card_info["source"]
+                    print(f"  [{i}] {card.name} (from {source})")
+
+                print("  [0] Skip trashing")
+
+                try:
+                    choice_input = input("\nYour choice: ").strip()
+                    choice_idx = int(choice_input)
+
+                    if choice_idx == 0:
+                        print("  Skipped trashing")
+                    elif 1 <= choice_idx <= len(available):
+                        card_to_trash = available[choice_idx - 1]
+                        # Remove from appropriate deck
+                        if card_to_trash["source"] == "hand":
+                            player.hand.cards.remove(card_to_trash["card"])
+                        elif card_to_trash["source"] == "played":
+                            player.played_cards_this_turn.remove(card_to_trash["card"])
+                        print(f"  ✓ Trashed {card_to_trash['card'].name}")
+                    else:
+                        print("  Invalid choice, skipping")
+                except (ValueError, IndexError):
+                    print("  Invalid input, skipping")
+
+            elif choice_type == "choice":
+                # Handle generic choice effects (like Spice Refinery options)
+                options = choice_data.get("options", [])
+                print(f"\n🔀 Choose an option:")
+                for i, opt in enumerate(options, 1):
+                    print(f"  [{i}] {opt.get('description', opt.get('id', '?'))}")
+
+                try:
+                    choice_input = input("\nYour choice: ").strip()
+                    choice_idx = int(choice_input) - 1
+                    if 0 <= choice_idx < len(options):
+                        # This would need to be resolved by action_exec
+                        print(f"  Choice effects not yet fully implemented")
+                    else:
+                        print("  Invalid choice")
+                except ValueError:
+                    print("  Invalid input")
 
     def _human_acquisition_phase(self, player_id: str, player, action_gen, action_exec):
         """Handle human card acquisition phase."""

@@ -1,0 +1,451 @@
+{
+  "game_id": "20260521_133734",
+  "events": [
+    {
+      "event_type": "game_start",
+      "game_id": "20260521_133734",
+      "timestamp": "2026-05-21T13:37:34.146742"
+    },
+    {
+      "event_type": "game_setup",
+      "player_count": 4,
+      "bot_only": false,
+      "setup_info": {
+        "human_player_id": "p0",
+        "first_player_idx": 1,
+        "first_player_name": "Bot 1",
+        "objectives": [
+          "Desert Mouse 4 or 6 p",
+          "Desert Mouse 1-6 p",
+          "Crysknife 4 or 6 p",
+          "Ornithopter 1 or 3 p"
+        ],
+        "conflict_deck_size": 10,
+        "imperium_deck_size": 5,
+        "intrigue_deck_size": 5,
+        "contract_deck_size": 22
+      },
+      "timestamp": "2026-05-21T13:37:34.147292"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "setup",
+      "new_phase": "begin_round",
+      "round": 1,
+      "timestamp": "2026-05-21T13:37:35.658417"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 1,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "e",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p3",
+          "name": "Bot 3",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-21T13:37:35.660020"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 1,
+      "timestamp": "2026-05-21T13:37:36.162491"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-21T13:37:36.163407"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-21T13:37:36.164115"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "place_agent",
+      "options": [
+        "Seek Allies -> Fremkit",
+        "Seek Allies -> Desert Tactics",
+        "Seek Allies -> Deliver Supplies",
+        "Seek Allies -> Secrets",
+        "Seek Allies -> Dutiful Service"
+      ],
+      "chosen": "Seek Allies -> Fremkit",
+      "reasoning": "Random selection from 5 valid placements",
+      "timestamp": "2026-05-21T13:37:36.164680"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Seek Allies",
+        "location": "Fremkit",
+        "placement_type": "fremen",
+        "success": true
+      },
+      "timestamp": "2026-05-21T13:37:36.165111"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-21T13:37:36.165494"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-21T13:37:36.165883"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "acquire_card",
+      "options": [
+        "Bene Gesserit Operative",
+        "Bene Gesserit Operative",
+        "Branching Paths",
+        "Bene Gesserit Operative",
+        "Branching Paths"
+      ],
+      "chosen": "Bene Gesserit Operative",
+      "reasoning": "Random selection from 5 affordable cards",
+      "timestamp": "2026-05-21T13:37:54.939833"
+    },
+    {
+      "event_type": "card_acquisition",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "card_name": "Bene Gesserit Operative",
+      "cost": 3,
+      "source": "row",
+      "timestamp": "2026-05-21T13:37:54.941498"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-21T13:37:54.942244"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-21T13:37:54.942940"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "decision_type": "acquire_card",
+      "options": [
+        "pass"
+      ],
+      "chosen": "pass",
+      "reasoning": "No affordable cards or random choice to pass",
+      "timestamp": "2026-05-21T13:37:54.944338"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "acquire_card",
+      "options": [
+        "pass"
+      ],
+      "chosen": "pass",
+      "reasoning": "No affordable cards or random choice to pass",
+      "timestamp": "2026-05-21T13:38:41.247988"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "acquire_card",
+      "options": [
+        "Bene Gesserit Operative",
+        "Branching Paths",
+        "Bene Gesserit Operative",
+        "Branching Paths"
+      ],
+      "chosen": "Bene Gesserit Operative",
+      "reasoning": "Random selection from 4 affordable cards",
+      "timestamp": "2026-05-21T13:38:41.250389"
+    },
+    {
+      "event_type": "card_acquisition",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "card_name": "Bene Gesserit Operative",
+      "cost": 3,
+      "source": "row",
+      "timestamp": "2026-05-21T13:38:41.251132"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "decision_type": "acquire_card",
+      "options": [
+        "Branching Paths",
+        "Bene Gesserit Operative",
+        "Branching Paths",
+        "Calculus of Power"
+      ],
+      "chosen": "Branching Paths",
+      "reasoning": "Random selection from 4 affordable cards",
+      "timestamp": "2026-05-21T13:38:41.251810"
+    },
+    {
+      "event_type": "card_acquisition",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "card_name": "Branching Paths",
+      "cost": 3,
+      "source": "row",
+      "timestamp": "2026-05-21T13:38:41.252668"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 1,
+      "timestamp": "2026-05-21T13:38:46.535827"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 1,
+      "timestamp": "2026-05-21T13:38:47.043034"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 1,
+      "timestamp": "2026-05-21T13:38:47.550996"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 2,
+      "timestamp": "2026-05-21T13:38:48.057542"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 2,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "e",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 1,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p3",
+          "name": "Bot 3",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-21T13:38:48.058736"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 2,
+      "timestamp": "2026-05-21T13:38:48.565311"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-21T13:38:48.567338"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 4,
+        "cards_revealed": 5
+      },
+      "timestamp": "2026-05-21T13:38:48.568460"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "place_agent",
+      "options": [
+        "Signet Ring -> Spice Refinery",
+        "Signet Ring -> Arrakeen",
+        "Signet Ring -> Haga Bassin",
+        "Signet Ring -> Imperial Bassin",
+        "Signet Ring -> Accept Contract",
+        "Signet Ring -> Assembly Hall",
+        "Signet Ring -> Gather Support"
+      ],
+      "chosen": "Signet Ring -> Imperial Bassin",
+      "reasoning": "Random selection from 7 valid placements",
+      "timestamp": "2026-05-21T13:38:48.569580"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Signet Ring",
+        "location": "Imperial Bassin",
+        "placement_type": "yellow",
+        "success": true
+      },
+      "timestamp": "2026-05-21T13:38:48.570483"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "decision_type": "place_agent",
+      "options": [
+        "Dagger -> Assembly Hall",
+        "Dagger -> Gather Support"
+      ],
+      "chosen": "Dagger -> Gather Support",
+      "reasoning": "Random selection from 2 valid placements",
+      "timestamp": "2026-05-21T13:38:48.571391"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Dagger",
+        "location": "Gather Support",
+        "placement_type": "green",
+        "success": true
+      },
+      "timestamp": "2026-05-21T13:38:48.572271"
+    }
+  ]
+}
