@@ -667,17 +667,32 @@ class GameLoop:
 
                             # NOW ask about troop deployment if combat space
                             if location.is_combat_space:
-                                available = player.troops_in_garrison
-                                if available > 0:
-                                    print(f"\n⚔️  Combat space! You have {available} troops in garrison")
-                                    troop_input = input(f"Deploy how many? (0-{min(available, 4)}): ").strip()
+                                # Calculate troops gained this turn from location
+                                troops_gained_this_turn = 0
+                                if location_effects and location_effects.get("effects_applied"):
+                                    for eff in location_effects["effects_applied"]:
+                                        if eff.get("type") == "resource" and eff.get("resource") == "troop":
+                                            troops_gained_this_turn += eff.get("amount", 0)
+
+                                # Max deployable = troops gained this turn + min(2, garrison before this turn)
+                                # But garrison now includes troops just gained, so subtract them
+                                garrison_before = player.troops_in_garrison - troops_gained_this_turn
+                                max_from_garrison = min(2, garrison_before)
+                                max_deployable = troops_gained_this_turn + max_from_garrison
+
+                                if max_deployable > 0:
+                                    print(f"\n⚔️  Combat space! You can deploy up to {max_deployable} troops")
+                                    print(f"   (gained {troops_gained_this_turn} this turn + up to {max_from_garrison} from garrison)")
+                                    troop_input = input(f"Deploy how many? (0-{max_deployable}): ").strip()
                                     try:
                                         troops_to_deploy = int(troop_input)
-                                        if troops_to_deploy < 0 or troops_to_deploy > min(available, 4):
+                                        if troops_to_deploy < 0 or troops_to_deploy > max_deployable:
                                             print("Invalid amount, deploying 0")
                                             troops_to_deploy = 0
                                     except ValueError:
                                         troops_to_deploy = 0
+                                else:
+                                    troops_to_deploy = 0
 
                                     # Deploy troops AFTER getting rewards
                                     if troops_to_deploy > 0:

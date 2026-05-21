@@ -35,6 +35,7 @@ def load_board_spaces() -> List[BoardSpace]:
             faction=space_data.get('faction'),
             cost=space_data.get('cost', {}),
             required_influence=space_data.get('required_influence'),
+            check=space_data.get('check'),  # New JSON format for requirements
             # 'reward' in new format, 'effects' in old format
             effects=space_data.get('reward', space_data.get('effects', {})),
             # 'combat_space' in new format, 'is_combat_space' in old format

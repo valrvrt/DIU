@@ -16,9 +16,12 @@ class BoardSpace:
     # Cost to place agent here
     cost: dict[str, int] = field(default_factory=dict)  # e.g., {"water": 1}
     
-    # Prerequisites
+    # Prerequisites (old format, kept for compatibility)
     required_influence: Optional[dict[str, int]] = None  # e.g., {"fremen": 2}
-    
+
+    # Prerequisites (new JSON format with check array)
+    check: Optional[list] = None  # e.g., [{"type": "influence", "target": "fremen", "amount": 2}]
+
     # Effects when agent placed
     effects: dict[str, int] = field(default_factory=dict)
     
