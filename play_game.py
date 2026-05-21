@@ -699,16 +699,16 @@ class GameLoop:
                                 else:
                                     troops_to_deploy = 0
 
-                                    # Deploy troops AFTER getting rewards
-                                    if troops_to_deploy > 0:
-                                        print(f"[DEBUG] Attempting to deploy {troops_to_deploy} troops...")
-                                        print(f"[DEBUG] Before: garrison={player.troops_in_garrison}, conflict={player.troops_in_conflict}")
-                                        deploy_result = action_exec.deploy_troops_to_conflict(player_id, troops_to_deploy)
-                                        print(f"[DEBUG] After: garrison={player.troops_in_garrison}, conflict={player.troops_in_conflict}")
-                                        if deploy_result.get("success"):
-                                            print(f"  ⚔️  Deployed {troops_to_deploy} troops to conflict")
-                                        else:
-                                            print(f"  ✗ Deployment failed: {deploy_result.get('error')}")
+                                # Deploy troops AFTER getting rewards (FIXED: moved outside if/else)
+                                if troops_to_deploy > 0:
+                                    print(f"[DEBUG] Attempting to deploy {troops_to_deploy} troops...")
+                                    print(f"[DEBUG] Before: garrison={player.troops_in_garrison}, conflict={player.troops_in_conflict}")
+                                    deploy_result = action_exec.deploy_troops_to_conflict(player_id, troops_to_deploy)
+                                    print(f"[DEBUG] After: garrison={player.troops_in_garrison}, conflict={player.troops_in_conflict}")
+                                    if deploy_result.get("success"):
+                                        print(f"  ⚔️  Deployed {troops_to_deploy} troops to conflict")
+                                    else:
+                                        print(f"  ✗ Deployment failed: {deploy_result.get('error')}")
                         else:
                             print(f"\n✗ Failed: {result.get('error', 'Unknown error')}")
                     else:
