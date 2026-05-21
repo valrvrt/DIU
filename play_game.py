@@ -86,16 +86,26 @@ class RandomBot:
                 reasoning=f"Random selection from {len(locations)} valid placements"
             )
 
-        # Execute action
+        # Execute action (with 0 troops initially)
         action = PlaceAgentAction(
             player_id=player_id,
             card=card,
             location=location,
             placement_type=placement_type,
-            troops_to_deploy=0  # Simplified: no troop deployment for bots
+            troops_to_deploy=0  # Will deploy after rewards
         )
 
         result = self.action_exec.execute_place_agent(action)
+
+        # Deploy troops if combat space
+        if result.get("success") and location.is_combat_space:
+            player = self.game.get_player(player_id)
+            if player.troops_in_garrison > 0:
+                # Bot deploys all available troops
+                troops_to_deploy = min(player.troops_in_garrison, 4)
+                deploy_result = self.action_exec.deploy_troops_to_conflict(player_id, troops_to_deploy)
+                if deploy_result.get("success"):
+                    result["troops_deployed"] = troops_to_deploy
 
         # Log action
         if self.logger:
@@ -202,42 +212,105 @@ class GameDisplay:
 
     @staticmethod
     def show_game_state(game: Game, vp_manager: VictoryPointManager = None):
-        """Display current game state."""
+        """Display current game state with phase-specific information."""
         print("\n" + "="*70)
         print(f"ROUND {game.current_round} | PHASE: {game.current_phase.value}")
         print("="*70)
 
-        # Show conflict
-        if game.board.current_conflict:
-            print(f"⚔️  CONFLICT: {game.board.current_conflict.name}")
+        # SETUP phase: Show player order and starting tags
+        if game.current_phase == GamePhase.SETUP:
+            print("\n🎲 PLAYER ORDER:")
+            for i, player in enumerate(game.players, 1):
+                tags = []
+                if hasattr(player, 'has_crysknife') and player.has_crysknife:
+                    tags.append("crysknife")
+                if hasattr(player, 'has_mouse') and player.has_mouse:
+                    tags.append("mouse")
+                tag_str = f" [{', '.join(tags)}]" if tags else ""
+                print(f"  {i}. {player.name} ({player.color}){tag_str}")
+            print("="*70)
+            return
 
-        # Show players
-        for i, player in enumerate(game.players):
-            marker = ">>> " if i == game.current_player_index else "    "
-            print(f"\n{marker}{player.name} ({player.color})")
+        # BEGIN_ROUND phase: Show full summary
+        if game.current_phase == GamePhase.BEGIN_ROUND:
+            # Show conflict and rewards
+            if game.board.current_conflict:
+                conflict = game.board.current_conflict
+                print(f"\n⚔️  CONFLICT: {conflict.name}")
+                if hasattr(conflict, 'rewards') and conflict.rewards:
+                    print("  Rewards:")
+                    for i, reward_tier in enumerate(conflict.rewards, 1):
+                        print(f"    #{i}: ", end="")
+                        if isinstance(reward_tier, list):
+                            reward_strs = []
+                            for r in reward_tier:
+                                if r.get("type") == "resource":
+                                    reward_strs.append(f"+{r.get('amount')} {r.get('resource')}")
+                                elif r.get("type") == "victory_point":
+                                    reward_strs.append(f"+{r.get('amount')} VP")
+                            print(", ".join(reward_strs))
+                print()
 
-            # VP breakdown if available
-            if vp_manager:
-                breakdown = vp_manager.get_vp_breakdown(player.player_id)
-                print(f"    VP: {breakdown['total']} (Influence: {breakdown['influence']}, "
-                      f"Tags: {breakdown['tag_pairs']}, Other: {breakdown['other']})")
-            else:
-                print(f"    VP: {player.victory_points}")
+            # Show all players with VP, resources, influence
+            for player in game.players:
+                print(f"\n{player.name} ({player.color}):")
+                if vp_manager:
+                    breakdown = vp_manager.get_vp_breakdown(player.player_id)
+                    print(f"  VP: {breakdown['total']} (Inf: {breakdown['influence']}, Tags: {breakdown['tag_pairs']})")
+                else:
+                    print(f"  VP: {player.victory_points}")
+                print(f"  Resources: Solari:{player.solari} Spice:{player.spice} Water:{player.water} Troops:{player.troops_in_garrison}")
+                print(f"  Influence: F:{player.fremen_influence} B:{player.bene_gesserit_influence} S:{player.spacing_guild_influence} E:{player.emperor_influence}")
+            print("="*70)
+            return
 
-            print(f"    Resources: Solari: {player.solari}, Spice: {player.spice}, Water: {player.water}")
-            print(f"    Troops: {player.troops_in_garrison} garrison, {player.troops_in_conflict} in conflict")
-            print(f"    Agents: {player.agents_available}/{player.total_available_agents}")
+        # PLAYER_TURNS phase: Show combat strength
+        if game.current_phase == GamePhase.PLAYER_TURNS:
+            current_player = game.players[game.current_player_index]
+            print(f"\n>>> {current_player.name}'s turn")
+            print(f"Resources: Solari:{current_player.solari} Spice:{current_player.spice} Water:{current_player.water} Troops:{current_player.troops_in_garrison}")
+            print(f"Influence: F:{current_player.fremen_influence} B:{current_player.bene_gesserit_influence} S:{current_player.spacing_guild_influence} E:{current_player.emperor_influence}")
 
-            if player.has_revealed_this_round:
-                print(f"    Persuasion: {getattr(player, 'temp_persuasion', 0)}")
+            # Show conflict strength for ALL players
+            print("\n⚔️  CONFLICT STRENGTH:")
+            for player in game.players:
+                strength = player.troops_in_conflict * 2
+                marker = ">>> " if player == current_player else "    "
+                print(f"{marker}{player.name}: {strength} ({player.troops_in_conflict} troops)")
+            print("="*70)
+            return
 
-            print(f"    Hand: {len(player.hand.cards)} cards | Deck: {len(player.deck.cards)} cards")
+        # COMBAT phase: Show who won
+        if game.current_phase == GamePhase.COMBAT:
+            print("\n⚔️  COMBAT RESOLUTION")
+            if game.board.current_conflict:
+                print(f"Conflict: {game.board.current_conflict.name}\n")
 
-            # Show influence
-            influence_str = f"Influence: F:{player.fremen_influence} B:{player.bene_gesserit_influence} " \
-                          f"S:{player.spacing_guild_influence} E:{player.emperor_influence}"
-            print(f"    {influence_str}")
+            # Show all players' strength
+            for player in game.players:
+                strength = player.troops_in_conflict * 2
+                print(f"  {player.name}: {strength} strength ({player.troops_in_conflict} troops)")
+            print("="*70)
+            return
 
+        # MAKERS phase: Show spice bonus locations
+        if game.current_phase == GamePhase.MAKERS:
+            print("\n🪱 MAKER PHASE - Spice accumulation on maker spaces")
+            # Find maker spaces
+            maker_spaces = [s for s in game.board.spaces if hasattr(s, 'maker') and s.maker]
+            for space in maker_spaces:
+                bonus_spice = getattr(space, 'accumulated_spice', 0)
+                print(f"  {space.name}: +{bonus_spice} bonus spice")
+            print("="*70)
+            return
+
+        # RECALL phase: Nothing to show
+        if game.current_phase == GamePhase.RECALL:
+            print("\n📋 RECALL - Resetting for next round...")
+            print("="*70)
+            return
+
+        # Default display (fallback)
         print("\n" + "="*70)
 
     @staticmethod
@@ -394,22 +467,42 @@ class GameLoop:
                     if action_type == "place_agent":
                         card_name = result.get("card", "?")
                         location_name = result.get("location", "?")
-                        print(f"   ✓ {current_player.name} placed agent: {card_name} → {location_name}")
+                        print(f"   ✓ {current_player.name} played {card_name} → {location_name}")
 
-                        # Show what they gained (check player state changes)
-                        player = self.game.get_player(current_player.player_id)
-                        gains = []
-                        if player.fremen_influence > 0 or player.bene_gesserit_influence > 0 or player.spacing_guild_influence > 0 or player.emperor_influence > 0:
-                            gains.append(f"Influence: F{player.fremen_influence} B{player.bene_gesserit_influence} S{player.spacing_guild_influence} E{player.emperor_influence}")
-                        if player.solari > 0:
-                            gains.append(f"{player.solari} solari")
-                        if player.spice > 0:
-                            gains.append(f"{player.spice} spice")
-                        if gains:
-                            print(f"      Gained: {', '.join(gains)}")
+                        # Show what they gained from location effects
+                        location_effects = result.get("location_effects")
+                        if location_effects and location_effects.get("effects_applied"):
+                            gains = []
+                            for eff in location_effects["effects_applied"]:
+                                eff_type = eff.get("type")
+                                if eff_type == "resource":
+                                    res = eff.get("resource", "?")
+                                    amt = eff.get("amount", 0)
+                                    gains.append(f"+{amt} {res}")
+                                elif eff_type == "influence":
+                                    target = eff.get("target", "?")
+                                    amt = eff.get("amount", 0)
+                                    gains.append(f"+{amt} {target[:1].upper()} influence")
+                                elif eff_type == "draw":
+                                    amt = eff.get("amount", 0)
+                                    gains.append(f"drew {amt} card(s)")
+                            if gains:
+                                print(f"      → Gained: {', '.join(gains)}")
+
+                        # Show troop deployment
+                        troops_deployed = result.get("troops_deployed", 0)
+                        if troops_deployed > 0:
+                            print(f"      → Deployed {troops_deployed} troops to conflict")
+
                     elif action_type == "reveal":
                         persuasion = result.get("total_persuasion", 0)
-                        print(f"   ✓ {current_player.name} revealed (persuasion: {persuasion})")
+                        swords = result.get("total_swords", 0)
+                        print(f"   ✓ {current_player.name} revealed: {persuasion} persuasion, {swords} swords")
+
+                    elif action_type == "acquire_card":
+                        card_name = result.get("card_acquired", {}).get("name", "card")
+                        print(f"   ✓ {current_player.name} acquired: {card_name}")
+
                     else:
                         print(f"   ✓ {current_player.name} performed: {action_type}")
                 else:
