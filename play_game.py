@@ -760,7 +760,7 @@ class GameLoop:
         for choice_data in choices_required:
             choice_type = choice_data.get("type")
 
-            if choice_type == "trash":
+            if choice_type == "trash_card":
                 # Show available cards to trash
                 available = choice_data.get("available_cards", [])
                 amount = choice_data.get("amount", 1)

@@ -281,10 +281,10 @@ class PhaseManager:
                     # Discard played cards to discard pile
                     self.deck_manager.discard_played_cards(player.player_id)
 
-            # Clear temporary resources (persuasion, swords)
+            # Clear temporary persuasion (not needed after PLAYER_TURNS)
+            # BUT keep temp_swords for combat!
             for player in self.game.players:
                 player.temp_persuasion = 0
-                player.temp_swords = 0
                 player.has_revealed_this_round = False
 
             # Clear tracking sets
@@ -292,6 +292,10 @@ class PhaseManager:
             self.players_who_revealed.clear()
 
         elif phase == GamePhase.COMBAT:
+            # Clear temp_swords AFTER combat is resolved
+            for player in self.game.players:
+                player.temp_swords = 0
+
             # Remove sandworms (they die after combat)
             for player in self.game.players:
                 player.sandworms_in_conflict = 0
