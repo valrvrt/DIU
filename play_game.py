@@ -100,9 +100,23 @@ class RandomBot:
         # Deploy troops if combat space
         if result.get("success") and location.is_combat_space:
             player = game.get_player(player_id)
-            if player.troops_in_garrison > 0:
-                # Bot deploys all available troops
-                troops_to_deploy = min(player.troops_in_garrison, 4)
+
+            # Calculate troops gained this turn from location
+            location_effects = result.get("location_effects", {})
+            troops_gained = 0
+            if location_effects and location_effects.get("effects_applied"):
+                for eff in location_effects["effects_applied"]:
+                    if eff.get("type") == "resource" and eff.get("resource") == "troop":
+                        troops_gained += eff.get("amount", 0)
+
+            # Max deployable = troops gained + min(2, garrison before gaining)
+            garrison_before = player.troops_in_garrison - troops_gained
+            max_from_garrison = min(2, garrison_before)
+            max_deployable = troops_gained + max_from_garrison
+
+            if max_deployable > 0:
+                # Bot deploys maximum allowed
+                troops_to_deploy = max_deployable
                 deploy_result = self.action_exec.deploy_troops_to_conflict(player_id, troops_to_deploy)
                 if deploy_result.get("success"):
                     result["troops_deployed"] = troops_to_deploy
@@ -699,12 +713,9 @@ class GameLoop:
                                 else:
                                     troops_to_deploy = 0
 
-                                # Deploy troops AFTER getting rewards (FIXED: moved outside if/else)
+                                # Deploy troops AFTER getting rewards
                                 if troops_to_deploy > 0:
-                                    print(f"[DEBUG] Attempting to deploy {troops_to_deploy} troops...")
-                                    print(f"[DEBUG] Before: garrison={player.troops_in_garrison}, conflict={player.troops_in_conflict}")
                                     deploy_result = action_exec.deploy_troops_to_conflict(player_id, troops_to_deploy)
-                                    print(f"[DEBUG] After: garrison={player.troops_in_garrison}, conflict={player.troops_in_conflict}")
                                     if deploy_result.get("success"):
                                         print(f"  ⚔️  Deployed {troops_to_deploy} troops to conflict")
                                     else:
