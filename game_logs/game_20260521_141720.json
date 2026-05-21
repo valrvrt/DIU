@@ -372,6 +372,13 @@
         }
       ],
       "timestamp": "2026-05-21T14:18:45.966469"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 2,
+      "timestamp": "2026-05-21T14:18:46.472124"
     }
   ]
 }

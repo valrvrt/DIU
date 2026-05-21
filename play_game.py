@@ -320,9 +320,13 @@ class GameDisplay:
             print("\n🪱 MAKER PHASE - Spice accumulation on maker spaces")
             # Find maker spaces
             maker_spaces = [s for s in game.board.spaces if hasattr(s, 'maker') and s.maker]
-            for space in maker_spaces:
-                bonus_spice = getattr(space, 'accumulated_spice', 0)
-                print(f"  {space.name}: +{bonus_spice} bonus spice")
+            if maker_spaces:
+                for space in maker_spaces:
+                    bonus_spice = getattr(space, 'bonus_spice', 0)
+                    occupied = " (occupied)" if space.occupied_by else ""
+                    print(f"  {space.name}: {bonus_spice} bonus spice{occupied}")
+            else:
+                print("  No maker spaces found")
             print("="*70)
             return
 
@@ -420,13 +424,34 @@ class GameLoop:
                 combat_mgr = self.managers.get("combat_manager")
                 if combat_mgr:
                     result = combat_mgr.resolve_conflict()
+
                     # Show results
                     if result.get("success"):
+                        print("\n📜 COMBAT RESULTS:")
+
+                        # Show winners
                         winners = result.get("winners", [])
                         if winners:
-                            print(f"\n🏆 Winner: {', '.join(winners)}")
+                            print(f"🏆 Winner: {', '.join(winners)}")
                         else:
-                            print(f"\n🤝 Tied - no winner")
+                            print(f"🤝 Tied - no one gets the conflict card")
+
+                        # Show rewards for each player
+                        rewards_list = result.get("rewards", [])
+                        if rewards_list:
+                            print("\n🎁 Rewards distributed:")
+                            for reward_info in rewards_list:
+                                player_name = reward_info.get("player", "Unknown")
+                                rank = reward_info.get("rank", 0)
+                                rank_names = {1: "1st", 2: "2nd", 3: "3rd"}
+                                rank_str = rank_names.get(rank, f"{rank}th")
+
+                                effects = reward_info.get("rewards", [])
+                                if effects:
+                                    effects_str = self._format_effects(effects)
+                                    print(f"  {player_name} ({rank_str} place): {effects_str}")
+                                else:
+                                    print(f"  {player_name} ({rank_str} place): No rewards")
 
                 time.sleep(1)
                 old_phase = self.game.current_phase.value
@@ -473,6 +498,33 @@ class GameLoop:
                 ]
             )
             self.logger.print_summary()
+
+    def _format_effects(self, effects: list) -> str:
+        """Format a list of effects into a readable string."""
+        if not effects:
+            return "Nothing"
+
+        formatted = []
+        for effect in effects:
+            if isinstance(effect, dict):
+                eff_type = effect.get("type")
+                if eff_type == "resource":
+                    resource = effect.get("resource", "")
+                    amount = effect.get("amount", 0)
+                    if amount > 0:
+                        formatted.append(f"+{amount} {resource}")
+                elif eff_type == "draw":
+                    amount = effect.get("amount", 0)
+                    formatted.append(f"Draw {amount} card{'s' if amount != 1 else ''}")
+                elif eff_type == "influence":
+                    target = effect.get("target", "")
+                    amount = effect.get("amount", 0)
+                    formatted.append(f"+{amount} {target} influence")
+                else:
+                    # Generic fallback
+                    formatted.append(str(effect))
+
+        return ", ".join(formatted) if formatted else "Nothing"
 
     def _handle_player_turns(self):
         """Handle PLAYER_TURNS phase (core gameplay)."""
