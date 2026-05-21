@@ -180,24 +180,32 @@ class ActionExecutor:
 
             # Simplified format: {"persuasion": 2, "swords": 1, "draw": 1}
             # Convert to effect list
-            # IMPORTANT: Some keys are effect types, not resources
-            effect_type_keys = {"draw", "influence", "trash", "steal", "recall", "play", "accept"}
-
             normalized = []
             for key, amount in effects.items():
-                if isinstance(amount, int):  # Safety check
-                    if key in effect_type_keys:
-                        # These are effect types, not resources
-                        # For now, skip them - they need more complex handling
-                        # TODO: Implement proper conversion for these
-                        continue
-                    else:
-                        # Regular resources
-                        normalized.append({
-                            "type": "resource",
-                            "resource": key,
-                            "amount": amount
-                        })
+                if not isinstance(amount, int):
+                    continue  # Skip non-integer values
+
+                # Handle special effect types
+                if key == "draw":
+                    normalized.append({
+                        "type": "draw",
+                        "deck": "deck",
+                        "amount": amount
+                    })
+                elif key == "influence":
+                    # Simplified influence needs a target - can't infer, skip
+                    # Would need format like {"influence_fremen": 1}
+                    continue
+                elif key in {"trash", "steal", "recall", "play", "accept"}:
+                    # These need more context, skip for now
+                    continue
+                else:
+                    # Regular resources (persuasion, swords, solari, spice, water, etc.)
+                    normalized.append({
+                        "type": "resource",
+                        "resource": key,
+                        "amount": amount
+                    })
             return normalized
 
         # Unknown format, return empty list
