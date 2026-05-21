@@ -334,8 +334,9 @@ class PhaseManager:
             self.game.current_player_index = self.game.first_player_index
 
         elif phase == GamePhase.COMBAT:
-            # Prepare combat resolution (to be implemented)
-            self._setup_combat_phase()
+            # Combat resolution happens in game loop after displaying state
+            # Don't auto-resolve here - let the display show troops first
+            pass
 
         elif phase == GamePhase.MAKERS:
             # Setup spice accumulation (to be implemented)

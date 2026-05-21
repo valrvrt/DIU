@@ -411,8 +411,28 @@ class GameLoop:
             # Handle phase
             if self.game.current_phase == GamePhase.PLAYER_TURNS:
                 self._handle_player_turns()
+            elif self.game.current_phase == GamePhase.COMBAT:
+                # Show combat, then resolve it
+                print(f"⚙️  Resolving combat...")
+                time.sleep(1)
+
+                # Resolve combat manually (not in phase_manager._initialize_phase)
+                combat_mgr = self.managers.get("combat_manager")
+                if combat_mgr:
+                    result = combat_mgr.resolve_conflict()
+                    # Show results
+                    if result.get("success"):
+                        winners = result.get("winners", [])
+                        if winners:
+                            print(f"\n🏆 Winner: {', '.join(winners)}")
+                        else:
+                            print(f"\n🤝 Tied - no winner")
+
+                time.sleep(1)
+                old_phase = self.game.current_phase.value
+                self.managers["phase_manager"].advance_phase()
             else:
-                # Automated phases
+                # Other automated phases
                 print(f"⚙️  Auto-advancing from {self.game.current_phase.value}...")
                 time.sleep(0.5)
 
