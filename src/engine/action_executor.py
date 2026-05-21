@@ -256,7 +256,19 @@ class ActionExecutor:
         player.agents_available -= 1
         player.agents_placed.append(action.location.id)
 
-        # Step 4: Occupy location or infiltrate
+        # Step 4: Check location requirements (influence, council seat, etc.)
+        if hasattr(action.location, 'check') and action.location.check:
+            check_result = self.effect_resolver._evaluate_checks(action.player_id, action.location.check)
+            if not check_result["success"]:
+                # Restore agent since we're failing
+                player.agents_available += 1
+                player.agents_placed.remove(action.location.id)
+                return {
+                    "success": False,
+                    "error": f"Cannot access {action.location.name}: {check_result.get('error', 'Requirements not met')}"
+                }
+
+        # Step 5: Occupy location or infiltrate
         if action.placement_type == "spy_infiltrate":
             # Infiltration doesn't change occupied_by
             # Both players get location bonus
@@ -267,7 +279,7 @@ class ActionExecutor:
                 return {"success": False, "error": "Location already occupied"}
             action.location.occupied_by = action.player_id
 
-        # Step 5: Pay location cost (using EffectResolver for validation and payment)
+        # Step 6: Pay location cost (using EffectResolver for validation and payment)
         cost_result = None
         if hasattr(action.location, 'cost_effects') and action.location.cost_effects:
             # Future: Load from JSON, costs are in array format
@@ -275,13 +287,13 @@ class ActionExecutor:
             if not cost_result["success"]:
                 return cost_result
 
-        # Step 6: Move card from hand to played area
+        # Step 7: Move card from hand to played area
         # IMPORTANT: Card goes to played_cards_this_turn, NOT discarded immediately
         # It will be discarded at end of turn (RECALL phase)
         player.hand.cards.remove(action.card)
         player.played_cards_this_turn.append(action.card)
 
-        # Step 7: Resolve card's AGENT effects (if the card has agent effects)
+        # Step 8: Resolve card's AGENT effects (if the card has agent effects)
         # Most cards have agent effects that trigger when played
         card_agent_results = None
         if hasattr(action.card, 'agent_effects') and action.card.agent_effects:
@@ -297,7 +309,8 @@ class ActionExecutor:
                 if not card_agent_results["success"]:
                     return card_agent_results
 
-        # Step 8: Resolve location effects (using EffectResolver with JSON data)
+        # Step 9: Resolve location effects (using EffectResolver with JSON data)
+        # This happens BEFORE troop deployment so troops gained are available
         location_results = None
         if hasattr(action.location, 'effects') and action.location.effects:
             # BoardSpace.effects contains the location's rewards
@@ -316,12 +329,11 @@ class ActionExecutor:
                 if not location_results["success"]:
                     return location_results
 
-        # Step 9: Deploy troops if combat location
-        # Player specifies troops_to_deploy (from their choice)
-        # Maximum deployable: troops recruited this turn + 2 (if in garrison)
+        # Step 10: Deploy troops if combat location (optional - can be 0)
+        # NOTE: UI typically passes 0 here and calls deploy_troops_to_conflict() separately
+        # after showing rewards, to ensure correct order (rewards first, then deployment prompt)
         troops_deployed_count = 0
         if action.location.is_combat_space and action.troops_to_deploy > 0:
-            # Player can deploy troops they recruited this turn + up to 2 from garrison
             if player.troops_in_garrison >= action.troops_to_deploy:
                 player.troops_in_garrison -= action.troops_to_deploy
                 player.troops_in_conflict += action.troops_to_deploy
@@ -332,20 +344,20 @@ class ActionExecutor:
                     "error": f"Not enough troops in garrison (have {player.troops_in_garrison}, need {action.troops_to_deploy})"
                 }
 
-        # Step 10: Check for contract completion (location-based)
+        # Step 11: Check for contract completion (location-based)
         contract_results = self.contract_manager.check_location_contracts(
             action.player_id,
             action.location.id
         )
 
-        # Step 11: Notify PhaseManager (if present)
+        # Step 12: Notify PhaseManager (if present)
         if self.phase_manager:
             self.phase_manager.mark_player_action_complete(
                 action.player_id,
                 "place_agent"
             )
 
-        # Step 12: Return execution log
+        # Step 13: Return execution log
         return {
             "success": True,
             "action_type": "place_agent",
@@ -361,6 +373,38 @@ class ActionExecutor:
             "choices_required": (card_agent_results.get("choices_required", []) if card_agent_results else []) +
                                (location_results.get("choices_required", []) if location_results else [])
         }
+
+    def deploy_troops_to_conflict(self, player_id: str, num_troops: int) -> Dict[str, Any]:
+        """
+        Deploy troops from garrison to conflict.
+        Called AFTER location rewards are given.
+
+        Args:
+            player_id: Player deploying troops
+            num_troops: Number of troops to deploy
+
+        Returns:
+            Result dict with success/error
+        """
+        player = self.state.get_player_by_id(player_id)
+
+        if num_troops <= 0:
+            return {"success": True, "troops_deployed": 0}
+
+        if player.troops_in_garrison >= num_troops:
+            player.troops_in_garrison -= num_troops
+            player.troops_in_conflict += num_troops
+            return {
+                "success": True,
+                "troops_deployed": num_troops,
+                "garrison_remaining": player.troops_in_garrison,
+                "conflict_total": player.troops_in_conflict
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"Not enough troops in garrison (have {player.troops_in_garrison}, need {num_troops})"
+            }
 
     def _pay_costs(
         self,

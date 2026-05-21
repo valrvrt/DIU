@@ -531,44 +531,13 @@ class GameLoop:
                     if 0 <= loc_idx < len(locations):
                         location, placement_type = locations[loc_idx]
 
-                        # Show location rewards preview
-                        if hasattr(location, 'effects') and location.effects:
-                            print(f"\n📦 This location will give:")
-                            for eff in (location.effects if isinstance(location.effects, list) else []):
-                                etype = eff.get("type")
-                                if etype == "resource":
-                                    print(f"  → {eff.get('amount', 0)} {eff.get('resource', '?')}")
-                                elif etype == "influence":
-                                    print(f"  → {eff.get('amount', 0)} {eff.get('target', '?')} influence")
-                                elif etype == "draw":
-                                    print(f"  → Draw {eff.get('amount', 0)} card(s)")
-
-                        # Ask about troop deployment if combat space
-                        troops_to_deploy = 0
-                        if location.is_combat_space:
-                            available = player.troops_in_garrison
-                            # Account for troops we'll gain from this location
-                            for eff in (location.effects if isinstance(location.effects, list) else []):
-                                if eff.get("type") == "resource" and eff.get("resource") == "troop":
-                                    available += eff.get("amount", 0)
-
-                            if available > 0:
-                                print(f"\n⚔️  Combat space! You'll have {available} troops available after rewards")
-                                troop_input = input(f"Deploy how many? (0-{min(available, 4)}): ").strip()
-                                try:
-                                    troops_to_deploy = int(troop_input)
-                                    if troops_to_deploy < 0 or troops_to_deploy > min(available, 4):
-                                        print("Invalid amount, deploying 0")
-                                        troops_to_deploy = 0
-                                except ValueError:
-                                    troops_to_deploy = 0
-
+                        # Execute action with 0 troops (will gain rewards first)
                         action = PlaceAgentAction(
                             player_id=player_id,
                             card=card,
                             location=location,
                             placement_type=placement_type,
-                            troops_to_deploy=troops_to_deploy
+                            troops_to_deploy=0  # Don't deploy yet
                         )
                         result = action_exec.execute_place_agent(action)
 
@@ -590,11 +559,32 @@ class GameLoop:
                                         amt = eff.get("amount", 0)
                                         print(f"    → +{amt} {target} influence")
                                     elif eff_type == "draw":
-                                        deck = eff.get("deck", "?")
                                         amt = eff.get("amount", 0)
                                         print(f"    → Drew {amt} card(s)")
                                     else:
                                         print(f"    → {eff_type}")
+
+                            # NOW ask about troop deployment if combat space
+                            if location.is_combat_space:
+                                available = player.troops_in_garrison
+                                if available > 0:
+                                    print(f"\n⚔️  Combat space! You have {available} troops in garrison")
+                                    troop_input = input(f"Deploy how many? (0-{min(available, 4)}): ").strip()
+                                    try:
+                                        troops_to_deploy = int(troop_input)
+                                        if troops_to_deploy < 0 or troops_to_deploy > min(available, 4):
+                                            print("Invalid amount, deploying 0")
+                                            troops_to_deploy = 0
+                                    except ValueError:
+                                        troops_to_deploy = 0
+
+                                    # Deploy troops AFTER getting rewards
+                                    if troops_to_deploy > 0:
+                                        deploy_result = action_exec.deploy_troops_to_conflict(player_id, troops_to_deploy)
+                                        if deploy_result.get("success"):
+                                            print(f"  ⚔️  Deployed {troops_to_deploy} troops to conflict")
+                                        else:
+                                            print(f"  ✗ Deployment failed: {deploy_result.get('error')}")
                         else:
                             print(f"\n✗ Failed: {result.get('error', 'Unknown error')}")
                     else:

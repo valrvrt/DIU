@@ -209,6 +209,89 @@
       "chosen": "pass",
       "reasoning": "No affordable cards or random choice to pass",
       "timestamp": "2026-05-21T08:47:32.875881"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 1,
+      "timestamp": "2026-05-21T08:47:54.149450"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "combat",
+      "new_phase": "makers",
+      "round": 1,
+      "timestamp": "2026-05-21T08:47:54.656035"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 1,
+      "timestamp": "2026-05-21T08:47:55.163643"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 2,
+      "timestamp": "2026-05-21T08:47:55.669848"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 2,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "ff",
+          "vp": 0,
+          "resources": {
+            "solari": 1,
+            "spice": 1,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p3",
+          "name": "Bot 3",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-21T08:47:55.671012"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 2,
+      "timestamp": "2026-05-21T08:47:56.175138"
     }
   ]
 }
