@@ -852,7 +852,7 @@ def main():
         makers_manager=makers_manager
     )
 
-    action_generator = ActionGenerator(game, phase_manager)
+    action_generator = ActionGenerator(game, phase_manager, effect_resolver)
     action_executor = ActionExecutor(game, phase_manager, deck_manager, effect_resolver)
 
     managers = {

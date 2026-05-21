@@ -28,10 +28,11 @@ class ActionGenerator:
     following the "available actions first" pattern.
     """
 
-    def __init__(self, game: Game, phase_manager: Optional['PhaseManager'] = None):
+    def __init__(self, game: Game, phase_manager: Optional['PhaseManager'] = None, effect_resolver=None):
         self.game = game
         self.state = GameState(game)
-        self.phase_manager = phase_manager  # Optional for backward compatibility
+        self.phase_manager = phase_manager
+        self.effect_resolver = effect_resolver  # For evaluating checks  # Optional for backward compatibility
 
     # ==================== PLAYABLE CARDS ====================
 
@@ -200,13 +201,18 @@ class ActionGenerator:
 
     def _meets_influence_requirement(self, player: Player, location: BoardSpace) -> bool:
         """Check if player meets the influence requirement for a location"""
-        if not location.required_influence:
-            return True
-
-        for faction, required_amount in location.required_influence.items():
-            current_influence = self.state.get_player_influence(player.player_id, faction)
-            if current_influence < required_amount:
+        # Check new format (check array)
+        if hasattr(location, 'check') and location.check and self.effect_resolver:
+            check_result = self.effect_resolver._evaluate_checks(player.player_id, location.check)
+            if not check_result.get("success"):
                 return False
+
+        # Check old format (required_influence dict)
+        if location.required_influence:
+            for faction, required_amount in location.required_influence.items():
+                current_influence = self.state.get_player_influence(player.player_id, faction)
+                if current_influence < required_amount:
+                    return False
 
         return True
 
