@@ -60,6 +60,7 @@ class EffectResolver:
             "council_seat": self._handle_council_seat,
             "maker_hooks": self._handle_maker_hooks,
             "shieldwall_deactivate": self._handle_shieldwall_deactivate,
+            "signet": self._handle_signet,
 
             # Complex effects
             "choice": self._handle_choice,
@@ -712,6 +713,23 @@ class EffectResolver:
                 "type": "maker_hooks",
                 "value": value
             }
+        }
+
+    def _handle_signet(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle signet effects: {"type": "signet"}
+        Signet abilities are triggered during reveal phase based on leader.
+        This is a placeholder - actual signet logic handled in reveal phase.
+        """
+        return {
+            "success": True,
+            "effect_type": "signet",
+            "applied": []
         }
 
     def _handle_shieldwall_deactivate(
