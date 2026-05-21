@@ -1,0 +1,480 @@
+{
+  "game_id": "20260521_142233",
+  "events": [
+    {
+      "event_type": "game_start",
+      "game_id": "20260521_142233",
+      "timestamp": "2026-05-21T14:22:33.642994"
+    },
+    {
+      "event_type": "game_setup",
+      "player_count": 4,
+      "bot_only": false,
+      "setup_info": {
+        "human_player_id": "p0",
+        "first_player_idx": 1,
+        "first_player_name": "Bot 1",
+        "objectives": [
+          "Crysknife 4 or 6 p",
+          "Desert Mouse 1-6 p",
+          "Desert Mouse 4 or 6 p",
+          "Ornithopter 1 or 3 p"
+        ],
+        "conflict_deck_size": 10,
+        "imperium_deck_size": 5,
+        "intrigue_deck_size": 5,
+        "contract_deck_size": 22
+      },
+      "timestamp": "2026-05-21T14:22:33.643629"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "setup",
+      "new_phase": "begin_round",
+      "round": 1,
+      "timestamp": "2026-05-21T14:22:35.153795"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 1,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "e",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p3",
+          "name": "Bot 3",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-21T14:22:35.155420"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 1,
+      "timestamp": "2026-05-21T14:22:35.662202"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "place_agent",
+      "options": [
+        "Reconnaissance -> Spice Refinery",
+        "Reconnaissance -> Arrakeen"
+      ],
+      "chosen": "Reconnaissance -> Arrakeen",
+      "reasoning": "Random selection from 2 valid placements",
+      "timestamp": "2026-05-21T14:22:35.663102"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Reconnaissance",
+        "location": "Arrakeen",
+        "placement_type": "blue",
+        "success": true
+      },
+      "timestamp": "2026-05-21T14:22:35.663522"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "place_agent",
+      "options": [
+        "Diplomacy -> Fremkit",
+        "Diplomacy -> Desert Tactics",
+        "Diplomacy -> Deliver Supplies",
+        "Diplomacy -> Secrets",
+        "Diplomacy -> Dutiful Service"
+      ],
+      "chosen": "Diplomacy -> Fremkit",
+      "reasoning": "Random selection from 5 valid placements",
+      "timestamp": "2026-05-21T14:22:35.663994"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Diplomacy",
+        "location": "Fremkit",
+        "placement_type": "fremen",
+        "success": true
+      },
+      "timestamp": "2026-05-21T14:22:35.664333"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "decision_type": "place_agent",
+      "options": [
+        "Dune, the Desert Planet -> Haga Bassin",
+        "Dune, the Desert Planet -> Imperial Bassin",
+        "Dune, the Desert Planet -> Accept Contract"
+      ],
+      "chosen": "Dune, the Desert Planet -> Accept Contract",
+      "reasoning": "Random selection from 3 valid placements",
+      "timestamp": "2026-05-21T14:22:35.664684"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Dune, the Desert Planet",
+        "location": "Accept Contract",
+        "placement_type": "yellow",
+        "success": true
+      },
+      "timestamp": "2026-05-21T14:22:35.665026"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "place_agent",
+      "options": [
+        "Dune, the Desert Planet -> Haga Bassin",
+        "Dune, the Desert Planet -> Imperial Bassin"
+      ],
+      "chosen": "Dune, the Desert Planet -> Imperial Bassin",
+      "reasoning": "Random selection from 2 valid placements",
+      "timestamp": "2026-05-21T14:22:42.514857"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Dune, the Desert Planet",
+        "location": "Imperial Bassin",
+        "placement_type": "yellow",
+        "success": true
+      },
+      "timestamp": "2026-05-21T14:22:42.516457"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "place_agent",
+      "options": [
+        "Signet Ring -> Haga Bassin",
+        "Signet Ring -> Assembly Hall",
+        "Signet Ring -> Gather Support"
+      ],
+      "chosen": "Signet Ring -> Assembly Hall",
+      "reasoning": "Random selection from 3 valid placements",
+      "timestamp": "2026-05-21T14:22:42.517648"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Signet Ring",
+        "location": "Assembly Hall",
+        "placement_type": "green",
+        "success": true
+      },
+      "timestamp": "2026-05-21T14:22:42.518394"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "decision_type": "place_agent",
+      "options": [
+        "Dune, the Desert Planet -> Haga Bassin"
+      ],
+      "chosen": "Dune, the Desert Planet -> Haga Bassin",
+      "reasoning": "Random selection from 1 valid placements",
+      "timestamp": "2026-05-21T14:22:42.519124"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Dune, the Desert Planet",
+        "location": "Haga Bassin",
+        "placement_type": "yellow",
+        "success": true
+      },
+      "timestamp": "2026-05-21T14:22:42.519996"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-21T14:22:48.548071"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 3,
+        "cards_revealed": 4
+      },
+      "timestamp": "2026-05-21T14:22:48.549905"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-21T14:22:48.550990"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 3,
+        "cards_revealed": 4
+      },
+      "timestamp": "2026-05-21T14:22:48.551875"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "decision_type": "reveal",
+      "options": [
+        "reveal"
+      ],
+      "chosen": "reveal",
+      "reasoning": "No more agents or random choice",
+      "timestamp": "2026-05-21T14:22:48.552963"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "action_type": "reveal",
+      "details": {
+        "total_persuasion": 3,
+        "cards_revealed": 4
+      },
+      "timestamp": "2026-05-21T14:22:48.554335"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "player_turns",
+      "new_phase": "combat",
+      "round": 1,
+      "timestamp": "2026-05-21T14:22:48.555692"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "makers",
+      "new_phase": "recall",
+      "round": 1,
+      "timestamp": "2026-05-21T14:22:51.066369"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "recall",
+      "new_phase": "begin_round",
+      "round": 2,
+      "timestamp": "2026-05-21T14:22:51.568906"
+    },
+    {
+      "event_type": "game_state_snapshot",
+      "round": 2,
+      "phase": "begin_round",
+      "players": [
+        {
+          "player_id": "p0",
+          "name": "e",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 1,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p1",
+          "name": "Bot 1",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 1,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p2",
+          "name": "Bot 2",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        },
+        {
+          "player_id": "p3",
+          "name": "Bot 3",
+          "vp": 0,
+          "resources": {
+            "solari": 0,
+            "spice": 0,
+            "water": 1
+          }
+        }
+      ],
+      "timestamp": "2026-05-21T14:22:51.570405"
+    },
+    {
+      "event_type": "phase_transition",
+      "old_phase": "begin_round",
+      "new_phase": "player_turns",
+      "round": 2,
+      "timestamp": "2026-05-21T14:22:52.075202"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "decision_type": "place_agent",
+      "options": [
+        "Dagger -> Assembly Hall",
+        "Dagger -> Gather Support"
+      ],
+      "chosen": "Dagger -> Assembly Hall",
+      "reasoning": "Random selection from 2 valid placements",
+      "timestamp": "2026-05-21T14:22:52.076416"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p1",
+      "player_name": "Bot 1",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Dagger",
+        "location": "Assembly Hall",
+        "placement_type": "green",
+        "success": true
+      },
+      "timestamp": "2026-05-21T14:22:52.077408"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "decision_type": "place_agent",
+      "options": [
+        "Dune, the Desert Planet -> Haga Bassin",
+        "Dune, the Desert Planet -> Imperial Bassin",
+        "Dune, the Desert Planet -> Accept Contract"
+      ],
+      "chosen": "Dune, the Desert Planet -> Accept Contract",
+      "reasoning": "Random selection from 3 valid placements",
+      "timestamp": "2026-05-21T14:22:52.077989"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p2",
+      "player_name": "Bot 2",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Dune, the Desert Planet",
+        "location": "Accept Contract",
+        "placement_type": "yellow",
+        "success": true
+      },
+      "timestamp": "2026-05-21T14:22:52.078679"
+    },
+    {
+      "event_type": "bot_decision",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "decision_type": "place_agent",
+      "options": [
+        "Signet Ring -> Spice Refinery",
+        "Signet Ring -> Arrakeen",
+        "Signet Ring -> Haga Bassin",
+        "Signet Ring -> Imperial Bassin",
+        "Signet Ring -> Gather Support"
+      ],
+      "chosen": "Signet Ring -> Imperial Bassin",
+      "reasoning": "Random selection from 5 valid placements",
+      "timestamp": "2026-05-21T14:22:52.079141"
+    },
+    {
+      "event_type": "player_action",
+      "player_id": "p3",
+      "player_name": "Bot 3",
+      "action_type": "place_agent",
+      "details": {
+        "card": "Signet Ring",
+        "location": "Imperial Bassin",
+        "placement_type": "yellow",
+        "success": true
+      },
+      "timestamp": "2026-05-21T14:22:52.079566"
+    }
+  ]
+}

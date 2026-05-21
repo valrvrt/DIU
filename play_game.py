@@ -308,10 +308,14 @@ class GameDisplay:
             if game.board.current_conflict:
                 print(f"Conflict: {game.board.current_conflict.name}\n")
 
-            # Show all players' strength
+            # Show all players' strength (troops*2 + swords)
             for player in game.players:
-                strength = player.troops_in_conflict * 2
-                print(f"  {player.name}: {strength} strength ({player.troops_in_conflict} troops)")
+                swords = getattr(player, 'temp_swords', 0)
+                strength = (player.troops_in_conflict * 2) + swords
+                strength_detail = f"{player.troops_in_conflict} troops"
+                if swords > 0:
+                    strength_detail += f", {swords} swords"
+                print(f"  {player.name}: {strength} strength ({strength_detail})")
             print("="*70)
             return
 
@@ -590,8 +594,11 @@ class GameLoop:
 
                     elif action_type == "reveal":
                         persuasion = result.get("total_persuasion", 0)
-                        swords = result.get("total_swords", 0)
-                        print(f"   ✓ {current_player.name} revealed: {persuasion} persuasion, {swords} swords")
+                        swords = result.get("temp_swords", 0)
+                        if swords > 0:
+                            print(f"   ✓ {current_player.name} revealed: {persuasion} persuasion, {swords} swords")
+                        else:
+                            print(f"   ✓ {current_player.name} revealed: {persuasion} persuasion")
 
                     elif action_type == "acquire_card":
                         card_name = result.get("card_acquired", {}).get("name", "card")
@@ -677,7 +684,12 @@ class GameLoop:
             action = RevealAction(player_id=player_id)
             result = action_exec.execute_reveal(action)
             if result.get("success"):
-                print(f"\n✓ Revealed hand! Persuasion: {result.get('total_persuasion', 0)}")
+                persuasion = result.get('total_persuasion', 0)
+                swords = result.get('temp_swords', 0)
+                print(f"\n✓ Revealed hand! Persuasion: {persuasion}", end="")
+                if swords > 0:
+                    print(f", Swords: {swords}", end="")
+                print()  # New line
             return
 
         try:
