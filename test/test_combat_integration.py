@@ -13,8 +13,8 @@ from src.models.player import Player
 from src.models.card import LeaderCard, CardType, ConflictCard
 from src.models.deck import Deck
 from src.models.board import Board
-from src.engine.phase_manager import PhaseManager
-from src.engine.combat_manager import CombatManager
+from src.engine.managers.phase_manager import PhaseManager
+from src.engine.managers.combat_manager import CombatManager
 
 
 def setup_test_game():

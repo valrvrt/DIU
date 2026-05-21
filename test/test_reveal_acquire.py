@@ -14,10 +14,10 @@ from src.models.card import LeaderCard, ImperiumCard, CardType
 from src.models.deck import Deck
 from src.models.board import Board
 from src.models.boardspace import BoardSpace
-from src.engine.phase_manager import PhaseManager
-from src.engine.deck_manager import DeckManager
-from src.engine.action_executor import ActionExecutor, PlaceAgentAction, RevealAction, AcquireCardAction
-from src.engine.action_generator import ActionGenerator
+from src.engine.managers.phase_manager import PhaseManager
+from src.engine.managers.deck_manager import DeckManager
+from src.engine.actions.action_executor import ActionExecutor, PlaceAgentAction, RevealAction, AcquireCardAction
+from src.engine.actions.action_generator import ActionGenerator
 
 
 def create_test_card(card_id: str, name: str, cost: int = 3, persuasion: int = 1) -> ImperiumCard:

@@ -14,10 +14,10 @@ from src.models.card import ImperiumCard, CardType, LeaderCard, ContractCard
 from src.models.deck import Deck
 from src.models.board import Board
 from src.models.boardspace import BoardSpace
-from src.engine.game_state import GameState
-from src.engine.action_generator import ActionGenerator
-from src.engine.action_executor import ActionExecutor, PlaceAgentAction, RevealAction
-from src.engine.contract_manager import ContractManager
+from src.engine.core.game_state import GameState
+from src.engine.actions.action_generator import ActionGenerator
+from src.engine.actions.action_executor import ActionExecutor, PlaceAgentAction, RevealAction
+from src.engine.managers.contract_manager import ContractManager
 
 
 def create_game():

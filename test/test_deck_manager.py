@@ -13,7 +13,7 @@ from src.models.player import Player
 from src.models.card import LeaderCard, ImperiumCard, CardType
 from src.models.deck import Deck
 from src.models.board import Board
-from src.engine.deck_manager import DeckManager
+from src.engine.managers.deck_manager import DeckManager
 
 
 def create_test_card(card_id: str, name: str, cost: int = 3) -> ImperiumCard:

@@ -10,9 +10,9 @@ Responsibilities:
 """
 
 from typing import Dict, Any, Optional, Tuple, TYPE_CHECKING
-from ..models.game import Game, GamePhase
-from ..models.player import Player
-from .game_state import GameState
+from ...models.game import Game, GamePhase
+from ...models.player import Player
+from ..core.game_state import GameState
 
 if TYPE_CHECKING:
     from .combat_manager import CombatManager

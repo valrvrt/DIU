@@ -19,8 +19,8 @@ from src.models.board import Board
 from src.models.card import ImperiumCard, LeaderCard, CardType
 from src.models.deck import Deck
 from src.models.boardspace import BoardSpace
-from src.engine.action_executor import ActionExecutor, PlaceAgentAction, RevealAction
-from src.engine.effect_resolver import EffectResolver
+from src.engine.actions.action_executor import ActionExecutor, PlaceAgentAction, RevealAction
+from src.engine.effects.effect_resolver import EffectResolver
 
 
 def load_json_data(filename):

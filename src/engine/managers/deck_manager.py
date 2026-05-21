@@ -11,10 +11,10 @@ Responsibilities:
 """
 
 from typing import Dict, Any, List, Optional
-from ..models.game import Game
-from ..models.player import Player
-from ..models.card import ImperiumCard, Card
-from .game_state import GameState
+from ...models.game import Game
+from ...models.player import Player
+from ...models.card import ImperiumCard, Card
+from ..core.game_state import GameState
 
 
 class DeckManager:

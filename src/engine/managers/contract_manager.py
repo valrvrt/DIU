@@ -8,10 +8,10 @@ Contracts have 3 types:
 """
 
 from typing import Dict, Any, Optional
-from ..models.game import Game
-from ..models.player import Player
-from ..models.card import ContractCard
-from .game_state import GameState
+from ...models.game import Game
+from ...models.player import Player
+from ...models.card import ContractCard
+from ..core.game_state import GameState
 
 
 class ContractManager:

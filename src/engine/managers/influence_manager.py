@@ -9,8 +9,8 @@ Responsibilities:
 """
 
 from typing import Dict, Any, List, Tuple
-from ..models.game import Game
-from ..engine.game_state import GameState
+from ...models.game import Game
+from ..core.game_state import GameState
 
 
 class InfluenceManager:

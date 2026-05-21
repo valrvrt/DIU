@@ -7,11 +7,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-from src.engine.game_setup import GameSetup
-from src.engine.action_executor import ActionExecutor
-from src.engine.effect_resolver import EffectResolver
-from src.engine.influence_manager import InfluenceManager
-from src.engine.action_executor import PlaceAgentAction
+from src.engine.core.game_setup import GameSetup
+from src.engine.actions.action_executor import ActionExecutor
+from src.engine.effects.effect_resolver import EffectResolver
+from src.engine.managers.influence_manager import InfluenceManager
+from src.engine.actions.action_executor import PlaceAgentAction
 from src.loaders.board_loader import load_board_spaces
 
 

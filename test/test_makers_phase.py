@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from src.models.game import Game, GamePhase
 from src.models.board import Board
 from src.models.boardspace import BoardSpace
-from src.engine.makers_manager import MakersManager
+from src.engine.managers.makers_manager import MakersManager
 
 
 def create_test_board_with_maker_spaces():

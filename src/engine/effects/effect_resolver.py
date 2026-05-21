@@ -13,9 +13,10 @@ Matches the standardized JSON formalism from:
 - objectives.JSON
 """
 
+import random
 from typing import Dict, List, Any, Optional, Callable
-from ..models.game import Game
-from ..engine.game_state import GameState
+from ...models.game import Game
+from ..core.game_state import GameState
 
 
 class EffectResolver:
@@ -262,12 +263,14 @@ class EffectResolver:
         context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Handle draw effects: {"type": "draw", "deck": "intrigue", "amount": 1}
+        Handle draw effects: {"type": "draw", "deck": "intrigue"|"deck", "amount": 1}
+
+        Auto-shuffles discard/played when deck empty.
 
         Supported decks:
-        - intrigue: Draw from intrigue deck
+        - intrigue: Draw from intrigue deck (shuffles played intrigue when empty)
         - contract: Draw from contract deck
-        - deck: Draw from player's own deck
+        - deck: Draw from player's own deck (shuffles discard when empty)
         """
         player = self.state.get_player_by_id(player_id)
         deck_type = effect.get("deck")
@@ -281,6 +284,12 @@ class EffectResolver:
         if deck_type == "intrigue":
             # Draw from board's intrigue deck
             for _ in range(amount):
+                # If intrigue deck empty, shuffle played intrigue back
+                if not self.game.board.intrigue_deck and hasattr(self.game.board, 'played_intrigue_deck'):
+                    self.game.board.intrigue_deck = self.game.board.played_intrigue_deck
+                    random.shuffle(self.game.board.intrigue_deck)
+                    self.game.board.played_intrigue_deck = []
+
                 if self.game.board.intrigue_deck:
                     card = self.game.board.intrigue_deck.pop(0)
                     player.intrigue_cards.append(card)
@@ -296,16 +305,22 @@ class EffectResolver:
                     cards_drawn.append(contract)
 
         elif deck_type == "deck":
-            # Draw from player's own deck
-            # This should be handled by DeckManager if available
+            # Draw from player's own deck (use DeckManager for auto-shuffle)
             if hasattr(self.game, 'deck_manager') and self.game.deck_manager:
                 result = self.game.deck_manager.draw_cards(player_id, amount)
                 if not result["success"]:
                     return result
                 cards_drawn = result.get("cards_drawn", [])
             else:
-                # Fallback: draw directly
+                # Fallback: manual draw with shuffle
+                from ...models.deck import Deck
                 for _ in range(amount):
+                    if player.deck.is_empty and not player.discard_pile.is_empty:
+                        # Shuffle discard into deck
+                        player.deck = player.discard_pile
+                        player.deck.shuffle()
+                        player.discard_pile = Deck()
+
                     if not player.deck.is_empty:
                         card = player.deck.draw()
                         player.hand.add_card(card)
@@ -336,41 +351,47 @@ class EffectResolver:
         """
         Handle play effects: {"type": "play", "unit": "spy", "amount": 1}
 
-        Deploys units from reserve to board.
+        Plays a spy to an observation post.
+        Requires player choice of which post.
         """
-        player = self.state.get_player_by_id(player_id)
-        unit = effect.get("unit")
+        unit_type = effect.get("unit")
         amount = effect.get("amount", 0)
 
-        if not unit:
-            return {"success": False, "error": "Play effect missing 'unit' field"}
+        if unit_type != "spy":
+            return {"success": False, "error": "Play effect only supports 'spy' unit"}
 
-        if unit == "spy":
-            # Deploy spy from available pool
-            if player.spies_available < amount:
-                return {
-                    "success": False,
-                    "error": f"Not enough spies available (need {amount}, have {player.spies_available})"
-                }
+        player = self.state.get_player_by_id(player_id)
 
-            player.spies_available -= amount
-            # Track deployed spies (add to placed list)
-            # Location would come from context
-            location = context.get("location", "unknown")
-            player.spies_placed.append(location)
-
-        else:
+        if player.spies_available < amount:
             return {
                 "success": False,
-                "error": f"Unknown unit type: {unit}"
+                "error": f"Not enough spies available (have {player.spies_available}, need {amount})"
             }
 
+        # Get available observation posts (not already occupied by this player)
+        available_posts = []
+        for post in self.game.board.observation_posts:
+            if post.id not in player.spies_placed:
+                available_posts.append({
+                    "post_id": post.id,
+                    "post_name": post.name,
+                    "connected_locations": post.connected_locations
+                })
+
+        if not available_posts:
+            return {
+                "success": False,
+                "error": "No available observation posts"
+            }
+
+        # Requires player choice
         return {
             "success": True,
-            "applied": {
-                "type": "play",
-                "unit": unit,
-                "amount": amount
+            "choice_required": True,
+            "choice_data": {
+                "type": "play_spy",
+                "amount": amount,
+                "available_posts": available_posts
             }
         }
 
@@ -381,12 +402,38 @@ class EffectResolver:
         context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Handle accept effects: {"type": "accept", "deck": "contract", "amount": 1}
+        Handle accept effects: {"type": "accept", "amount": 1}
 
-        Allows player to accept contracts.
+        Accepts a contract from the contract row.
+        Requires player choice of which contract (row refills automatically).
         """
-        # Accept is essentially the same as draw for contracts
-        return self._handle_draw(player_id, effect, context)
+        amount = effect.get("amount", 1)
+
+        # Get available contracts from row
+        if not hasattr(self.game.board, 'contract_row') or not self.game.board.contract_row:
+            return {
+                "success": False,
+                "error": "No contracts available in contract row"
+            }
+
+        available_contracts = self.game.board.contract_row[:2]  # Only first 2 are visible
+
+        if not available_contracts:
+            return {
+                "success": False,
+                "error": "Contract row is empty"
+            }
+
+        # Requires player choice
+        return {
+            "success": True,
+            "choice_required": True,
+            "choice_data": {
+                "type": "accept_contract",
+                "amount": amount,
+                "available_contracts": available_contracts
+            }
+        }
 
     def _handle_trash(
         self,
@@ -469,45 +516,46 @@ class EffectResolver:
         """
         Handle steal effects: {"type": "steal", "deck": "intrigue", "amount": 1}
 
-        Steals cards from opponents. Requires player choice of target.
+        Steals intrigue from opponent with 4+ intrigues.
+        Requires player choice of which opponent.
         """
         deck_type = effect.get("deck")
         amount = effect.get("amount", 0)
 
-        if not deck_type:
-            return {"success": False, "error": "Steal effect missing 'deck' field"}
+        if deck_type != "intrigue":
+            return {"success": False, "error": "Steal only supports 'intrigue' deck"}
 
-        # Build list of valid targets
-        player = self.state.get_player_by_id(player_id)
-        targets = []
+        # Find opponents with 4+ intrigue cards
+        valid_targets = []
+        for other_player in self.game.players:
+            if other_player.player_id == player_id:
+                continue
+            if len(other_player.intrigue_cards) >= 4:
+                valid_targets.append({
+                    "player_id": other_player.player_id,
+                    "player_name": other_player.name,
+                    "intrigue_count": len(other_player.intrigue_cards)
+                })
 
-        for opponent in self.game.players:
-            if opponent.player_id == player_id:
-                continue  # Can't steal from yourself
-
-            if deck_type == "intrigue":
-                if len(opponent.intrigue_cards) > 0:
-                    targets.append({
-                        "player_id": opponent.player_id,
-                        "player_name": opponent.name,
-                        "available_cards": len(opponent.intrigue_cards)
-                    })
-
-        if not targets:
+        if not valid_targets:
+            # No valid targets - effect fails silently
             return {
-                "success": False,
-                "error": "No valid targets for steal effect"
+                "success": True,
+                "applied": {
+                    "type": "steal",
+                    "amount": 0,
+                    "reason": "No opponents with 4+ intrigue cards"
+                }
             }
 
-        # This effect requires player choice
+        # Requires player choice
         return {
             "success": True,
             "choice_required": True,
             "choice_data": {
-                "type": "steal_card",
-                "deck": deck_type,
+                "type": "steal_intrigue",
                 "amount": amount,
-                "targets": targets
+                "valid_targets": valid_targets
             }
         }
 
@@ -518,59 +566,79 @@ class EffectResolver:
         context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Handle recall effects: {"type": "recall", "unit": "agent", "amount": 1}
+        Handle recall effects: {"type": "recall", "unit": "agent"|"spy", "amount": 1}
 
-        Returns deployed units back to available pool.
+        Recalls agent/spy from board to available pool.
+        Requires player choice of which unit to recall (excluding triggering unit).
         """
-        player = self.state.get_player_by_id(player_id)
-        unit = effect.get("unit")
+        unit_type = effect.get("unit")  # "agent" or "spy"
         amount = effect.get("amount", 0)
 
-        if not unit:
-            return {"success": False, "error": "Recall effect missing 'unit' field"}
+        if unit_type not in ["agent", "spy"]:
+            return {"success": False, "error": "Recall unit must be 'agent' or 'spy'"}
 
-        if unit == "agent":
-            # Return agents from board to available pool
-            if len(player.agents_placed) < amount:
-                return {
-                    "success": False,
-                    "error": f"Not enough agents to recall (need {amount}, have {len(player.agents_placed)})"
-                }
+        player = self.state.get_player_by_id(player_id)
 
-            # Requires choice if player has multiple agents placed
-            if len(player.agents_placed) > amount:
+        if unit_type == "agent":
+            # Get locations where player has agents (exclude current context location)
+            placed_locations = player.agents_placed.copy()
+
+            # Exclude the triggering location if in context
+            if context and "location_id" in context:
+                if context["location_id"] in placed_locations:
+                    placed_locations.remove(context["location_id"])
+
+            if not placed_locations:
                 return {
                     "success": True,
-                    "choice_required": True,
-                    "choice_data": {
-                        "type": "recall_agent",
-                        "amount": amount,
-                        "placed_agents": player.agents_placed.copy()
+                    "applied": {
+                        "type": "recall",
+                        "unit": "agent",
+                        "amount": 0,
+                        "reason": "No agents to recall"
                     }
                 }
 
-            # If exact match, recall all
-            recalled = []
-            for _ in range(amount):
-                if player.agents_placed:
-                    location = player.agents_placed.pop()
-                    recalled.append(location)
-                    player.agents_available += 1
-
+            # Requires player choice of which location
             return {
                 "success": True,
-                "applied": {
-                    "type": "recall",
-                    "unit": unit,
-                    "amount": len(recalled),
-                    "from_locations": recalled
+                "choice_required": True,
+                "choice_data": {
+                    "type": "recall_agent",
+                    "amount": amount,
+                    "placed_locations": placed_locations
                 }
             }
 
-        else:
+        elif unit_type == "spy":
+            # Get observation posts where player has spies
+            placed_posts = player.spies_placed.copy()
+
+            # Exclude the triggering post if in context
+            if context and "observation_post_id" in context:
+                if context["observation_post_id"] in placed_posts:
+                    placed_posts.remove(context["observation_post_id"])
+
+            if not placed_posts:
+                return {
+                    "success": True,
+                    "applied": {
+                        "type": "recall",
+                        "unit": "spy",
+                        "amount": 0,
+                        "reason": "No spies to recall"
+                    }
+                }
+
+            # Requires player choice of which post
             return {
-                "success": False,
-                "error": f"Unknown unit type for recall: {unit}"
+                "success": True,
+                "choice_required": True,
+                "choice_data": {
+                    "type": "recall_spy",
+                    "amount": amount,
+                    "placed_posts": placed_posts
+                }
             }
 
     def _handle_influence(
@@ -1080,11 +1148,217 @@ class EffectResolver:
                 "applied": {"type": "conditional", "declined": True}
             }
 
+        elif choice_type == "trash_card":
+            # Execute card trashing
+            available_cards = choice_data.get("available_cards", [])
+            player = self.state.get_player_by_id(player_id)
+
+            # Find the selected card
+            selected_card_info = None
+            for card_info in available_cards:
+                if card_info["card"].id == selected_option_id:
+                    selected_card_info = card_info
+                    break
+
+            if not selected_card_info:
+                return {"success": False, "error": "Invalid card selection"}
+
+            card = selected_card_info["card"]
+            source = selected_card_info["source"]
+
+            # Remove from source
+            if source == "hand":
+                player.hand.remove_card(card)
+            elif source == "played":
+                player.played_cards_this_turn.remove(card)
+            elif source == "intrigue":
+                player.intrigue_cards.remove(card)
+            elif source == "discard":
+                player.discard_pile.remove_card(card)
+
+            # Add to trash
+            if hasattr(self.game, 'trash_pile'):
+                self.game.trash_pile.append(card)
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "trash",
+                    "card_trashed": card.name,
+                    "from_source": source
+                }
+            }
+
+        elif choice_type == "steal_intrigue":
+            # Execute intrigue steal
+            target_player_id = selected_option_id  # player_id of target
+            amount = choice_data.get("amount", 1)
+
+            target_player = self.state.get_player_by_id(target_player_id)
+            player = self.state.get_player_by_id(player_id)
+
+            if not target_player or not player:
+                return {"success": False, "error": "Invalid player"}
+
+            if len(target_player.intrigue_cards) < 4:
+                return {"success": False, "error": "Target doesn't have 4+ intrigue"}
+
+            # Steal random intrigue
+            stolen_card = random.choice(target_player.intrigue_cards)
+            target_player.intrigue_cards.remove(stolen_card)
+            player.intrigue_cards.append(stolen_card)
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "steal",
+                    "card_stolen": stolen_card,
+                    "from_player": target_player.name
+                }
+            }
+
+        elif choice_type == "recall_agent":
+            # Execute agent recall
+            location_id = selected_option_id
+            player = self.state.get_player_by_id(player_id)
+
+            if location_id not in player.agents_placed:
+                return {"success": False, "error": "No agent at that location"}
+
+            player.agents_placed.remove(location_id)
+            player.agents_available += 1
+
+            # Clear occupation from board space
+            for space in self.game.board.spaces:
+                if space.id == location_id and space.occupied_by == player_id:
+                    space.occupied_by = None
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "recall",
+                    "unit": "agent",
+                    "location": location_id
+                }
+            }
+
+        elif choice_type == "recall_spy":
+            # Execute spy recall
+            post_id = selected_option_id
+            player = self.state.get_player_by_id(player_id)
+
+            if post_id not in player.spies_placed:
+                return {"success": False, "error": "No spy at that post"}
+
+            player.spies_placed.remove(post_id)
+            player.spies_available += 1
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "recall",
+                    "unit": "spy",
+                    "post": post_id
+                }
+            }
+
+        elif choice_type == "accept_contract":
+            # Execute contract acceptance
+            contract = None
+            available_contracts = choice_data.get("available_contracts", [])
+
+            # Find the selected contract
+            for c in available_contracts:
+                if c.id == selected_option_id:
+                    contract = c
+                    break
+
+            if not contract:
+                return {"success": False, "error": "Contract not found"}
+
+            player = self.state.get_player_by_id(player_id)
+
+            if contract not in self.game.board.contract_row:
+                return {"success": False, "error": "Contract not in row"}
+
+            # Add to player's contracts
+            player.contracts_active.append(contract)
+
+            # Remove from row
+            self.game.board.contract_row.remove(contract)
+
+            # Refill row
+            if hasattr(self.game.board, 'contract_deck') and self.game.board.contract_deck:
+                new_contract = self.game.board.contract_deck.pop(0)
+                self.game.board.contract_row.append(new_contract)
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "accept",
+                    "contract": contract.name
+                }
+            }
+
+        elif choice_type == "play_spy":
+            # Execute spy placement
+            post_id = selected_option_id
+            player = self.state.get_player_by_id(player_id)
+
+            if player.spies_available < 1:
+                return {"success": False, "error": "No spies available"}
+
+            if post_id in player.spies_placed:
+                return {"success": False, "error": "Already have spy at that post"}
+
+            player.spies_available -= 1
+            player.spies_placed.append(post_id)
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "play",
+                    "unit": "spy",
+                    "post": post_id
+                }
+            }
+
         else:
             return {
                 "success": False,
                 "error": f"Unknown choice type: {choice_type}"
             }
+
+    # ==================== PUBLIC VALIDATION METHODS ====================
+
+    def validate_location_access(self, player_id: str, location_checks: List) -> Dict[str, Any]:
+        """
+        Public wrapper for location requirement validation.
+
+        Evaluates whether a player meets the requirements to access a location.
+
+        Args:
+            player_id: Player to check
+            location_checks: List of check conditions from location JSON
+
+        Returns:
+            Dict with success=True if all checks pass, or error details
+        """
+        return self._evaluate_checks(player_id, location_checks)
+
+    def validate_choice_costs(self, player_id: str, costs: List) -> bool:
+        """
+        Public wrapper for checking if player can afford choice costs.
+
+        Args:
+            player_id: Player to check
+            costs: List of cost requirements
+
+        Returns:
+            True if player can afford all costs, False otherwise
+        """
+        result = self._check_costs(player_id, costs)
+        return result["success"]
 
     # ==================== SHORTHAND EFFECT HANDLERS ====================
 

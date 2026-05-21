@@ -1,7 +1,7 @@
 """Debug why bots always reveal."""
 
-from src.engine.game_setup import GameSetup
-from src.engine.action_generator import ActionGenerator
+from src.engine.core.game_setup import GameSetup
+from src.engine.actions.action_generator import ActionGenerator
 
 # Create game
 game, setup_info = GameSetup.create_game(player_count=3, human_player_name="Test")

@@ -16,7 +16,7 @@ def _get_data_path(filename: str) -> Path:
 
 
 def load_starter_deck() -> List[ImperiumCard]:
-    """Load the 7 starter cards every player begins with."""
+    """Load the 10 starter cards every player begins with."""
     file_path = _get_data_path("imperium.JSON")
 
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -29,23 +29,24 @@ def load_starter_deck() -> List[ImperiumCard]:
             continue
 
         # Get the amount (how many copies of this card in starter deck)
-        amount = card_data.get('amount', 1)
+        amount = card_data.get('amount')
 
         for _ in range(amount):
-            card = ImperiumCard(
-                id=str(card_data['id']),
-                name=card_data['name'],
-                card_type=CardType.IMPERIUM,
-                type="Imperium",
-                factions=card_data.get('factions', []),
-                starting_hand=True,
-                cost=0,  # Starter cards are free
-                on_acquire_effects=[],
-                agent_icons=card_data.get('agent_icon', []),
-                agent_effects=card_data.get('agent_effects', []),
-                reveal_effects=card_data.get('reveal_effects', [])
-            )
-            cards.append(card)
+            for i in range(amount):
+                card = ImperiumCard(
+                    id=str(card_data['id']),
+                    name=card_data['name'],
+                    card_type=CardType.IMPERIUM,
+                    type="Imperium",
+                    factions=card_data.get('factions', []),
+                    starting_hand=True,
+                    cost=0,  # Starter cards are free
+                    on_acquire_effects=[],
+                    agent_icons=card_data.get('agent_icon', []),
+                    agent_effects=card_data.get('agent_effects', []),
+                    reveal_effects=card_data.get('reveal_effects', [])
+                )
+                cards.append(card)
 
     return cards
 

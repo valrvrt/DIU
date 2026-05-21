@@ -7,9 +7,9 @@ Responsibilities:
 """
 
 from typing import Dict, Any, List
-from ..models.game import Game
-from ..models.boardspace import BoardSpace
-from .game_state import GameState
+from ...models.game import Game
+from ...models.boardspace import BoardSpace
+from ..core.game_state import GameState
 
 
 class MakersManager:
@@ -84,10 +84,10 @@ class MakersManager:
         """
         Get all boardspaces that are maker spaces.
 
-        A maker space is identified by having the 'maker' attribute set to True.
+        A maker space is identified by having the 'is_maker_space' attribute set to True.
 
         Returns:
-            List of BoardSpace objects with maker=True
+            List of BoardSpace objects with is_maker_space=True
         """
         maker_spaces = []
 
@@ -95,7 +95,7 @@ class MakersManager:
         # For now, we'll check spaces that are tracked in the game board
         if hasattr(self.game.board, 'spaces'):
             for space in self.game.board.spaces:
-                if hasattr(space, 'maker') and space.maker:
+                if hasattr(space, 'is_maker_space') and space.is_maker_space:
                     maker_spaces.append(space)
 
         return maker_spaces

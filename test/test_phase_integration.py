@@ -14,9 +14,9 @@ from src.models.card import LeaderCard, ImperiumCard, CardType
 from src.models.deck import Deck
 from src.models.board import Board
 from src.models.boardspace import BoardSpace
-from src.engine.phase_manager import PhaseManager
-from src.engine.action_executor import ActionExecutor, PlaceAgentAction, RevealAction
-from src.engine.action_generator import ActionGenerator
+from src.engine.managers.phase_manager import PhaseManager
+from src.engine.actions.action_executor import ActionExecutor, PlaceAgentAction, RevealAction
+from src.engine.actions.action_generator import ActionGenerator
 
 
 def setup_test_game():

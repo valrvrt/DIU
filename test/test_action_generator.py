@@ -15,7 +15,7 @@ from src.models.game import Game, GamePhase
 from src.models.player import Player
 from src.models.board import Board
 from src.models.deck import Deck
-from src.engine.action_generator import ActionGenerator
+from src.engine.actions.action_generator import ActionGenerator
 from src.loaders.card_loader import load_starter_deck, load_leaders
 from src.loaders.board_loader import load_board_spaces, load_observation_posts
 
@@ -247,7 +247,7 @@ def test_spy_system():
         print(f"Spy now watching {len(post.connected_locations)} locations")
 
         # Show spy accessible locations
-        from src.engine.game_state import GameState
+        from src.engine.core.game_state import GameState
         state = GameState(game)
         accessible = state.get_spy_accessible_locations("player1")
         print(f"\n🎯 SPY ACCESSIBLE LOCATIONS: {len(accessible)}")

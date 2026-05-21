@@ -9,13 +9,13 @@ Responsibilities:
 """
 
 from typing import Dict, Any, List, Tuple, TYPE_CHECKING
-from ..models.game import Game
-from ..models.player import Player
-from ..models.card import ConflictCard
-from .game_state import GameState
+from ...models.game import Game
+from ...models.player import Player
+from ...models.card import ConflictCard
+from ..core.game_state import GameState
 
 if TYPE_CHECKING:
-    from .effect_resolver import EffectResolver
+    from ..effects.effect_resolver import EffectResolver
 
 
 class CombatManager:
@@ -38,7 +38,7 @@ class CombatManager:
         if effect_resolver:
             self.effect_resolver = effect_resolver
         else:
-            from .effect_resolver import EffectResolver
+            from ..effects.effect_resolver import EffectResolver
             self.effect_resolver = EffectResolver(game)
 
         # Optional VictoryPointManager for tag pair VP updates

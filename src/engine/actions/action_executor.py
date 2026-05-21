@@ -9,17 +9,48 @@ Flow:
 2. Player chooses an action
 3. ActionExecutor executes it (this file)
 4. EffectResolver interprets card effects
+
+IMPORTANT: JSON Data Format Requirements
+========================================
+All card and location effects MUST be in standard list format:
+
+✅ CORRECT FORMAT:
+    "agent_effects": [
+        {"type": "resource", "resource": "persuasion", "amount": 2},
+        {"type": "draw", "deck": "deck", "amount": 1}
+    ]
+
+❌ INCORRECT - Dict format not supported:
+    "agent_effects": {"persuasion": 2, "draw": 1}
+
+❌ INCORRECT - Nested "base" not supported:
+    "agent_effects": {"base": {"persuasion": 2}}
+
+Effect Types Reference:
+- resource: {"type": "resource", "resource": "solari|spice|water|persuasion|swords|troops", "amount": N}
+- draw: {"type": "draw", "deck": "deck|intrigue", "amount": N}
+- influence: {"type": "influence", "target": "fremen|bene_gesserit|spacing_guild|emperor", "amount": N}
+- trash: {"type": "trash", "deck": ["hand", "played"], "amount": N}
+- steal: {"type": "steal", "deck": "intrigue", "amount": N}
+- recall: {"type": "recall", "unit": "agent|spy", "amount": N}
+- accept: {"type": "accept", "amount": N}
+- play: {"type": "play", "unit": "spy", "amount": N}
+- choice: {"type": "choice", "options": [...]}
+- conditional: {"type": "conditional", "costs": [...], "rewards": [...]}
+
+The JSON database MUST conform to this format. The code will NOT attempt
+to normalize or convert different formats.
 """
 
-from typing import Dict, Any, Optional, TYPE_CHECKING, List
+from typing import Dict, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass
-from ..models.game import Game
-from ..models.player import Player
-from ..models.card import ImperiumCard, IntrigueCard
-from ..models.boardspace import BoardSpace
-from .effect_resolver import EffectResolver
-from .game_state import GameState
-from .contract_manager import ContractManager
+from ...models.game import Game
+from ...models.player import Player
+from ...models.card import ImperiumCard, IntrigueCard
+from ...models.boardspace import BoardSpace
+from ..effects.effect_resolver import EffectResolver
+from ..core.game_state import GameState
+from ..managers.contract_manager import ContractManager
 
 if TYPE_CHECKING:
     from .phase_manager import PhaseManager
@@ -154,63 +185,6 @@ class ActionExecutor:
         # Track pending choices (for multi-step resolution)
         self.pending_choices: Dict[str, Dict[str, Any]] = {}
 
-    def _normalize_effects(self, effects: Any) -> List[Dict[str, Any]]:
-        """
-        Normalize effects from various formats to standard effect list.
-
-        Handles:
-        1. List format: [{"type": "resource", "resource": "persuasion", "amount": 2}]
-        2. Dict with "base": {"base": {"persuasion": 2}} or {"base": [...]}
-        3. Simplified dict: {"persuasion": 2, "swords": 1}
-
-        Returns:
-            List of effect dicts in standard format
-        """
-        # Already a list
-        if isinstance(effects, list):
-            return effects
-
-        # Dict format
-        if isinstance(effects, dict):
-            # Check for "base" key
-            if "base" in effects:
-                base_effects = effects["base"]
-                # Recursively normalize the base
-                return self._normalize_effects(base_effects)
-
-            # Simplified format: {"persuasion": 2, "swords": 1, "draw": 1}
-            # Convert to effect list
-            normalized = []
-            for key, amount in effects.items():
-                if not isinstance(amount, int):
-                    continue  # Skip non-integer values
-
-                # Handle special effect types
-                if key == "draw":
-                    normalized.append({
-                        "type": "draw",
-                        "deck": "deck",
-                        "amount": amount
-                    })
-                elif key == "influence":
-                    # Simplified influence needs a target - can't infer, skip
-                    # Would need format like {"influence_fremen": 1}
-                    continue
-                elif key in {"trash", "steal", "recall", "play", "accept"}:
-                    # These need more context, skip for now
-                    continue
-                else:
-                    # Regular resources (persuasion, swords, solari, spice, water, etc.)
-                    normalized.append({
-                        "type": "resource",
-                        "resource": key,
-                        "amount": amount
-                    })
-            return normalized
-
-        # Unknown format, return empty list
-        return []
-
     # ==================== AGENT TURN ACTIONS ====================
 
     def execute_place_agent(self, action: PlaceAgentAction) -> Dict[str, Any]:
@@ -266,7 +240,7 @@ class ActionExecutor:
 
         # Step 4: Check location requirements (influence, council seat, etc.)
         if hasattr(action.location, 'check') and action.location.check:
-            check_result = self.effect_resolver._evaluate_checks(action.player_id, action.location.check)
+            check_result = self.effect_resolver.validate_location_access(action.player_id, action.location.check)
             if not check_result["success"]:
                 # Restore agent since we're failing
                 player.agents_available += 1
@@ -291,7 +265,7 @@ class ActionExecutor:
         cost_result = None
         if hasattr(action.location, 'cost_effects') and action.location.cost_effects:
             # Future: Load from JSON, costs are in array format
-            cost_result = self._pay_costs(action.player_id, action.location.cost_effects)
+            cost_result = self.effect_resolver.apply_costs(action.player_id, action.location.cost_effects)
             if not cost_result["success"]:
                 return cost_result
 
@@ -303,39 +277,41 @@ class ActionExecutor:
 
         # Step 8: Resolve card's AGENT effects (if the card has agent effects)
         # Most cards have agent effects that trigger when played
+        # Expected format: List[Dict] e.g. [{"type": "resource", "resource": "persuasion", "amount": 2}]
         card_agent_results = None
         if hasattr(action.card, 'agent_effects') and action.card.agent_effects:
-            # Normalize agent_effects to standard format
-            effects_to_resolve = self._normalize_effects(action.card.agent_effects)
+            if not isinstance(action.card.agent_effects, list):
+                return {
+                    "success": False,
+                    "error": f"Card {action.card.name} has invalid agent_effects format (expected list)"
+                }
 
-            if effects_to_resolve and len(effects_to_resolve) > 0:
-                card_agent_results = self.effect_resolver.resolve_effects(
-                    action.player_id,
-                    effects_to_resolve,
-                    context={"phase": "agent", "card": action.card.name}
-                )
-                if not card_agent_results["success"]:
-                    return card_agent_results
+            card_agent_results = self.effect_resolver.resolve_effects(
+                action.player_id,
+                action.card.agent_effects,
+                context={"phase": "agent", "card": action.card.name}
+            )
+            if not card_agent_results["success"]:
+                return card_agent_results
 
         # Step 9: Resolve location effects (using EffectResolver with JSON data)
         # This happens BEFORE troop deployment so troops gained are available
+        # Expected format: List[Dict] e.g. [{"type": "resource", "resource": "solari", "amount": 2}]
         location_results = None
         if hasattr(action.location, 'effects') and action.location.effects:
-            # BoardSpace.effects contains the location's rewards
-            # Can be list (new format) or dict (old format)
-            effects_to_resolve = action.location.effects
-            # Ensure it's a list for the resolver
-            if not isinstance(effects_to_resolve, list):
-                effects_to_resolve = self._normalize_effects(effects_to_resolve)
+            if not isinstance(action.location.effects, list):
+                return {
+                    "success": False,
+                    "error": f"Location {action.location.name} has invalid effects format (expected list)"
+                }
 
-            if effects_to_resolve:
-                location_results = self.effect_resolver.resolve_effects(
-                    action.player_id,
-                    effects_to_resolve,
-                    context={"phase": "agent", "location": action.location.name}
-                )
-                if not location_results["success"]:
-                    return location_results
+            location_results = self.effect_resolver.resolve_effects(
+                action.player_id,
+                action.location.effects,
+                context={"phase": "agent", "location": action.location.name}
+            )
+            if not location_results["success"]:
+                return location_results
 
         # Step 10: Deploy troops if combat location (optional - can be 0)
         # NOTE: UI typically passes 0 here and calls deploy_troops_to_conflict() separately
@@ -414,58 +390,6 @@ class ActionExecutor:
                 "error": f"Not enough troops in garrison (have {player.troops_in_garrison}, need {num_troops})"
             }
 
-    def _pay_costs(
-        self,
-        player_id: str,
-        costs: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """
-        Validate and pay costs for an action.
-
-        Uses EffectResolver's cost checking logic.
-        Costs are validated BEFORE being paid.
-
-        Args:
-            player_id: Player paying costs
-            costs: List of cost effects (same format as rewards)
-
-        Returns:
-            Dict with success status
-        """
-        player = self.state.get_player_by_id(player_id)
-        if not player:
-            return {"success": False, "error": "Player not found"}
-
-        # Check if player can afford all costs
-        for cost in costs:
-            cost_type = cost.get("type")
-            if cost_type == "resource":
-                resource = cost.get("resource")
-                amount = cost.get("amount", 0)
-
-                if resource == "solari" and player.solari < amount:
-                    return {"success": False, "error": f"Not enough solari (need {amount}, have {player.solari})"}
-                elif resource == "spice" and player.spice < amount:
-                    return {"success": False, "error": f"Not enough spice (need {amount}, have {player.spice})"}
-                elif resource == "water" and player.water < amount:
-                    return {"success": False, "error": f"Not enough water (need {amount}, have {player.water})"}
-
-        # Pay costs (reduce resources)
-        for cost in costs:
-            cost_type = cost.get("type")
-            if cost_type == "resource":
-                resource = cost.get("resource")
-                amount = cost.get("amount", 0)
-
-                if resource == "solari":
-                    player.solari -= amount
-                elif resource == "spice":
-                    player.spice -= amount
-                elif resource == "water":
-                    player.water -= amount
-
-        return {"success": True, "costs_paid": costs}
-
     # ==================== REVEAL TURN ACTIONS ====================
 
     def execute_reveal(self, action: RevealAction) -> Dict[str, Any]:
@@ -526,30 +450,30 @@ class ActionExecutor:
 
         for card in unplayed_cards:
             if hasattr(card, 'reveal_effects') and card.reveal_effects:
-                # reveal_effects can be:
-                # 1. List: [{"type": "resource", "resource": "persuasion", "amount": 2}]
-                # 2. Dict with "base": {"base": {"persuasion": 2}} or {"base": [...]}
-                # 3. Simplified dict: {"persuasion": 2, "swords": 1}
-                effects_to_resolve = self._normalize_effects(card.reveal_effects)
+                # Expected format: List[Dict] e.g. [{"type": "resource", "resource": "persuasion", "amount": 2}]
+                if not isinstance(card.reveal_effects, list):
+                    return {
+                        "success": False,
+                        "error": f"Card {card.name} has invalid reveal_effects format (expected list)"
+                    }
 
-                if effects_to_resolve and len(effects_to_resolve) > 0:
-                    result = self.effect_resolver.resolve_effects(
-                        action.player_id,
-                        effects_to_resolve,
-                        context={"phase": "reveal", "card": card.name}
-                    )
+                result = self.effect_resolver.resolve_effects(
+                    action.player_id,
+                    card.reveal_effects,
+                    context={"phase": "reveal", "card": card.name}
+                )
 
-                    if not result["success"]:
-                        return result
+                if not result["success"]:
+                    return result
 
-                    reveal_results.append({
-                        "card": card.name,
-                        "result": result
-                    })
+                reveal_results.append({
+                    "card": card.name,
+                    "result": result
+                })
 
-                    # Track all effects applied
-                    all_effects_applied.extend(result.get("effects_applied", []))
-                    all_choices_required.extend(result.get("choices_required", []))
+                # Track all effects applied
+                all_effects_applied.extend(result.get("effects_applied", []))
+                all_choices_required.extend(result.get("choices_required", []))
 
         # Step 5: Move hand cards to played_cards_this_turn
         # All remaining hand cards are now revealed (they join the played cards)
@@ -748,7 +672,7 @@ class ActionExecutor:
 
         # Step 2: Pay cost (using _pay_costs helper)
         if hasattr(action.intrigue_card, 'cost') and action.intrigue_card.cost:
-            cost_result = self._pay_costs(action.player_id, action.intrigue_card.cost)
+            cost_result = self.effect_resolver.apply_costs(action.player_id, action.intrigue_card.cost)
             if not cost_result["success"]:
                 return cost_result
 
@@ -921,7 +845,7 @@ class ActionExecutor:
 
         # Step 2: Pay costs if option has costs
         if "costs" in selected_option and selected_option["costs"]:
-            cost_result = self._pay_costs(action.player_id, selected_option["costs"])
+            cost_result = self.effect_resolver.apply_costs(action.player_id, selected_option["costs"])
             if not cost_result["success"]:
                 return cost_result
 

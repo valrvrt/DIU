@@ -8,8 +8,8 @@ Responsibilities:
 """
 
 from typing import Dict, Any
-from ..models.game import Game
-from ..engine.game_state import GameState
+from ...models.game import Game
+from ..core.game_state import GameState
 
 
 class VictoryPointManager:

@@ -18,8 +18,8 @@ from src.models.player import Player
 from src.models.board import Board
 from src.models.card import LeaderCard, CardType, ConflictCard
 from src.models.deck import Deck
-from src.engine.combat_manager import CombatManager
-from src.engine.effect_resolver import EffectResolver
+from src.engine.managers.combat_manager import CombatManager
+from src.engine.effects.effect_resolver import EffectResolver
 
 
 def load_json_data(filename):

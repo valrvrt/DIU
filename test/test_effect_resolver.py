@@ -18,8 +18,8 @@ from src.models.player import Player
 from src.models.card import LeaderCard, CardType
 from src.models.deck import Deck
 from src.models.board import Board
-from src.engine.effect_resolver import EffectResolver
-from src.engine.game_state import GameState
+from src.engine.effects.effect_resolver import EffectResolver
+from src.engine.core.game_state import GameState
 
 
 def create_test_game():

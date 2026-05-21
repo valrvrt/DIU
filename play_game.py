@@ -11,17 +11,17 @@ from typing import Dict, Any, List, Tuple
 
 from src.models.game import Game, GamePhase
 from src.models.player import Player
-from src.engine.phase_manager import PhaseManager
-from src.engine.deck_manager import DeckManager
-from src.engine.combat_manager import CombatManager
-from src.engine.makers_manager import MakersManager
-from src.engine.action_generator import ActionGenerator
-from src.engine.action_executor import ActionExecutor, PlaceAgentAction, RevealAction, AcquireCardAction
-from src.engine.influence_manager import InfluenceManager
-from src.engine.victory_point_manager import VictoryPointManager
-from src.engine.effect_resolver import EffectResolver
-from src.engine.game_logger import GameLogger
-from src.engine.game_setup import GameSetup
+from src.engine.managers.phase_manager import PhaseManager
+from src.engine.managers.deck_manager import DeckManager
+from src.engine.managers.combat_manager import CombatManager
+from src.engine.managers.makers_manager import MakersManager
+from src.engine.actions.action_generator import ActionGenerator
+from src.engine.actions.action_executor import ActionExecutor, PlaceAgentAction, RevealAction, AcquireCardAction
+from src.engine.managers.influence_manager import InfluenceManager
+from src.engine.managers.victory_point_manager import VictoryPointManager
+from src.engine.effects.effect_resolver import EffectResolver
+from src.engine.core.game_logger import GameLogger
+from src.engine.core.game_setup import GameSetup
 
 
 # ==================== RANDOM BOT AI ====================

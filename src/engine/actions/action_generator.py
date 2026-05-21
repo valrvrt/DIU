@@ -10,11 +10,11 @@ This is where the core game logic lives:
 """
 
 from typing import List, Dict, Tuple, Optional, TYPE_CHECKING
-from ..models.game import Game
-from ..models.player import Player
-from ..models.card import ImperiumCard, IntrigueCard, IntriguePhase
-from ..models.boardspace import BoardSpace
-from .game_state import GameState
+from ...models.game import Game
+from ...models.player import Player
+from ...models.card import ImperiumCard, IntrigueCard, IntriguePhase
+from ...models.boardspace import BoardSpace
+from ..core.game_state import GameState
 
 if TYPE_CHECKING:
     from .phase_manager import PhaseManager
@@ -203,7 +203,7 @@ class ActionGenerator:
         """Check if player meets the influence requirement for a location"""
         # Check new format (check array)
         if hasattr(location, 'check') and location.check and self.effect_resolver:
-            check_result = self.effect_resolver._evaluate_checks(player.player_id, location.check)
+            check_result = self.effect_resolver.validate_location_access(player.player_id, location.check)
             if not check_result.get("success"):
                 return False
 

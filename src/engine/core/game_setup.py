@@ -11,16 +11,16 @@ Responsibilities:
 
 import random
 from typing import List, Tuple, Dict, Any
-from ..models.game import Game, GamePhase
-from ..models.player import Player
-from ..models.board import Board
-from ..models.deck import Deck
-from ..loaders.card_loader import (
+from ...models.game import Game, GamePhase
+from ...models.player import Player
+from ...models.board import Board
+from ...models.deck import Deck
+from ...loaders.card_loader import (
     load_starter_deck, load_imperium_cards, load_intrigue_cards,
     load_conflict_cards, load_contract_cards, load_leaders,
     get_objectives_for_player_count, get_reserve_cards, ObjectiveCard
 )
-from ..loaders.board_loader import load_board_spaces, load_observation_posts
+from ...loaders.board_loader import load_board_spaces, load_observation_posts
 
 
 class GameSetup:

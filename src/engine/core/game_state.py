@@ -5,11 +5,11 @@ No logic here - just queries about "what IS the current state?"
 """
 
 from typing import Optional, List
-from ..models.game import Game
-from ..models.player import Player
-from ..models.board import Board
-from ..models.boardspace import BoardSpace, ObservationPost
-from ..models.card import ConflictCard
+from ...models.game import Game
+from ...models.player import Player
+from ...models.board import Board
+from ...models.boardspace import BoardSpace, ObservationPost
+from ...models.card import ConflictCard
 
 
 class GameState:
