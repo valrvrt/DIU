@@ -156,7 +156,7 @@ class RandomBot:
         affordable = []
         for card in options.get("imperium_row", []):
             if card.cost <= options.get("total_persuasion", 0):
-                affordable.append(("imperium_row", card))
+                affordable.append(("row", card))  # Changed from "imperium_row" to "row"
 
         for card in options.get("reserve_cards", []):
             if card.cost <= options.get("total_persuasion", 0):
@@ -239,16 +239,24 @@ class GameDisplay:
                 print(f"\n⚔️  CONFLICT: {conflict.name}")
                 if hasattr(conflict, 'rewards') and conflict.rewards:
                     print("  Rewards:")
-                    for i, reward_tier in enumerate(conflict.rewards, 1):
-                        print(f"    #{i}: ", end="")
-                        if isinstance(reward_tier, list):
-                            reward_strs = []
-                            for r in reward_tier:
-                                if r.get("type") == "resource":
-                                    reward_strs.append(f"+{r.get('amount')} {r.get('resource')}")
-                                elif r.get("type") == "victory_point":
-                                    reward_strs.append(f"+{r.get('amount')} VP")
-                            print(", ".join(reward_strs))
+                    # Rewards is a dict with keys "1", "2", "3"
+                    if isinstance(conflict.rewards, dict):
+                        for position in ["1", "2", "3"]:
+                            if position in conflict.rewards:
+                                reward_tier = conflict.rewards[position]
+                                print(f"    #{position}: ", end="")
+                                reward_strs = []
+                                for r in reward_tier:
+                                    if r.get("type") == "resource":
+                                        reward_strs.append(f"+{r.get('amount')} {r.get('resource')}")
+                                    elif r.get("type") == "victory_point":
+                                        reward_strs.append(f"+{r.get('amount')} VP")
+                                    elif r.get("type") == "influence":
+                                        target = r.get('target', 'any')
+                                        reward_strs.append(f"+{r.get('amount')} {target} influence")
+                                    elif r.get("type") == "draw":
+                                        reward_strs.append(f"draw {r.get('amount')} {r.get('deck')}")
+                                print(", ".join(reward_strs))
                 print()
 
             # Show all players with VP, resources, influence
@@ -673,7 +681,10 @@ class GameLoop:
 
                                     # Deploy troops AFTER getting rewards
                                     if troops_to_deploy > 0:
+                                        print(f"[DEBUG] Attempting to deploy {troops_to_deploy} troops...")
+                                        print(f"[DEBUG] Before: garrison={player.troops_in_garrison}, conflict={player.troops_in_conflict}")
                                         deploy_result = action_exec.deploy_troops_to_conflict(player_id, troops_to_deploy)
+                                        print(f"[DEBUG] After: garrison={player.troops_in_garrison}, conflict={player.troops_in_conflict}")
                                         if deploy_result.get("success"):
                                             print(f"  ⚔️  Deployed {troops_to_deploy} troops to conflict")
                                         else:
