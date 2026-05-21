@@ -256,10 +256,12 @@ class CombatManager:
         if len(strength_groups[0]) == 1:
             # Single winner
             rankings[1] = strength_groups[0]
-        else:
-            # Multiple winners tied for first
-            # They get 2nd place reward
+        elif len(strength_groups[0]) == 2:
+            # 2-way tie for first → both get 2nd place reward
             rankings[2] = strength_groups[0]
+        else:
+            # 3+ way tie for first → all get 3rd place reward
+            rankings[3] = strength_groups[0]
 
         # Second group (if exists)
         if len(strength_groups) > 1:
@@ -270,13 +272,17 @@ class CombatManager:
                 else:
                     # Multiple tied for second → get 3rd place reward
                     rankings[3] = strength_groups[1]
-            else:
-                # First place was tied (they got 2nd place reward)
+            elif 2 in rankings:
+                # First place was 2-way tied (they got 2nd place reward)
                 # Second group gets 3rd place reward
                 if len(strength_groups[1]) == 1:
                     rankings[3] = strength_groups[1]
                 # If multiple tied for second after tied first, they get nothing
                 # (don't add to rankings)
+            else:
+                # First place was 3+ way tied (they got 3rd place reward already)
+                # Second group gets nothing
+                pass
 
         # Third group (if exists)
         if len(strength_groups) > 2:
