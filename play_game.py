@@ -56,9 +56,9 @@ class RandomBot:
         if should_reveal:
             return self._reveal(player_id, player.name)
         else:
-            return self._place_agent(player_id, player.name)
+            return self._place_agent(player_id, player.name, game)
 
-    def _place_agent(self, player_id: str, player_name: str) -> Dict[str, Any]:
+    def _place_agent(self, player_id: str, player_name: str, game: Game) -> Dict[str, Any]:
         """Place agent on random valid location."""
         playable_cards = self.action_gen.get_playable_imperium_cards(player_id)
 
@@ -99,7 +99,7 @@ class RandomBot:
 
         # Deploy troops if combat space
         if result.get("success") and location.is_combat_space:
-            player = self.game.get_player(player_id)
+            player = game.get_player(player_id)
             if player.troops_in_garrison > 0:
                 # Bot deploys all available troops
                 troops_to_deploy = min(player.troops_in_garrison, 4)
