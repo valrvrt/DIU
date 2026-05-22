@@ -9,12 +9,13 @@ class BoardSpace:
     # Agent placement
     agent_icon: str  # Which icon allows placement here
     occupied_by: Optional[str] = None  # player_id if occupied
+    infiltrated_by: Optional[str] = None  # player_id if spy infiltrated
     
     # Faction (None if not faction-affiliated)
     faction: Optional[str] = None  # "fremen", "emperor", etc.
     
-    # Cost to place agent here
-    cost: dict[str, int] = field(default_factory=dict)  # e.g., {"water": 1}
+    # Cost to place agent here (array of effect objects matching JSON format)
+    cost: list = field(default_factory=list)  # e.g., [{"type": "resource", "resource": "water", "amount": 1}]
     
     # Prerequisites (old format, kept for compatibility)
     required_influence: Optional[dict[str, int]] = None  # e.g., {"fremen": 2}

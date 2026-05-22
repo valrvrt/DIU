@@ -252,21 +252,51 @@ class ActionExecutor:
 
         # Step 5: Occupy location or infiltrate
         if action.placement_type == "spy_infiltrate":
-            # Infiltration doesn't change occupied_by
-            # Both players get location bonus
-            pass
+            # Spy infiltration: occupy WITH the existing agent
+            # Both players get location effects
+            if action.location.occupied_by is None:
+                # Can't infiltrate an unoccupied location (should use normal placement)
+                player.agents_available += 1
+                player.agents_placed.remove(action.location.id)
+                return {"success": False, "error": "Cannot infiltrate unoccupied location"}
+
+            # Mark location as infiltrated
+            action.location.infiltrated_by = action.player_id
+
+            # Use spy instead of agent
+            if player.spies_available <= 0:
+                player.agents_available += 1
+                player.agents_placed.remove(action.location.id)
+                return {"success": False, "error": "No spies available"}
+
+            player.spies_available -= 1
+            player.spies_placed.append(action.location.id)
         else:
             # Normal placement
             if action.location.occupied_by is not None:
                 return {"success": False, "error": "Location already occupied"}
             action.location.occupied_by = action.player_id
 
-        # Step 6: Pay location cost (using EffectResolver for validation and payment)
+        # Step 6: Pay location cost
         cost_result = None
-        if hasattr(action.location, 'cost_effects') and action.location.cost_effects:
-            # Future: Load from JSON, costs are in array format
-            cost_result = self.effect_resolver.apply_costs(action.player_id, action.location.cost_effects)
+        if action.location.cost:
+            # Validate player can afford cost
+            validation = self._validate_cost(player, action.location.cost)
+            if not validation["success"]:
+                # Restore agent since we're failing
+                player.agents_available += 1
+                player.agents_placed.remove(action.location.id)
+                return {
+                    "success": False,
+                    "error": f"Cannot afford {action.location.name}: {validation['error']}"
+                }
+
+            # Deduct cost
+            cost_result = self._pay_cost(player, action.location.cost)
             if not cost_result["success"]:
+                # Restore agent since we're failing
+                player.agents_available += 1
+                player.agents_placed.remove(action.location.id)
                 return cost_result
 
         # Step 7: Move card from hand to played area
@@ -275,45 +305,106 @@ class ActionExecutor:
         player.hand.cards.remove(action.card)
         player.played_cards_this_turn.append(action.card)
 
-        # Step 8: Resolve card's AGENT effects (if the card has agent effects)
-        # Most cards have agent effects that trigger when played
-        # Expected format: List[Dict] e.g. [{"type": "resource", "resource": "persuasion", "amount": 2}]
-        card_agent_results = None
+        # Step 8-9: Collect ALL effects from card and location
+        # In real DUNE Imperium, after placing agent, player resolves ALL effects
+        # (card agent effects + location effects) in their chosen order
+        all_effects = []
+        effect_sources = []  # Track which effect came from where (for logging)
+
+        # Collect card agent effects
         if hasattr(action.card, 'agent_effects') and action.card.agent_effects:
             if not isinstance(action.card.agent_effects, list):
                 return {
                     "success": False,
                     "error": f"Card {action.card.name} has invalid agent_effects format (expected list)"
                 }
+            for effect in action.card.agent_effects:
+                all_effects.append(effect)
+                effect_sources.append(f"card:{action.card.name}")
 
-            card_agent_results = self.effect_resolver.resolve_effects(
-                action.player_id,
-                action.card.agent_effects,
-                context={"phase": "agent", "card": action.card.name}
-            )
-            if not card_agent_results["success"]:
-                return card_agent_results
+        # Collect location effects (for normal placement)
+        location_results_for_original = None
+        if action.placement_type != "spy_infiltrate":
+            if hasattr(action.location, 'effects') and action.location.effects:
+                if not isinstance(action.location.effects, list):
+                    return {
+                        "success": False,
+                        "error": f"Location {action.location.name} has invalid effects format (expected list)"
+                    }
+                for effect in action.location.effects:
+                    all_effects.append(effect)
+                    effect_sources.append(f"location:{action.location.name}")
+        else:
+            # Spy infiltration: Both players get location effects separately
+            if hasattr(action.location, 'effects') and action.location.effects:
+                if not isinstance(action.location.effects, list):
+                    return {
+                        "success": False,
+                        "error": f"Location {action.location.name} has invalid effects format (expected list)"
+                    }
 
-        # Step 9: Resolve location effects (using EffectResolver with JSON data)
-        # This happens BEFORE troop deployment so troops gained are available
-        # Expected format: List[Dict] e.g. [{"type": "resource", "resource": "solari", "amount": 2}]
-        location_results = None
-        if hasattr(action.location, 'effects') and action.location.effects:
-            if not isinstance(action.location.effects, list):
-                return {
-                    "success": False,
-                    "error": f"Location {action.location.name} has invalid effects format (expected list)"
-                }
+                # Original occupant gets effects (with their preferred order)
+                original_occupant_id = action.location.occupied_by
+                original_ordered_effects = self._order_effects_for_resolution(
+                    original_occupant_id,
+                    action.location.effects,
+                    context={"phase": "agent", "location": action.location.name, "infiltrated": True}
+                )
+                location_results_for_original = self.effect_resolver.resolve_effects(
+                    original_occupant_id,
+                    original_ordered_effects,
+                    context={"phase": "agent", "location": action.location.name, "infiltrated": True}
+                )
+                # Note: Don't fail if original occupant's effects fail
 
-            location_results = self.effect_resolver.resolve_effects(
-                action.player_id,
-                action.location.effects,
-                context={"phase": "agent", "location": action.location.name}
-            )
-            if not location_results["success"]:
-                return location_results
+                # Infiltrating spy gets location effects added to their pool
+                for effect in action.location.effects:
+                    all_effects.append(effect)
+                    effect_sources.append(f"location:{action.location.name}")
 
-        # Step 10: Deploy troops if combat location (optional - can be 0)
+        # Step 10: Allow player to choose resolution order for ALL effects
+        # This matches real DUNE Imperium where player chooses effect order
+        ordered_effects = self._order_effects_for_resolution(
+            action.player_id,
+            all_effects,
+            context={
+                "phase": "agent",
+                "card": action.card.name,
+                "location": action.location.name,
+                "sources": effect_sources
+            }
+        )
+
+        # Step 11: Resolve all effects with conditional reward trigger monitoring
+        combined_results = self.effect_resolver.resolve_effects(
+            action.player_id,
+            ordered_effects,
+            context={
+                "phase": "agent",
+                "card": action.card.name,
+                "location": action.location.name,
+                "monitor_triggers": True  # Enable trigger monitoring
+            }
+        )
+
+        if not combined_results["success"]:
+            return combined_results
+
+        # Split results for backward compatibility with return format
+        card_agent_results = {
+            "success": True,
+            "effects_applied": [e for e in combined_results.get("effects_applied", [])
+                               if any(src.startswith("card:") for src in effect_sources)],
+            "choices_required": combined_results.get("choices_required", [])
+        }
+        location_results = {
+            "success": True,
+            "effects_applied": [e for e in combined_results.get("effects_applied", [])
+                               if any(src.startswith("location:") for src in effect_sources)],
+            "choices_required": []
+        }
+
+        # Step 12: Deploy troops if combat location (optional - can be 0)
         # NOTE: UI typically passes 0 here and calls deploy_troops_to_conflict() separately
         # after showing rewards, to ensure correct order (rewards first, then deployment prompt)
         troops_deployed_count = 0
@@ -328,21 +419,21 @@ class ActionExecutor:
                     "error": f"Not enough troops in garrison (have {player.troops_in_garrison}, need {action.troops_to_deploy})"
                 }
 
-        # Step 11: Check for contract completion (location-based)
+        # Step 13: Check for contract completion (location-based)
         contract_results = self.contract_manager.check_location_contracts(
             action.player_id,
             action.location.id
         )
 
-        # Step 12: Notify PhaseManager (if present)
+        # Step 14: Notify PhaseManager (if present)
         if self.phase_manager:
             self.phase_manager.mark_player_action_complete(
                 action.player_id,
                 "place_agent"
             )
 
-        # Step 13: Return execution log
-        return {
+        # Step 15: Return execution log
+        result = {
             "success": True,
             "action_type": "place_agent",
             "player_id": action.player_id,
@@ -357,6 +448,13 @@ class ActionExecutor:
             "choices_required": (card_agent_results.get("choices_required", []) if card_agent_results else []) +
                                (location_results.get("choices_required", []) if location_results else [])
         }
+
+        # Include spy infiltration details if applicable
+        if action.placement_type == "spy_infiltrate":
+            result["spy_infiltration"] = True
+            result["original_occupant_effects"] = location_results_for_original
+
+        return result
 
     def deploy_troops_to_conflict(self, player_id: str, num_troops: int) -> Dict[str, Any]:
         """
@@ -620,6 +718,11 @@ class ActionExecutor:
         # They do NOT need to be added to played_cards_this_turn
         # (played_cards_this_turn is only for cards played from hand during agent turns)
 
+        # Step 4.5: Track acquired card for this turn (for card effects that check acquisitions)
+        if not hasattr(player, 'acquired_cards_this_turn'):
+            player.acquired_cards_this_turn = []
+        player.acquired_cards_this_turn.append(action.card)
+
         # Step 5: Trigger on-acquire effects using EffectResolver
         acquire_results = None
         if hasattr(action.card, 'on_acquire_effects') and action.card.on_acquire_effects:
@@ -647,14 +750,15 @@ class ActionExecutor:
 
     def execute_play_intrigue(self, action: PlayIntrigueAction) -> Dict[str, Any]:
         """
-        Execute playing an intrigue card.
+        Execute playing an intrigue card with phase-based effect filtering.
 
         Process:
         1. Validate card is in player's hand
-        2. Pay cost if any (using EffectResolver)
-        3. Remove from player's intrigue cards
+        2. Validate current phase allows this intrigue card
+        3. Filter effects to only those valid for current phase
         4. Apply effects (using EffectResolver with JSON data)
-        5. Move to discard (or trash if specified)
+        5. Remove from player's intrigue cards
+        6. Move to discard
 
         Args:
             action: PlayIntrigueAction
@@ -666,42 +770,95 @@ class ActionExecutor:
         if not player:
             return {"success": False, "error": "Player not found"}
 
-        # Step 1: Validate
+        # Step 1: Validate card is in hand
         if action.intrigue_card not in player.intrigue_cards:
             return {"success": False, "error": "Intrigue card not in hand"}
 
-        # Step 2: Pay cost (using _pay_costs helper)
-        if hasattr(action.intrigue_card, 'cost') and action.intrigue_card.cost:
-            cost_result = self.effect_resolver.apply_costs(action.player_id, action.intrigue_card.cost)
-            if not cost_result["success"]:
-                return cost_result
+        # Step 2: Get current phase and map to intrigue phase
+        current_game_phase = self.game.current_phase
+        phase_map = {
+            "player_turns": "plot",  # Agent placement and reveal
+            "combat": "combat",
+            "game_over": "endgame"
+        }
+        current_intrigue_phase = phase_map.get(
+            current_game_phase.value if hasattr(current_game_phase, 'value') else str(current_game_phase),
+            "plot"
+        )
 
-        # Step 3: Remove from hand
+        # Step 3: Filter effects by phase
+        card_effects = action.intrigue_card.effects if hasattr(action.intrigue_card, 'effects') else []
+        playable_effects = self._filter_effects_by_phase(card_effects, current_intrigue_phase)
+
+        if not playable_effects:
+            return {
+                "success": False,
+                "error": f"No effects on '{action.intrigue_card.name}' can be played during {current_intrigue_phase} phase"
+            }
+
+        # Step 4: Remove from hand (before resolving in case effects fail)
         player.intrigue_cards.remove(action.intrigue_card)
 
-        # Step 4: Apply effects using EffectResolver
-        effects_results = None
-        if hasattr(action.intrigue_card, 'effects') and action.intrigue_card.effects:
-            effects_results = self.effect_resolver.resolve_effects(
-                action.player_id,
-                action.intrigue_card.effects,
-                context={"phase": "intrigue", "card": action.intrigue_card.name}
-            )
-            if not effects_results["success"]:
-                return effects_results
+        # Step 5: Apply playable effects
+        effects_results = self.effect_resolver.resolve_effects(
+            action.player_id,
+            playable_effects,
+            context={
+                "phase": current_intrigue_phase,
+                "card": action.intrigue_card.name,
+                "intrigue": True
+            }
+        )
 
-        # Step 5: Discard or trash
-        # Most intrigue cards are one-time use
-        # (In full implementation, track used intrigue cards in discard)
+        if not effects_results["success"]:
+            # Put card back if effects failed
+            player.intrigue_cards.append(action.intrigue_card)
+            return effects_results
+
+        # Step 6: Card is discarded (one-time use)
+        # TODO: Track in intrigue discard pile
 
         return {
             "success": True,
             "action_type": "play_intrigue",
             "player_id": action.player_id,
             "card": action.intrigue_card.name,
+            "phase": current_intrigue_phase,
             "effects": effects_results,
-            "choices_required": effects_results.get("choices_required", []) if effects_results else []
+            "choices_required": effects_results.get("choices_required", [])
         }
+
+    def _filter_effects_by_phase(self, effects: list, current_phase: str) -> list:
+        """
+        Filter intrigue effects to only those valid for current phase.
+
+        Args:
+            effects: List of effect objects
+            current_phase: Current intrigue phase ("plot", "combat", or "endgame")
+
+        Returns:
+            List of effects playable in this phase
+        """
+        playable = []
+
+        for effect in effects:
+            # Choice effects: filter options by phase
+            if effect.get("type") == "choice":
+                options = effect.get("options", [])
+                valid_options = [opt for opt in options if opt.get("phase") == current_phase]
+
+                if valid_options:
+                    playable.append({
+                        "type": "choice",
+                        "options": valid_options
+                    })
+            else:
+                # Non-choice effects: check phase match
+                effect_phase = effect.get("phase")
+                if effect_phase == current_phase or not effect_phase:
+                    playable.append(effect)
+
+        return playable
 
     # ==================== TROOP DEPLOYMENT ====================
 
@@ -920,3 +1077,174 @@ class ActionExecutor:
             "intrigue_drawn": intrigue_drawn,
             "player_id": action.player_id
         }
+
+    # ==================== EFFECT ORDERING ====================
+
+    def _order_effects_for_resolution(self, player_id: str, effects: list, context: dict) -> list:
+        """
+        Allow player/bot to choose the order in which effects are resolved.
+
+        This gives players agency over effect resolution order, which can be
+        strategically important (e.g., gain resources before drawing cards
+        to have more options for what to trash).
+
+        Args:
+            player_id: Player who will receive the effects
+            effects: List of effect objects to order
+            context: Context dict (phase, card/location name, etc.)
+
+        Returns:
+            Ordered list of effects (same effects, possibly different order)
+
+        Implementation notes:
+        - For bots: Uses heuristic ordering (resources → draw → influence)
+        - For human players: Could be extended to prompt for preferred order
+          via play_game.py UI (e.g., "Choose which effect to resolve first")
+        - Bots could override the heuristic with ML-learned strategies
+
+        Future enhancement for human players:
+            1. In play_game.py, check if current player is human
+            2. If human and len(effects) > 1, show effects and ask for order
+            3. Player picks order (numbered list: "1, 3, 2" means effect 1, then 3, then 2)
+            4. Pass ordered effects to this method
+            5. This method just returns them as-is for humans
+        """
+        # If only 0-1 effects, no ordering needed
+        if len(effects) <= 1:
+            return effects
+
+        # For now, use heuristic ordering for all players
+        # Future: Check if player is human and prompt for order
+        return self._apply_effect_ordering_heuristic(effects)
+
+    def _apply_effect_ordering_heuristic(self, effects: list) -> list:
+        """
+        Apply a simple heuristic to order effects optimally.
+
+        Heuristic priority:
+        1. Resource gains (enable future actions)
+        2. Draw cards (more options)
+        3. Influence (long-term benefit)
+        4. Other effects
+
+        Args:
+            effects: List of effect objects
+
+        Returns:
+            Ordered list of effects
+        """
+        def effect_priority(effect):
+            """Return priority score (lower = resolve first)"""
+            effect_type = effect.get("type", "")
+
+            # Resource gains first (most immediately useful)
+            if effect_type == "resource":
+                resource = effect.get("resource", "")
+                if resource in ["solari", "spice", "water"]:
+                    return 1  # Currency resources first
+                elif resource == "troop":
+                    return 2  # Troops second
+                else:
+                    return 3  # Other resources
+
+            # Draw cards second (more options)
+            elif effect_type == "draw":
+                return 4
+
+            # Influence third (long-term benefit)
+            elif effect_type == "influence":
+                return 5
+
+            # Play/trash/steal effects
+            elif effect_type in ["play", "trash", "steal", "recall"]:
+                return 6
+
+            # Everything else last
+            else:
+                return 10
+
+        # Sort by priority (stable sort preserves original order for ties)
+        return sorted(effects, key=effect_priority)
+
+    # ==================== COST VALIDATION & PAYMENT ====================
+
+    def _validate_cost(self, player, cost_effects: list) -> dict:
+        """
+        Validate that player can afford the cost.
+
+        Args:
+            player: Player object
+            cost_effects: List of cost effect objects from JSON
+                e.g., [{"type": "resource", "resource": "water", "amount": 1}]
+
+        Returns:
+            {"success": bool, "error": str (if failed)}
+        """
+        for cost_effect in cost_effects:
+            if cost_effect.get("type") == "resource":
+                resource = cost_effect.get("resource")
+                amount = cost_effect.get("amount", 0)
+
+                # Check if player has enough of this resource
+                if resource == "solari":
+                    if player.solari < amount:
+                        return {"success": False, "error": f"Need {amount} solari, have {player.solari}"}
+                elif resource == "spice":
+                    if player.spice < amount:
+                        return {"success": False, "error": f"Need {amount} spice, have {player.spice}"}
+                elif resource == "water":
+                    if player.water < amount:
+                        return {"success": False, "error": f"Need {amount} water, have {player.water}"}
+                elif resource == "troop":
+                    total_troops = player.troops_garrison + player.troops_combat + player.troops_in_reserve
+                    if total_troops < amount:
+                        return {"success": False, "error": f"Need {amount} troops, have {total_troops}"}
+
+        return {"success": True}
+
+    def _pay_cost(self, player, cost_effects: list) -> dict:
+        """
+        Deduct the cost from player's resources.
+
+        Args:
+            player: Player object
+            cost_effects: List of cost effect objects from JSON
+
+        Returns:
+            {"success": bool, "costs_paid": dict, "error": str (if failed)}
+        """
+        costs_paid = {}
+
+        for cost_effect in cost_effects:
+            if cost_effect.get("type") == "resource":
+                resource = cost_effect.get("resource")
+                amount = cost_effect.get("amount", 0)
+
+                # Deduct resource
+                if resource == "solari":
+                    player.solari -= amount
+                    costs_paid["solari"] = costs_paid.get("solari", 0) + amount
+                elif resource == "spice":
+                    player.spice -= amount
+                    costs_paid["spice"] = costs_paid.get("spice", 0) + amount
+                elif resource == "water":
+                    player.water -= amount
+                    costs_paid["water"] = costs_paid.get("water", 0) + amount
+                elif resource == "troop":
+                    # Deduct troops (from garrison first, then combat, then reserve)
+                    remaining = amount
+                    if player.troops_garrison > 0:
+                        deducted = min(player.troops_garrison, remaining)
+                        player.troops_garrison -= deducted
+                        remaining -= deducted
+                    if remaining > 0 and player.troops_combat > 0:
+                        deducted = min(player.troops_combat, remaining)
+                        player.troops_combat -= deducted
+                        remaining -= deducted
+                    if remaining > 0 and player.troops_in_reserve > 0:
+                        deducted = min(player.troops_in_reserve, remaining)
+                        player.troops_in_reserve -= deducted
+                        remaining -= deducted
+                    costs_paid["troop"] = costs_paid.get("troop", 0) + amount
+
+        return {"success": True, "costs_paid": costs_paid}

@@ -122,13 +122,23 @@ class ActionGenerator:
 
         # Check normal placements (icon matching)
         for icon in card.agent_icons:
-            locations = self.state.get_spaces_by_icon(icon)
+            if icon == "spy":
+                # Special case: "spy" icon grants access to spaces controlled by observation posts
+                # where the player has placed a spy
+                spy_accessible_locations = self._get_spy_agent_icon_locations(player)
 
-            for location in locations:
-                if self._can_place_at_location(player, card, location):
-                    valid_placements.append((location, icon))
+                for location in spy_accessible_locations:
+                    if self._can_place_at_location(player, card, location):
+                        valid_placements.append((location, "spy"))
+            else:
+                # Normal icon matching (fremen, emperor, bene_gesserit, etc.)
+                locations = self.state.get_spaces_by_icon(icon)
 
-        # Check spy infiltration placements
+                for location in locations:
+                    if self._can_place_at_location(player, card, location):
+                        valid_placements.append((location, icon))
+
+        # Check spy infiltration placements (different from spy agent icon)
         if self._has_spy_infiltration_option(player):
             spy_locations = self._get_spy_infiltratable_locations(player)
 
@@ -174,27 +184,24 @@ class ActionGenerator:
         if not location.cost:
             return True
 
-        # Handle both formats: dict (old) and list of effects (new)
-        if isinstance(location.cost, dict):
-            # Old format: {"water": 1, "solari": 2}
-            for resource, amount in location.cost.items():
+        # Cost must be a list of effect objects
+        if not isinstance(location.cost, list):
+            return False  # Invalid format
+
+        for cost_effect in location.cost:
+            if cost_effect.get("type") == "resource":
+                resource = cost_effect.get("resource")
+                amount = cost_effect.get("amount", 0)
+
                 if resource == "water" and player.water < amount:
                     return False
                 elif resource == "solari" and player.solari < amount:
                     return False
                 elif resource == "spice" and player.spice < amount:
                     return False
-        elif isinstance(location.cost, list):
-            # New format: [{"type": "resource", "resource": "water", "amount": 1}]
-            for cost_effect in location.cost:
-                if cost_effect.get("type") == "resource":
-                    resource = cost_effect.get("resource")
-                    amount = cost_effect.get("amount", 0)
-                    if resource == "water" and player.water < amount:
-                        return False
-                    elif resource == "solari" and player.solari < amount:
-                        return False
-                    elif resource == "spice" and player.spice < amount:
+                elif resource == "troop":
+                    total_troops = player.troops_garrison + player.troops_combat + player.troops_in_reserve
+                    if total_troops < amount:
                         return False
 
         return True
@@ -239,6 +246,38 @@ class ActionGenerator:
                 infiltratable.append(location)
 
         return infiltratable
+
+    def _get_spy_agent_icon_locations(self, player: Player) -> List[BoardSpace]:
+        """
+        Get locations accessible via "spy" agent icon on cards.
+
+        When a card has a "spy" agent icon, the player can place an agent at
+        any board space that is controlled by an observation post where they
+        have a spy stationed.
+
+        This is DIFFERENT from spy infiltration (which allows placing at occupied spaces).
+        This is a normal agent placement, just using the spy icon as the access mechanism.
+
+        Returns:
+            List of BoardSpace objects accessible via spy agent icon
+        """
+        accessible_locations = []
+
+        # Check each observation post where player has a spy
+        for post in self.game.board.observation_posts:
+            if post.id in player.spies_placed:
+                # Player has a spy at this post
+                # Add all locations controlled by this post
+                for location_name in post.connected_locations:
+                    # Find the BoardSpace object with this name
+                    location = next(
+                        (space for space in self.game.board.spaces if space.name == location_name),
+                        None
+                    )
+                    if location:
+                        accessible_locations.append(location)
+
+        return accessible_locations
 
     def can_gather_information_at_location(
         self,

@@ -7,7 +7,7 @@
   {
     "id": 2,
     "name": "Bene Gesserit",
-    "controlled_spaces": ["Secrets", "Espionnage"]
+    "controlled_spaces": ["Secrets", "Espionage"]
   },
   {
     "id": 3,

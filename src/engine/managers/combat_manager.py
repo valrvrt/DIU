@@ -23,11 +23,20 @@ class CombatManager:
     Manages combat resolution in the COMBAT phase.
 
     Combat Flow:
-    1. [TODO] Intrigue round (players play combat intrigues)
+    1. Intrigue round (players play combat intrigues) - conduct_intrigue_round()
     2. Calculate combat strength for each player
     3. Determine rankings (with tie-breaking)
     4. Distribute rewards
     5. Cleanup (troops to reserve, winner gets conflict card)
+
+    Usage:
+        # Start intrigue round
+        intrigue_info = combat_manager.conduct_intrigue_round()
+
+        # Players play combat intrigues via action_executor.execute_play_intrigue()
+
+        # After all players pass, resolve combat
+        result = combat_manager.resolve_conflict(intrigue_round_complete=True)
     """
 
     def __init__(self, game: Game, effect_resolver: 'EffectResolver' = None, victory_point_manager=None):
@@ -46,17 +55,69 @@ class CombatManager:
 
     # ==================== COMBAT RESOLUTION ====================
 
-    def resolve_conflict(self) -> Dict[str, Any]:
+    def conduct_intrigue_round(self) -> Dict[str, Any]:
+        """
+        Conduct the combat intrigue round.
+
+        During this phase, players can play intrigue cards with phase="combat".
+        This happens BEFORE combat strength calculation.
+
+        Process:
+        1. Each player (in turn order) gets opportunity to play combat intrigues
+        2. Players can play multiple combat intrigues if they have them
+        3. Combat intrigues typically provide swords (combat strength)
+        4. After all players pass, proceed to combat resolution
+
+        Returns:
+            Dict with intrigue round summary
+
+        Note:
+            This method returns immediately with instructions.
+            The actual intrigue playing is handled by action_executor.execute_play_intrigue()
+            When all players are done, call resolve_conflict(intrigue_round_complete=True)
+        """
+        players_with_combat_intrigues = []
+
+        for player in self.game.players:
+            # Check if player has any combat phase intrigue cards
+            combat_intrigues = [
+                card for card in player.intrigue_cards
+                if hasattr(card, 'phases') and any(
+                    phase.value == 'Combat' for phase in card.phases
+                )
+            ]
+
+            if combat_intrigues:
+                players_with_combat_intrigues.append({
+                    "player_id": player.player_id,
+                    "player_name": getattr(player, 'name', f'Player {player.player_id}'),
+                    "combat_intrigue_count": len(combat_intrigues)
+                })
+
+        return {
+            "success": True,
+            "phase": "combat_intrigue_round",
+            "players_with_intrigues": players_with_combat_intrigues,
+            "total_players": len(players_with_combat_intrigues),
+            "instructions": "Players take turns playing combat intrigue cards or passing",
+            "next_step": "Call resolve_conflict(intrigue_round_complete=True) when all players pass"
+        }
+
+    def resolve_conflict(self, intrigue_round_complete: bool = False) -> Dict[str, Any]:
         """
         Resolve the current conflict.
 
         Process:
-        1. Calculate combat strength for all players
-        2. Determine rankings (handle ties)
-        3. Distribute rewards based on rankings
-        4. Award conflict card to winner(s)
-        5. Cleanup (troops to reserve)
-        6. Mark conflict as resolved
+        1. Intrigue round (players play combat intrigues) - if not yet complete
+        2. Calculate combat strength for all players
+        3. Determine rankings (handle ties)
+        4. Distribute rewards based on rankings
+        5. Award conflict card to winner(s)
+        6. Cleanup (troops to reserve)
+        7. Mark conflict as resolved
+
+        Args:
+            intrigue_round_complete: Set to True to skip intrigue round and proceed to combat
 
         Returns:
             Dict with combat results
@@ -69,7 +130,16 @@ class CombatManager:
 
         conflict = self.game.board.current_conflict
 
-        # Step 1: Calculate combat strength for all players
+        # Step 1: Intrigue round (if not already complete)
+        if not intrigue_round_complete:
+            return {
+                "success": False,
+                "intrigue_round_required": True,
+                "message": "Players must play combat intrigue cards before combat resolution",
+                "note": "Call resolve_conflict(intrigue_round_complete=True) after intrigue round"
+            }
+
+        # Step 2: Calculate combat strength for all players
         player_strengths = self._calculate_all_combat_strengths()
 
         # Step 2: Determine rankings (handle ties)

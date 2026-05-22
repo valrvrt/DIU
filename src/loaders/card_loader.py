@@ -95,30 +95,42 @@ def load_intrigue_cards() -> List[IntrigueCard]:
 
     cards = []
     for card_data in data['intrigues']:
-        # Extract phases from effects if available
-        phases = []
+        # Extract phases from effects
+        phases_set = set()
         effects = card_data.get('effects', [])
 
-        # Try to infer phases from effect structure
-        for effect in effects if isinstance(effects, list) else []:
-            if isinstance(effect, dict):
-                phase_str = effect.get('phase', '')
+        # Recursively find all phases in effects structure
+        def extract_phases(obj):
+            if isinstance(obj, dict):
+                # Check direct phase field
+                phase_str = obj.get('phase', '')
                 if phase_str == "plot":
-                    phases.append(IntriguePhase.PLOT)
+                    phases_set.add(IntriguePhase.PLOT)
                 elif phase_str == "combat":
-                    phases.append(IntriguePhase.COMBAT)
-                elif phase_str == "endgame" or phase_str == "end_game":
-                    phases.append(IntriguePhase.END_GAME)
+                    phases_set.add(IntriguePhase.COMBAT)
+                elif phase_str in ["endgame", "end_game"]:
+                    phases_set.add(IntriguePhase.END_GAME)
+
+                # Check in options for choice effects
+                for value in obj.values():
+                    extract_phases(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    extract_phases(item)
+
+        extract_phases(effects)
 
         card = IntrigueCard(
             id=str(card_data['id']),
             name=card_data['name'],
             card_type=CardType.INTRIGUE,
-            type="Intrigue",  # Default type
-            phases=phases if phases else [IntriguePhase.PLOT],  # Default to PLOT if no phase found
-            cost=[],
-            played_gain=card_data.get('effects', []),
-            conditional_gain=[]
+            type="Intrigue",
+            effects=effects,  # Store full effects structure
+            phases=list(phases_set) if phases_set else [IntriguePhase.PLOT],  # Default to PLOT
+            # Legacy fields left empty
+            cost={},
+            played_gain={},
+            conditional_gain={}
         )
         cards.append(card)
 

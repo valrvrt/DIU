@@ -48,6 +48,9 @@ class PhaseManager:
         # Track reveal status (in addition to player.has_revealed_this_round)
         self.players_who_revealed: set[str] = set()
 
+        # Track combat intrigue round completion
+        self.combat_intrigue_round_complete: bool = False
+
         # Combat manager for resolving conflicts
         self.combat_manager = combat_manager
 
@@ -315,6 +318,7 @@ class PhaseManager:
             if self.game.board and self.game.board.spaces:
                 for space in self.game.board.spaces:
                     space.occupied_by = None
+                    space.infiltrated_by = None
 
     def _initialize_phase(self, phase: GamePhase):
         """Setup actions when entering a phase."""
@@ -350,14 +354,41 @@ class PhaseManager:
         """
         Prepare for combat phase.
 
-        If combat_manager is available, it will automatically resolve the conflict.
+        Combat now requires two steps:
+        1. Intrigue round (players play combat intrigues)
+        2. Combat resolution (calculate strength, distribute rewards)
+
+        Note: This method only sets up the phase. The game loop must:
+        - Call conduct_intrigue_round() to start intrigue phase
+        - Allow players to play combat intrigues
+        - Call resolve_conflict(intrigue_round_complete=True) when ready
         """
-        # If we have a combat manager, resolve the conflict
+        # Reset intrigue round completion flag
+        self.combat_intrigue_round_complete = False
+
+        # If we have a combat manager, conduct intrigue round
         if self.combat_manager:
-            result = self.combat_manager.resolve_conflict()
-            # Combat is automatically resolved
-            # The conflict is now marked as resolved (current_conflict = None)
+            # Start the intrigue round
+            intrigue_info = self.combat_manager.conduct_intrigue_round()
+            # Note: Combat is NOT automatically resolved anymore
+            # The game loop must handle the intrigue round and then call resolve_conflict()
         # If no combat manager, combat must be resolved manually
+
+    def complete_combat_intrigue_round(self):
+        """
+        Mark the combat intrigue round as complete.
+
+        Call this after all players have had a chance to play combat intrigues.
+        Then the combat can be resolved.
+        """
+        self.combat_intrigue_round_complete = True
+
+        if self.combat_manager:
+            # Now resolve the actual combat
+            result = self.combat_manager.resolve_conflict(intrigue_round_complete=True)
+            return result
+
+        return {"success": False, "error": "No combat manager available"}
 
     def _setup_makers_phase(self):
         """

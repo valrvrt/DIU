@@ -40,6 +40,10 @@ class EffectResolver:
         self.state = GameState(game)
         self.influence_manager = influence_manager  # Optional InfluenceManager for VP bonuses
 
+        # Conditional reward tracking (for trigger-based intrigue cards)
+        # Format: {player_id: [{condition, reward, card_name}, ...]}
+        self.active_conditional_rewards: Dict[str, List[Dict[str, Any]]] = {}
+
         # Registry of effect type handlers
         self.handlers: Dict[str, Callable] = {
             # Simple resource/card effects
@@ -47,12 +51,17 @@ class EffectResolver:
             "draw": self._handle_draw,
             "play": self._handle_play,
             "accept": self._handle_accept,
+            "acquire": self._handle_acquire,
             "trash": self._handle_trash,
+            "discard": self._handle_discard,
             "steal": self._handle_steal,
             "recall": self._handle_recall,
+            "retreat": self._handle_retreat,
+            "opponent_discard": self._handle_opponent_discard,
 
             # Faction effects
             "influence": self._handle_influence,
+            "influence_per_spy": self._handle_influence_per_spy,
 
             # Board control
             "control": self._handle_control,
@@ -60,12 +69,18 @@ class EffectResolver:
             # State modifications
             "council_seat": self._handle_council_seat,
             "maker_hooks": self._handle_maker_hooks,
+            "agent_on_maker": self._handle_agent_on_maker,
             "shieldwall_deactivate": self._handle_shieldwall_deactivate,
             "signet": self._handle_signet,
 
             # Complex effects
             "choice": self._handle_choice,
             "conditional": self._handle_conditional,
+
+            # Intrigue-specific effect types
+            "action": self._handle_action,
+            "conditional_reward": self._handle_conditional_reward,
+            "endgame_condition": self._handle_endgame_condition,
 
             # Shorthand effect types (delegate to resource handler)
             "persuasion": self._handle_persuasion_shorthand,
@@ -74,6 +89,12 @@ class EffectResolver:
             "spice": self._handle_spice_shorthand,
             "water": self._handle_water_shorthand,
             "troop": self._handle_troop_shorthand,
+
+            # Generic "per X" multiplier effect
+            "multiple": self._handle_multiple,
+
+            # Card 30 specific effect
+            "deck_manipulation": self._handle_deck_manipulation,
         }
 
     # ==================== MAIN RESOLUTION ENTRY POINT ====================
@@ -118,6 +139,7 @@ class EffectResolver:
 
         applied_effects = []
         choices_required = []
+        monitor_triggers = context.get("monitor_triggers", False)
 
         for effect in effects:
             # Skip if effect is not a dict (malformed data)
@@ -131,6 +153,14 @@ class EffectResolver:
                     "success": False,
                     "error": f"Effect missing 'type' field: {effect}"
                 }
+
+            # Check if effect has requirements (check field)
+            # If check fails, skip this effect (don't apply it)
+            if "check" in effect:
+                check_result = self._evaluate_checks(player_id, effect["check"])
+                if not check_result.get("success"):
+                    # Check failed - skip this effect silently
+                    continue
 
             # Get handler for this effect type
             handler = self.handlers.get(effect_type)
@@ -155,6 +185,16 @@ class EffectResolver:
                 # Track choices that need resolution
                 if result.get("choice_required"):
                     choices_required.append(result["choice_data"])
+
+                # Check for conditional reward triggers AFTER each effect
+                if monitor_triggers:
+                    trigger_results = self._check_and_trigger_conditional_rewards(
+                        player_id,
+                        effect,
+                        context
+                    )
+                    if trigger_results:
+                        applied_effects.extend(trigger_results.get("effects_applied", []))
 
             except Exception as e:
                 return {
@@ -349,51 +389,120 @@ class EffectResolver:
         context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Handle play effects: {"type": "play", "unit": "spy", "amount": 1}
+        Handle play effects: {"type": "play", "unit": "spy"|"sandworm", "amount": 1}
 
-        Plays a spy to an observation post.
-        Requires player choice of which post.
+        For spies: Plays a spy to an observation post (requires player choice).
+        For sandworms: Plays sandworms to conflict.
+
+        Special parameters:
+        - target: "any_observation_post" (default for spies)
+        - allow_shared_post_if: Condition that allows placing spy on post with other players' spies
         """
         unit_type = effect.get("unit")
         amount = effect.get("amount", 0)
 
-        if unit_type != "spy":
-            return {"success": False, "error": "Play effect only supports 'spy' unit"}
+        if unit_type == "sandworm":
+            # Handle sandworm placement (to conflict)
+            player = self.state.get_player_by_id(player_id)
 
-        player = self.state.get_player_by_id(player_id)
+            if not hasattr(player, 'sandworms_available'):
+                player.sandworms_available = 0
 
-        if player.spies_available < amount:
+            if player.sandworms_available < amount:
+                return {
+                    "success": False,
+                    "error": f"Not enough sandworms available (have {player.sandworms_available}, need {amount})"
+                }
+
+            # Move sandworms to conflict
+            player.sandworms_available -= amount
+            if not hasattr(player, 'sandworms_in_conflict'):
+                player.sandworms_in_conflict = 0
+            player.sandworms_in_conflict += amount
+
             return {
-                "success": False,
-                "error": f"Not enough spies available (have {player.spies_available}, need {amount})"
+                "success": True,
+                "applied": {
+                    "type": "play",
+                    "unit": "sandworm",
+                    "amount": amount
+                }
             }
 
-        # Get available observation posts (not already occupied by this player)
-        available_posts = []
-        for post in self.game.board.observation_posts:
-            if post.id not in player.spies_placed:
-                available_posts.append({
-                    "post_id": post.id,
-                    "post_name": post.name,
-                    "connected_locations": post.connected_locations
-                })
+        elif unit_type == "spy":
+            player = self.state.get_player_by_id(player_id)
 
-        if not available_posts:
+            if player.spies_available < amount:
+                return {
+                    "success": False,
+                    "error": f"Not enough spies available (have {player.spies_available}, need {amount})"
+                }
+
+            # Check if special condition allows sharing observation posts
+            allow_shared = False
+            allow_shared_condition = effect.get("allow_shared_post_if")
+
+            if allow_shared_condition:
+                condition_type = allow_shared_condition.get("type")
+
+                if condition_type == "current_location_spied_by_self":
+                    # Check if current location (from context) is being spied by this player
+                    current_location = context.get("location")
+
+                    if current_location and hasattr(self.game.board, 'observation_posts'):
+                        # Find observation post that controls current location
+                        for post in self.game.board.observation_posts:
+                            if current_location in post.connected_locations:
+                                # Check if this player has a spy on this post
+                                if post.id in player.spies_placed:
+                                    allow_shared = True
+                                break
+
+            # Get available observation posts
+            available_posts = []
+            for post in self.game.board.observation_posts:
+                # Check if this player already has a spy here
+                if post.id in player.spies_placed:
+                    continue
+
+                # Check if post is occupied by another player
+                post_occupied_by_other = False
+                for other_player in self.state.players:
+                    if other_player.player_id != player_id and post.id in other_player.spies_placed:
+                        post_occupied_by_other = True
+                        break
+
+                # Include post if:
+                # 1. Not occupied by another player, OR
+                # 2. Occupied by another player but allow_shared is True
+                if not post_occupied_by_other or allow_shared:
+                    available_posts.append({
+                        "post_id": post.id,
+                        "post_name": post.name,
+                        "connected_locations": post.connected_locations,
+                        "shared": post_occupied_by_other  # Flag to indicate this is a shared placement
+                    })
+
+            if not available_posts:
+                return {
+                    "success": False,
+                    "error": "No available observation posts"
+                }
+
+            # Requires player choice
             return {
-                "success": False,
-                "error": "No available observation posts"
+                "success": True,
+                "choice_required": True,
+                "choice_data": {
+                    "type": "play_spy",
+                    "amount": amount,
+                    "available_posts": available_posts,
+                    "allow_shared": allow_shared
+                }
             }
 
-        # Requires player choice
-        return {
-            "success": True,
-            "choice_required": True,
-            "choice_data": {
-                "type": "play_spy",
-                "amount": amount,
-                "available_posts": available_posts
-            }
-        }
+        else:
+            return {"success": False, "error": f"Play effect only supports 'spy' or 'sandworm' unit, got '{unit_type}'"}
 
     def _handle_accept(
         self,
@@ -507,6 +616,61 @@ class EffectResolver:
             }
         }
 
+    def _handle_discard(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle discard effects: {"type": "discard", "deck": "hand"|"played", "amount": 2}
+
+        Discards cards (moves to played area without triggering effects).
+        Different from trash (which removes from game).
+        Requires player choice of which cards to discard.
+        """
+        player = self.state.get_player_by_id(player_id)
+        deck_source = effect.get("deck", "hand")
+        amount = effect.get("amount", 0)
+
+        # If amount is 0 or negative, nothing to discard
+        if amount <= 0:
+            return {
+                "success": True,
+                "applied": {"type": "discard", "amount": 0, "cards_discarded": []}
+            }
+
+        # Build list of available cards to discard
+        available_cards = []
+
+        if deck_source == "hand":
+            available_cards = [
+                {"card": card, "source": "hand"}
+                for card in player.hand.cards
+            ]
+        elif deck_source == "played":
+            available_cards = [
+                {"card": card, "source": "played"}
+                for card in player.played_cards_this_turn
+            ]
+
+        if len(available_cards) < amount:
+            return {
+                "success": False,
+                "error": f"Not enough cards to discard (need {amount}, have {len(available_cards)})"
+            }
+
+        # This effect requires player choice
+        return {
+            "success": True,
+            "choice_required": True,
+            "choice_data": {
+                "type": "discard_card",
+                "amount": amount,
+                "available_cards": available_cards
+            }
+        }
+
     def _handle_steal(
         self,
         player_id: str,
@@ -558,6 +722,95 @@ class EffectResolver:
                 "valid_targets": valid_targets
             }
         }
+
+    def _handle_opponent_discard(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle opponent discard effects: {"type": "opponent_discard", "target": "all"|"choose", "amount": 1}
+
+        Forces opponents to discard cards from their hand.
+        - target "all": All opponents discard
+        - target "choose": Player chooses which opponent(s) discard
+        """
+        target = effect.get("target", "all")
+        amount = effect.get("amount", 1)
+
+        if amount <= 0:
+            return {
+                "success": True,
+                "applied": {"type": "opponent_discard", "amount": 0}
+            }
+
+        opponents_affected = []
+
+        if target == "all":
+            # All opponents must discard
+            for other_player in self.game.players:
+                if other_player.player_id == player_id:
+                    continue
+
+                # Each opponent discards from their hand
+                cards_to_discard = min(amount, len(other_player.hand.cards))
+                if cards_to_discard > 0:
+                    opponents_affected.append({
+                        "player_id": other_player.player_id,
+                        "player_name": getattr(other_player, 'name', f'Player {other_player.player_id}'),
+                        "cards_to_discard": cards_to_discard
+                    })
+
+            # This requires each opponent to choose which cards to discard
+            # For now, return success with info about who must discard
+            # Full implementation would need UI/bot logic for each opponent to choose
+            return {
+                "success": True,
+                "applied": {
+                    "type": "opponent_discard",
+                    "target": "all",
+                    "amount": amount,
+                    "opponents_affected": opponents_affected
+                },
+                "note": "Each opponent must choose which cards to discard"
+            }
+
+        elif target == "choose":
+            # Player chooses which opponent(s) must discard
+            valid_targets = []
+            for other_player in self.game.players:
+                if other_player.player_id == player_id:
+                    continue
+                if len(other_player.hand.cards) > 0:
+                    valid_targets.append({
+                        "player_id": other_player.player_id,
+                        "player_name": getattr(other_player, 'name', f'Player {other_player.player_id}'),
+                        "hand_size": len(other_player.hand.cards)
+                    })
+
+            if not valid_targets:
+                return {
+                    "success": True,
+                    "applied": {
+                        "type": "opponent_discard",
+                        "amount": 0,
+                        "reason": "No opponents with cards in hand"
+                    }
+                }
+
+            # Requires player choice
+            return {
+                "success": True,
+                "choice_required": True,
+                "choice_data": {
+                    "type": "choose_opponent_discard",
+                    "amount": amount,
+                    "valid_targets": valid_targets
+                }
+            }
+
+        return {"success": False, "error": f"Unknown target type: {target}"}
 
     def _handle_recall(
         self,
@@ -641,6 +894,57 @@ class EffectResolver:
                 }
             }
 
+    def _handle_retreat(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle retreat effects: {"type": "retreat", "unit": "troop"|"sandworm", "amount": 2}
+
+        Retreats units from conflict back to their origin:
+        - Troops: Move from conflict to garrison
+        - Sandworms: Remove from conflict (they die)
+        """
+        unit_type = effect.get("unit")
+        amount = effect.get("amount", 0)
+
+        if unit_type not in ["troop", "sandworm"]:
+            return {"success": False, "error": "Retreat unit must be 'troop' or 'sandworm'"}
+
+        player = self.state.get_player_by_id(player_id)
+
+        if unit_type == "troop":
+            # Move troops from conflict to garrison
+            troops_to_retreat = min(amount, player.troops_in_conflict)
+            player.troops_in_conflict -= troops_to_retreat
+            player.troops_in_garrison += troops_to_retreat
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "retreat",
+                    "unit": "troop",
+                    "amount": troops_to_retreat
+                }
+            }
+
+        elif unit_type == "sandworm":
+            # Remove sandworms from conflict (they die/return to desert)
+            worms_to_remove = min(amount, player.sandworms_in_conflict)
+            player.sandworms_in_conflict -= worms_to_remove
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "retreat",
+                    "unit": "sandworm",
+                    "amount": worms_to_remove,
+                    "note": "Sandworms returned to desert"
+                }
+            }
+
     def _handle_influence(
         self,
         player_id: str,
@@ -717,6 +1021,92 @@ class EffectResolver:
                 }
             }
 
+    def _handle_acquire(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle acquire effects: {"type": "acquire", "card": "spice_must_flow", "amount": 1}
+
+        Acquires a card from the market or reserve.
+        Special card values:
+        - "spice_must_flow": Acquire from Spice Must Flow reserve
+        - "prepare_the_way": Acquire from Prepare the Way reserve
+        - "reserve": Player chooses from available reserve cards
+        - Specific card name: Acquire from market
+        """
+        player = self.state.get_player_by_id(player_id)
+        card_type = effect.get("card", "")
+        amount = effect.get("amount", 1)
+
+        if card_type == "reserve":
+            # Player chooses from available reserve cards
+            return {
+                "success": True,
+                "choice_required": True,
+                "choice_data": {
+                    "type": "choose_reserve_card",
+                    "amount": amount
+                }
+            }
+        elif card_type in ["spice_must_flow", "prepare_the_way"]:
+            # Acquire specific reserve card
+            return {
+                "success": True,
+                "choice_required": True,
+                "choice_data": {
+                    "type": "acquire_reserve_card",
+                    "card": card_type,
+                    "amount": amount
+                }
+            }
+        else:
+            # Acquire from market (requires card selection)
+            return {
+                "success": True,
+                "choice_required": True,
+                "choice_data": {
+                    "type": "acquire_card",
+                    "card": card_type if card_type else None,
+                    "amount": amount
+                }
+            }
+
+    def _handle_persuasion_per_contract(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle persuasion_per_contract effects: {"type": "persuasion_per_contract", "amount": 1}
+
+        Grants persuasion for each completed contract.
+        """
+        player = self.state.get_player_by_id(player_id)
+        amount_per_contract = effect.get("amount", 1)
+
+        # Count completed contracts
+        contracts_completed = len(player.contracts_completed) if hasattr(player, 'contracts_completed') else 0
+        total_persuasion = amount_per_contract * contracts_completed
+
+        # Add to temporary persuasion (for reveal turn)
+        if hasattr(player, 'temp_persuasion'):
+            player.temp_persuasion += total_persuasion
+        else:
+            player.temp_persuasion = total_persuasion
+
+        return {
+            "success": True,
+            "applied": {
+                "type": "persuasion_per_contract",
+                "contracts_completed": contracts_completed,
+                "persuasion_gained": total_persuasion
+            }
+        }
+
     def _handle_control(
         self,
         player_id: str,
@@ -724,15 +1114,22 @@ class EffectResolver:
         context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Handle control effects: {"type": "control", "location": "spice_refinery"}
+        Handle control effects: {"type": "control", "location": "spice_refinery"|"current"}
 
         Claims control of board locations.
+        Special value "current" means the location where the agent was just placed.
         """
         player = self.state.get_player_by_id(player_id)
         location = effect.get("location")
 
         if not location:
             return {"success": False, "error": "Control effect missing 'location' field"}
+
+        # Handle "current" location (get from context)
+        if location == "current":
+            location = context.get("location")
+            if not location:
+                return {"success": False, "error": "Cannot determine current location from context"}
 
         # Add to controlled locations if not already present
         if location not in player.controlled_locations:
@@ -787,6 +1184,41 @@ class EffectResolver:
             "applied": {
                 "type": "maker_hooks",
                 "value": value
+            }
+        }
+
+    def _handle_agent_on_maker(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle agent_on_maker effects: {"type": "agent_on_maker", "amount": 1}
+
+        This effect doesn't do anything by itself - it's a marker that indicates
+        this card requires placing an agent on a Maker space.
+
+        The actual game logic for Maker spaces is:
+        - Player must place agent on a location with is_maker_space=True
+        - This is validated during action generation/execution
+        - When agent is placed on Maker space, player.placed_on_maker_this_turn is set
+
+        This effect just returns success and marks the requirement was seen.
+        """
+        player = self.state.get_player_by_id(player_id)
+        amount = effect.get("amount", 1)
+
+        # Mark that player needs to/has placed on maker space
+        # This flag would be set by action_executor when placing agent on maker space
+        if not hasattr(player, 'placed_on_maker_this_turn'):
+            player.placed_on_maker_this_turn = False
+
+        return {
+            "success": True,
+            "applied": {
+                "type": "agent_on_maker",
+                "amount": amount
             }
         }
 
@@ -966,6 +1398,27 @@ class EffectResolver:
         """
         Evaluate a list of check conditions.
 
+        Supports check types:
+        - influence: Requires specific faction influence level
+        - influence_threshold: Checks total influence across factions
+        - council_seat: Requires high council seat
+        - agent_on: Requires agent on specific location
+        - bought: Requires specific card was bought this turn/round
+        - buy_imperium: Checks if imperium card was bought (for triggers)
+        - harvest: Requires harvest count (spice accumulated)
+        - contracts_completed: Requires number of completed contracts
+        - spies_placed: Requires number of spies placed on board
+        - cards_in_play: Requires number of cards in play with specific faction
+        - units_in_conflict: Requires number of units (troops + sandworms) in conflict
+        - maker_hook: Requires player has the Maker hook token
+        - agent_on_maker: Requires agent placed on Maker space (this_turn flag)
+        - fremen_bond: Requires another Fremen faction card in play
+        - faction_bond: Requires another card from specific faction in play
+        - discarded_faction_card: Requires discarding a card from specific faction this turn
+        - recalled_spy: Requires recalling a spy this turn
+        - acquired_card: Requires acquiring specific card this turn
+        - always: Always passes (unconditional)
+
         Returns success=True only if ALL checks pass.
         """
         player = self.state.get_player_by_id(player_id)
@@ -974,6 +1427,7 @@ class EffectResolver:
             check_type = check.get("type")
 
             if check_type == "influence":
+                # Check faction influence level
                 target = check.get("target")
                 amount = check.get("amount", 0)
 
@@ -993,7 +1447,24 @@ class EffectResolver:
                         "error": f"Requires {amount} {target} influence (have {current_influence})"
                     }
 
+            elif check_type == "influence_threshold":
+                # Check total influence across all factions
+                amount = check.get("amount", 0)
+                total_influence = (
+                    player.fremen_influence +
+                    player.bene_gesserit_influence +
+                    player.spacing_guild_influence +
+                    player.emperor_influence
+                )
+
+                if total_influence < amount:
+                    return {
+                        "success": False,
+                        "error": f"Requires {amount} total influence (have {total_influence})"
+                    }
+
             elif check_type == "council_seat":
+                # Check high council seat ownership
                 value = check.get("value", False)
                 if player.has_high_council_sit != value:
                     return {
@@ -1001,12 +1472,279 @@ class EffectResolver:
                         "error": "Requires council seat"
                     }
 
+            elif check_type == "agent_on":
+                # Check if agent is on specific location
+                location = check.get("location")
+                if not location:
+                    continue
+
+                # Check if player has agent at this location
+                has_agent = location in player.agents_placed
+
+                if not has_agent:
+                    return {
+                        "success": False,
+                        "error": f"Requires agent on {location}"
+                    }
+
+            elif check_type == "bought":
+                # Check if specific card was bought (acquired) this turn
+                card_name = check.get("card")
+                if not card_name:
+                    continue
+
+                # TODO: Track cards bought this turn
+                # For now, we'll check if card is in player's deck/discard
+                # This is approximate - full implementation needs turn tracking
+                has_card = False
+                for card in player.deck.cards + player.discard_pile.cards:
+                    if card.name == card_name:
+                        has_card = True
+                        break
+
+                if not has_card:
+                    return {
+                        "success": False,
+                        "error": f"Requires buying {card_name}"
+                    }
+
+            elif check_type == "buy_imperium":
+                # Trigger condition: check if any imperium card was bought
+                # This is for conditional effects (e.g., "when you buy a card")
+                # For now, always return True as this is a trigger, not a requirement
+                # Full implementation would track this in action_executor
+                continue
+
+            elif check_type == "harvest":
+                # Check spice harvest count
+                amount = check.get("amount", 0)
+
+                # Spice on hand represents harvested spice
+                if player.spice < amount:
+                    return {
+                        "success": False,
+                        "error": f"Requires {amount} spice harvested (have {player.spice})"
+                    }
+
+            elif check_type == "contracts_completed":
+                # Check number of completed contracts
+                amount = check.get("amount", 0)
+
+                # Count completed contracts
+                completed_count = len(player.contracts_completed) if hasattr(player, 'contracts_completed') else 0
+
+                if completed_count < amount:
+                    return {
+                        "success": False,
+                        "error": f"Requires {amount} completed contracts (have {completed_count})"
+                    }
+
+            elif check_type == "spies_placed":
+                # Check number of spies placed on board
+                amount = check.get("amount", 0)
+                spies_count = len(player.spies_placed) if hasattr(player, 'spies_placed') else 0
+
+                if spies_count < amount:
+                    return {
+                        "success": False,
+                        "error": f"Requires {amount} spies placed (have {spies_count})"
+                    }
+
+            elif check_type == "cards_in_play":
+                # Check number of cards in play with specific faction
+                faction = check.get("faction")
+                amount = check.get("amount", 1)
+
+                # Count cards in played_cards_this_turn with matching faction
+                matching_cards = 0
+                if hasattr(player, 'played_cards_this_turn'):
+                    for card in player.played_cards_this_turn:
+                        if hasattr(card, 'faction') and card.faction and faction:
+                            # Normalize faction names for comparison
+                            card_faction = card.faction.lower().replace(" ", "_")
+                            check_faction = faction.lower().replace(" ", "_")
+                            if card_faction == check_faction:
+                                matching_cards += 1
+
+                if matching_cards < amount:
+                    return {
+                        "success": False,
+                        "error": f"Requires {amount} {faction} cards in play (have {matching_cards})"
+                    }
+
+            elif check_type == "units_in_conflict":
+                # Check total units (troops + sandworms) in conflict
+                amount = check.get("amount", 0)
+
+                # Count troops and sandworms in conflict
+                troops = player.troops_in_conflict if hasattr(player, 'troops_in_conflict') else 0
+                sandworms = player.sandworms_in_conflict if hasattr(player, 'sandworms_in_conflict') else 0
+                total_units = troops + sandworms
+
+                if total_units < amount:
+                    return {
+                        "success": False,
+                        "error": f"Requires {amount} units in conflict (have {total_units})"
+                    }
+
+            elif check_type == "maker_hook":
+                # Check if player has the Maker hook (special token from Maker spaces)
+                has_maker_hook = getattr(player, 'has_maker_hook', False)
+
+                if not has_maker_hook:
+                    return {
+                        "success": False,
+                        "error": "Requires Maker hook"
+                    }
+
+            elif check_type == "agent_on_maker":
+                # Check if player placed agent on a Maker space this turn
+                this_turn = check.get("this_turn", False)
+
+                # Track if player visited a maker space
+                placed_on_maker = getattr(player, 'placed_on_maker_this_turn', False)
+
+                if this_turn and not placed_on_maker:
+                    return {
+                        "success": False,
+                        "error": "Requires placing agent on Maker space this turn"
+                    }
+
+            elif check_type == "fremen_bond":
+                # Check if player has other Fremen faction cards in play
+                # Need at least one OTHER Fremen card in played_cards_this_turn
+                fremen_cards_in_play = 0
+
+                if hasattr(player, 'played_cards_this_turn'):
+                    for card in player.played_cards_this_turn:
+                        if hasattr(card, 'faction') and card.faction:
+                            # Handle both string and list faction formats
+                            factions = card.faction if isinstance(card.faction, list) else [card.faction]
+                            for faction in factions:
+                                if faction.lower() == "fremen":
+                                    fremen_cards_in_play += 1
+                                    break
+
+                # Need at least 2 Fremen cards total (current card + 1 other)
+                if fremen_cards_in_play < 2:
+                    return {
+                        "success": False,
+                        "error": "Requires another Fremen card in play"
+                    }
+
+            elif check_type == "faction_bond":
+                # Generic faction bond check (checks for any faction cards in play)
+                target_faction = check.get("faction", "").lower().replace(" ", "_")
+                faction_cards_in_play = 0
+
+                if hasattr(player, 'played_cards_this_turn'):
+                    for card in player.played_cards_this_turn:
+                        if hasattr(card, 'faction') and card.faction:
+                            # Handle both string and list faction formats
+                            factions = card.faction if isinstance(card.faction, list) else [card.faction]
+                            for faction in factions:
+                                if faction.lower().replace(" ", "_") == target_faction:
+                                    faction_cards_in_play += 1
+                                    break
+
+                # Need at least 2 cards of target faction total (current card + 1 other)
+                if faction_cards_in_play < 2:
+                    return {
+                        "success": False,
+                        "error": f"Requires another {target_faction} card in play"
+                    }
+
+            elif check_type == "discarded_faction_card":
+                # Check if player discarded a card from specific faction this turn
+                faction = check.get("faction", "").lower().replace(" ", "_")
+
+                # Track discarded cards this turn
+                discarded_faction_card = False
+                if hasattr(player, 'discarded_cards_this_turn'):
+                    for card in player.discarded_cards_this_turn:
+                        if hasattr(card, 'faction') and card.faction:
+                            # Handle both string and list faction formats
+                            factions = card.faction if isinstance(card.faction, list) else [card.faction]
+                            for card_faction in factions:
+                                if card_faction.lower().replace(" ", "_") == faction:
+                                    discarded_faction_card = True
+                                    break
+                        if discarded_faction_card:
+                            break
+
+                if not discarded_faction_card:
+                    return {
+                        "success": False,
+                        "error": f"Requires discarding a {faction} card"
+                    }
+
+            elif check_type == "recalled_spy":
+                # Check if player recalled a spy this turn
+                this_turn = check.get("this_turn", False)
+                recalled_spy = getattr(player, 'recalled_spy_this_turn', False)
+
+                if this_turn and not recalled_spy:
+                    return {
+                        "success": False,
+                        "error": "Requires recalling a spy this turn"
+                    }
+
+            elif check_type == "acquired_card":
+                # Check if specific card was acquired this turn
+                card_name = check.get("card", "").lower()
+                this_turn = check.get("this_turn", False)
+
+                # Track acquired cards this turn
+                acquired_card = False
+                if this_turn and hasattr(player, 'acquired_cards_this_turn'):
+                    for card in player.acquired_cards_this_turn:
+                        if hasattr(card, 'name') and card.name.lower().replace(" ", "_") == card_name:
+                            acquired_card = True
+                            break
+                        # Also check by card ID for reserve cards
+                        if hasattr(card, 'id') and card.id.lower().replace(" ", "_") == card_name:
+                            acquired_card = True
+                            break
+
+                if not acquired_card:
+                    return {
+                        "success": False,
+                        "error": f"Requires acquiring {card_name} this turn"
+                    }
+
+            elif check_type == "alliance":
+                # Check if player has alliance with faction
+                faction = check.get("faction", "").lower().replace(" ", "_")
+                has_alliance = False
+
+                if hasattr(player, 'alliances'):
+                    has_alliance = faction in player.alliances
+
+                if not has_alliance:
+                    return {
+                        "success": False,
+                        "error": f"Requires alliance with {faction}"
+                    }
+
+            elif check_type == "cards_in_deck":
+                # Check if deck has at least N cards
+                amount = check.get("amount", 0)
+
+                deck_count = len(player.deck.cards) if hasattr(player, 'deck') else 0
+
+                if deck_count < amount:
+                    return {
+                        "success": False,
+                        "error": f"Requires {amount} cards in deck (have {deck_count})"
+                    }
+
             elif check_type == "always":
                 # Always passes
                 continue
 
             else:
-                # Unknown check type - skip for now
+                # Unknown check type - log warning but don't fail
+                # This allows game to continue even with unimplemented checks
                 continue
 
         return {"success": True}
@@ -1439,3 +2177,553 @@ class EffectResolver:
             {"type": "resource", "resource": "troop", "amount": effect.get("amount", 0)},
             context
         )
+
+    # ==================== INTRIGUE-SPECIFIC EFFECT HANDLERS ====================
+
+    def _handle_action(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle action effect (intrigue cards with cost/reward pattern).
+
+        Format:
+        {
+            "type": "action",
+            "phase": "plot" | "combat" | "endgame",
+            "cost": [effect objects],
+            "reward": [effect objects]
+        }
+
+        Example: Buy Access - Pay 5 solari to gain 2 influence
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": "Player not found"}
+
+        # Check if we're in the correct phase
+        phase = effect.get("phase")
+        current_phase = context.get("phase")
+
+        # Phase validation (if phase is specified)
+        # Note: This is approximate - real validation should check GamePhase enum
+        if phase and current_phase != phase:
+            return {
+                "success": False,
+                "error": f"Action can only be played during {phase} phase"
+            }
+
+        # Pay cost
+        cost = effect.get("cost", [])
+        if cost:
+            # For now, use simple cost deduction
+            # TODO: Use effect resolver to handle complex costs
+            for cost_effect in cost:
+                if cost_effect.get("type") == "resource":
+                    resource = cost_effect.get("resource")
+                    amount = cost_effect.get("amount", 0)
+
+                    if resource == "solari":
+                        if player.solari < amount:
+                            return {"success": False, "error": f"Need {amount} solari"}
+                        player.solari -= amount
+                    elif resource == "spice":
+                        if player.spice < amount:
+                            return {"success": False, "error": f"Need {amount} spice"}
+                        player.spice -= amount
+                    elif resource == "water":
+                        if player.water < amount:
+                            return {"success": False, "error": f"Need {amount} water"}
+                        player.water -= amount
+
+        # Apply reward
+        reward = effect.get("reward", [])
+        if reward:
+            reward_result = self.resolve_effects(player_id, reward, context)
+            if not reward_result["success"]:
+                return reward_result
+
+        return {
+            "success": True,
+            "effect_type": "action",
+            "applied": [f"Action effect resolved"],
+            "cost_paid": cost,
+            "reward_gained": reward
+        }
+
+    def _handle_conditional_reward(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle conditional reward effect (intrigue cards with trigger conditions).
+
+        Format:
+        {
+            "type": "conditional_reward",
+            "phase": "plot" | "combat" | "endgame",
+            "condition": {
+                "type": "buy_imperium" | "contracts_completed" | "agent_on" | etc.,
+                "target": "any" | specific card/faction/location,
+                "amount": number (optional threshold)
+            },
+            "reward": [effect objects]
+        }
+
+        Example: Call to Arms - When you buy an imperium card, gain 1 troop
+
+        This registers the conditional reward in active tracking.
+        When matching conditions are met during effect resolution,
+        _check_and_trigger_conditional_rewards() will apply the reward.
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": "Player not found"}
+
+        condition = effect.get("condition", {})
+        condition_type = condition.get("type")
+        reward = effect.get("reward", [])
+        card_name = context.get("card", "Unknown Card")
+
+        # Register this conditional reward for the player
+        if player_id not in self.active_conditional_rewards:
+            self.active_conditional_rewards[player_id] = []
+
+        self.active_conditional_rewards[player_id].append({
+            "condition": condition,
+            "reward": reward,
+            "card_name": card_name,
+            "phase": effect.get("phase")
+        })
+
+        return {
+            "success": True,
+            "effect_type": "conditional_reward",
+            "applied": [f"Conditional reward active: {condition_type} (from {card_name})"],
+            "condition": condition,
+            "reward": reward
+        }
+
+    def _handle_endgame_condition(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle end game condition effect (VP bonuses at game end).
+
+        Format:
+        {
+            "type": "endgame_condition",
+            "condition": {
+                "type": "contracts_completed" | "influence" | etc.,
+                "target": specific requirement,
+                "amount": threshold
+            },
+            "reward": [VP rewards]
+        }
+
+        Example: Gain 3 VP if you have 4+ completed contracts
+
+        Note: This should be evaluated during end game scoring phase
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": "Player not found"}
+
+        condition = effect.get("condition", {})
+
+        # TODO: Evaluate condition and apply reward if met
+        # For now, just register it for end-game evaluation
+
+        return {
+            "success": True,
+            "effect_type": "endgame_condition",
+            "applied": ["End game condition registered"],
+            "condition": condition,
+            "reward": effect.get("reward", []),
+            "note": "End game evaluation not yet implemented"
+        }
+
+    # ==================== CONDITIONAL REWARD TRIGGER SYSTEM ====================
+
+    def _check_and_trigger_conditional_rewards(
+        self,
+        player_id: str,
+        triggering_effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check if any active conditional rewards should trigger based on the effect just applied.
+
+        This is called after each effect during resolution when monitor_triggers is enabled.
+        It checks all active conditional rewards for this player and triggers matching ones.
+
+        Args:
+            player_id: Player who just had an effect applied
+            triggering_effect: The effect that was just applied (may trigger rewards)
+            context: Context dict with phase, card, location info
+
+        Returns:
+            Dict with triggered rewards' results, or None if no triggers
+        """
+        # Check if player has any active conditional rewards
+        if player_id not in self.active_conditional_rewards:
+            return None
+
+        active_rewards = self.active_conditional_rewards[player_id]
+        if not active_rewards:
+            return None
+
+        triggered_results = []
+
+        # Check each active conditional reward
+        for reward_data in active_rewards:
+            condition = reward_data.get("condition", {})
+            condition_type = condition.get("type")
+
+            # Check if this effect triggers the condition
+            should_trigger = False
+
+            if condition_type == "buy_imperium":
+                # Trigger when player acquires a card
+                # This would be set by acquire_card action
+                # For now, check if context indicates card acquisition
+                if context.get("acquiring_card") or triggering_effect.get("type") == "acquire":
+                    target = condition.get("target", "any")
+                    if target == "any":
+                        should_trigger = True
+                    elif target in context.get("acquired_card_name", ""):
+                        should_trigger = True
+
+            elif condition_type == "agent_on":
+                # Trigger when agent placed on specific location
+                target_location = condition.get("target")
+                current_location = context.get("location")
+                if target_location and current_location == target_location:
+                    should_trigger = True
+
+            elif condition_type == "harvest":
+                # Trigger when harvesting spice
+                if triggering_effect.get("type") == "resource" and triggering_effect.get("resource") == "spice":
+                    # Check if amount threshold met
+                    threshold = condition.get("amount", 1)
+                    spice_gained = triggering_effect.get("amount", 0)
+                    if spice_gained >= threshold:
+                        should_trigger = True
+
+            elif condition_type == "influence":
+                # Trigger when gaining influence with specific faction
+                if triggering_effect.get("type") == "influence":
+                    target_faction = condition.get("target", "any")
+                    effect_faction = triggering_effect.get("target")
+                    if target_faction == "any" or target_faction == effect_faction:
+                        should_trigger = True
+
+            elif condition_type == "resource":
+                # Trigger when gaining specific resource
+                target_resource = condition.get("target")
+                if triggering_effect.get("type") == "resource":
+                    effect_resource = triggering_effect.get("resource")
+                    if effect_resource == target_resource:
+                        should_trigger = True
+
+            # If condition met, apply the reward
+            if should_trigger:
+                reward = reward_data.get("reward", [])
+                card_name = reward_data.get("card_name", "Unknown")
+
+                # Apply reward (without trigger monitoring to avoid infinite loops)
+                reward_result = self.resolve_effects(
+                    player_id,
+                    reward,
+                    {**context, "monitor_triggers": False, "triggered_by": card_name}
+                )
+
+                if reward_result.get("success"):
+                    triggered_results.append({
+                        "card": card_name,
+                        "condition": condition_type,
+                        "effects": reward_result.get("effects_applied", [])
+                    })
+
+        if triggered_results:
+            return {
+                "success": True,
+                "effects_applied": [f"Triggered: {r['card']} ({r['condition']})" for r in triggered_results]
+            }
+
+        return None
+
+    def register_conditional_reward(
+        self,
+        player_id: str,
+        condition: Dict[str, Any],
+        reward: List[Dict[str, Any]],
+        card_name: str = "Unknown"
+    ):
+        """
+        Manually register a conditional reward (for intrigue cards played during plot phase).
+
+        Args:
+            player_id: Player who has the conditional reward
+            condition: Condition dict with type, target, amount
+            reward: List of effect objects to apply when triggered
+            card_name: Name of card providing the reward
+        """
+        if player_id not in self.active_conditional_rewards:
+            self.active_conditional_rewards[player_id] = []
+
+        self.active_conditional_rewards[player_id].append({
+            "condition": condition,
+            "reward": reward,
+            "card_name": card_name
+        })
+
+    def clear_conditional_rewards(self, player_id: str):
+        """
+        Clear all conditional rewards for a player (called at end of round).
+
+        Args:
+            player_id: Player whose rewards to clear
+        """
+        if player_id in self.active_conditional_rewards:
+            self.active_conditional_rewards[player_id] = []
+
+    def clear_all_conditional_rewards(self):
+        """Clear all conditional rewards for all players (round reset)."""
+        self.active_conditional_rewards = {}
+
+    # ==================== CARD 28-30 NEW EFFECT HANDLERS ====================
+
+    def _handle_multiple(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Generic multiplier effect: Apply reward X times based on count of Y.
+
+        Supports:
+        - "sandworm": Count sandworms in conflict
+        - "contract": Count completed contracts
+        - "spy": Count spies placed on board
+        - "sword_card": Count OTHER revealed cards that provided swords this turn
+
+        Args:
+            effect: {
+                "type": "multiple",
+                "per": "sandworm"|"contract"|"spy"|"sword_card",
+                "reward": [<effect objects>]
+            }
+
+        Examples:
+            {"type": "multiple", "per": "sandworm", "reward": [{"type": "draw", "deck": "deck", "amount": 1}]}
+            {"type": "multiple", "per": "contract", "reward": [{"type": "resource", "resource": "persuasion", "amount": 1}]}
+            {"type": "multiple", "per": "spy", "reward": [{"type": "influence", "target": "any", "amount": 1}]}
+        """
+        player = self.state.get_player_by_id(player_id)
+        per_type = effect.get("per", "")
+        reward_effects = effect.get("reward", [])
+
+        # Count based on per_type
+        multiplier = 0
+
+        if per_type == "sandworm":
+            multiplier = getattr(player, 'sandworms_in_conflict', 0)
+
+        elif per_type == "contract":
+            multiplier = len(player.contracts_completed) if hasattr(player, 'contracts_completed') else 0
+
+        elif per_type == "spy":
+            # Count spies placed (for each spy, grant influence with that faction)
+            # Special handling: need to track which factions are being spied on
+            spied_factions = set()
+            if hasattr(player, 'spies_placed'):
+                for observation_post_id in player.spies_placed:
+                    # Find which observation post
+                    for observation_post in self.game.board.observation_posts:
+                        if str(observation_post.id) == str(observation_post_id):
+                            # Determine faction from observation post name
+                            faction_name = observation_post.name.lower().replace(" ", "_")
+                            if faction_name in ["fremen", "bene_gesserit", "spacing_guild", "emperor"]:
+                                spied_factions.add(faction_name)
+
+            # For each spied faction, apply the reward
+            if len(spied_factions) == 0:
+                return {
+                    "success": True,
+                    "effects_applied": ["No spies placed"]
+                }
+
+            # Apply reward for each faction
+            all_effects_applied = []
+            for faction in spied_factions:
+                # Clone reward effects and set target to this faction
+                for reward_effect in reward_effects:
+                    modified_reward = reward_effect.copy()
+                    # If influence effect without target, set to this faction
+                    if modified_reward.get('type') == 'influence' and modified_reward.get('target') == 'any':
+                        modified_reward['target'] = faction
+
+                    result = self.resolve_effects(
+                        player_id,
+                        [modified_reward],
+                        {**context, "monitor_triggers": False}
+                    )
+                    if result.get("success"):
+                        all_effects_applied.extend(result.get("effects_applied", []))
+
+            return {
+                "success": True,
+                "effects_applied": all_effects_applied or [f"Applied rewards for {len(spied_factions)} factions"]
+            }
+
+        elif per_type == "sword_card":
+            # Count OTHER revealed cards that provided swords this turn
+            if hasattr(player, 'revealed_cards_this_turn'):
+                current_card_name = context.get("card") if context else None
+                for card in player.revealed_cards_this_turn:
+                    # Skip the current card
+                    if current_card_name and hasattr(card, 'name') and card.name == current_card_name:
+                        continue
+
+                    # Check if card has reveal_effects with sword
+                    if hasattr(card, 'reveal_effects'):
+                        for reveal_effect in card.reveal_effects:
+                            if isinstance(reveal_effect, dict):
+                                # Check for sword resource
+                                if (reveal_effect.get('type') == 'resource' and
+                                    reveal_effect.get('resource') == 'sword'):
+                                    multiplier += 1
+                                    break  # Count card only once
+                                # Check for sword shorthand
+                                elif reveal_effect.get('type') == 'sword':
+                                    multiplier += 1
+                                    break
+
+        else:
+            return {
+                "success": False,
+                "error": f"Unknown multiplier type: {per_type}"
+            }
+
+        # Apply reward multiplier times
+        if multiplier == 0:
+            return {
+                "success": True,
+                "effects_applied": [f"No {per_type}s to multiply"]
+            }
+
+        all_effects_applied = []
+        for _ in range(multiplier):
+            result = self.resolve_effects(
+                player_id,
+                reward_effects,
+                {**context, "monitor_triggers": False}
+            )
+            if result.get("success"):
+                all_effects_applied.extend(result.get("effects_applied", []))
+
+        return {
+            "success": True,
+            "effects_applied": all_effects_applied or [f"Applied {multiplier}x reward for {per_type}"]
+        }
+
+    def _handle_deck_manipulation(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Look at top N cards of deck, then draw/discard/trash one each.
+
+        Card 30 - Long Live the Fighters reveal effect.
+
+        Args:
+            effect: {
+                "type": "deck_manipulation",
+                "look": 3,
+                "draw": 1,
+                "discard": 1,
+                "trash": 1
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+
+        look_count = effect.get("look", 3)
+        draw_count = effect.get("draw", 1)
+        discard_count = effect.get("discard", 1)
+        trash_count = effect.get("trash", 1)
+
+        # Look at top N cards
+        top_cards = []
+        for i in range(min(look_count, len(player.deck.cards))):
+            if i < len(player.deck.cards):
+                top_cards.append(player.deck.cards[-(i+1)])  # Top cards are at end of list
+
+        if len(top_cards) < look_count:
+            # Need to shuffle discard into deck
+            if player.discard_pile.cards:
+                player.deck.cards.extend(player.discard_pile.cards)
+                player.discard_pile.cards.clear()
+                player.deck.shuffle()
+
+                # Try again
+                for i in range(min(look_count, len(player.deck.cards))):
+                    if i < len(player.deck.cards) and i >= len(top_cards):
+                        top_cards.append(player.deck.cards[-(i+1)])
+
+        if len(top_cards) == 0:
+            return {
+                "success": True,
+                "effects_applied": ["No cards in deck to manipulate"]
+            }
+
+        # For AI/bot: make random choices
+        # For human: this would require a choice prompt
+        # TODO: Implement choice system for human players
+
+        # Remove cards from deck
+        for card in top_cards:
+            if card in player.deck.cards:
+                player.deck.cards.remove(card)
+
+        # Random selection for bot
+        import random
+        remaining_cards = top_cards.copy()
+
+        # Draw one
+        if draw_count > 0 and remaining_cards:
+            drawn_card = random.choice(remaining_cards)
+            remaining_cards.remove(drawn_card)
+            player.hand.add_card(drawn_card)
+
+        # Discard one
+        if discard_count > 0 and remaining_cards:
+            discarded_card = random.choice(remaining_cards)
+            remaining_cards.remove(discarded_card)
+            player.discard_pile.add_card(discarded_card)
+
+        # Trash one
+        if trash_count > 0 and remaining_cards:
+            trashed_card = random.choice(remaining_cards)
+            remaining_cards.remove(trashed_card)
+            # Trashed cards removed from game (don't add anywhere)
+
+        # Put remaining cards back on top of deck
+        for card in remaining_cards:
+            player.deck.cards.append(card)
+
+        return {
+            "success": True,
+            "effects_applied": [f"Manipulated top {len(top_cards)} cards (drew/discarded/trashed)"],
+            "choices_required": []  # TODO: Add choice for human players
+        }

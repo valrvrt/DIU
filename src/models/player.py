@@ -64,6 +64,10 @@ class Player:
     # Turn state
     has_revealed_this_round: bool = False
     played_cards_this_turn: List = field(default_factory=list)  # Cards played during current turn
+    acquired_cards_this_turn: List = field(default_factory=list)  # Cards acquired during reveal turn
+    discarded_cards_this_turn: List = field(default_factory=list)  # Cards discarded this turn
+    recalled_spy_this_turn: bool = False  # Whether a spy was recalled this turn
+    placed_on_maker_this_turn: bool = False  # Whether agent was placed on Maker space
 
     # Council
     has_high_council_sit = False

@@ -40,6 +40,11 @@ class ImperiumCard(Card):
 @dataclass
 class IntrigueCard(Card):
     id: str = ""
+    # Effects are stored in standard format (list of effect objects)
+    # Each effect has a 'phase' field indicating when it can be played
+    effects: list = field(default_factory=list)
+
+    # Legacy fields (kept for backward compatibility if needed)
     phases: list[IntriguePhase] = field(default_factory=list)
     cost: dict[str, int] = field(default_factory=dict)
     played_gain: dict[str, int] = field(default_factory=dict)
