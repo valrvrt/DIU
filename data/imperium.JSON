@@ -540,8 +540,14 @@
     "quantity": 2,
     "agent_effects": [
       {
-        "type": "agent_on_maker",
-        "amount": 1
+        "type": "conditional",
+        "check": [
+          {
+            "type": "sent_an_agent_on",
+            "target": ["maker"]
+          }
+        ],
+        "reward": []
       }
     ],
     "reveal_effects": [
@@ -702,8 +708,8 @@
         "type": "conditional",
         "check": [
           {
-            "type": "agent_on_maker",
-            "this_turn": true
+            "type": "sent_an_agent_on",
+            "target": ["maker"]
           }
         ],
         "reward": [
@@ -822,6 +828,7 @@
           {
             "type": "multiple",
             "per": "spy",
+            "target": ["bene_gesserit", "spacing_guild", "emperor", "fremen"],
             "reward": [
               {
                 "type": "influence",
@@ -1367,6 +1374,899 @@
         "type": "resource",
         "resource": "solari",
         "amount": 2
+      }
+    ]
+  },
+  {
+    "id": 37,
+    "name": "Priority Contracts",
+    "faction": "Spacing Guild",
+    "agent_icon": ["spice", "solari", "intrigue"],
+    "cost": 6,
+    "quantity": 2,
+    "agent_effects": [{ "type": "accept", "amount": 1 }],
+    "reveal_effects": [
+      {
+        "type": "choice",
+        "options": [
+          {
+            "reward": [
+              {
+                "type": "resource",
+                "resource": "persuasion",
+                "amount": 2
+              }
+            ]
+          },
+          {
+            "check": [
+              {
+                "type": "contracts_completed",
+                "amount": 4
+              }
+            ],
+            "reward": [
+              {
+                "type": "trash",
+                "target": "self"
+              },
+              {
+                "type": "resource",
+                "resource": "victory_point",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 38,
+    "name": "Public Spectacle",
+    "faction": "Emperor",
+    "agent_icon": ["spy"],
+    "cost": 4,
+    "quantity": 2,
+    "agent_effects": [
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "recalled_spy",
+            "this_turn": true
+          }
+        ],
+        "reward": [
+          {
+            "type": "influence",
+            "target": "any",
+            "amount": 1
+          }
+        ]
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 1
+      },
+      {
+        "type": "play",
+        "unit": "spy",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": 39,
+    "name": "Rebel Supplier",
+    "faction": "Fremen",
+    "agent_icon": ["blue"],
+    "cost": 3,
+    "quantity": 3,
+    "agent_effects": [
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "recalled_spy",
+            "this_turn": true
+          }
+        ],
+        "reward": [
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 2
+          }
+        ]
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "spice",
+        "amount": 1
+      },
+      {
+        "type": "resource",
+        "resource": "sword",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": 40,
+    "name": "Reliable Informant",
+    "faction": "Spacing Guild",
+    "agent_icon": ["spacing_guild"],
+    "cost": 2,
+    "quantity": 2,
+    "agent_effects": [
+      {
+        "type": "play",
+        "unit": "spy",
+        "amount": 1,
+        "target": ["emperor", "bene_gesserit", "spacing_guild"]
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 1
+      },
+      {
+        "type": "resource",
+        "resource": "solari",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": 41,
+    "name": "Sardaukar Coordination",
+    "faction": "Emperor",
+    "agent_icon": ["emperor", "green"],
+    "cost": 4,
+    "quantity": 2,
+    "agent_effects": [
+      {
+        "type": "bypass_troops_deployment_rule",
+        "description": "You may deploy any troops you recruit this turn to the Conflict"
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 2
+      },
+      {
+        "type": "multiple",
+        "per": "emperor_card_revealed",
+        "reward": [
+          {
+            "type": "resource",
+            "resource": "sword",
+            "amount": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 42,
+    "name": "Sardaukar Soldier",
+    "faction": "Emperor",
+    "agent_icon": ["blue"],
+    "cost": 1,
+    "quantity": 3,
+    "on_trash_effects": [
+      {
+        "type": "draw",
+        "deck": "intrigue",
+        "amount": 1
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 1
+      },
+      {
+        "type": "resource",
+        "resource": "sword",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": 43,
+    "name": "Shishakli",
+    "faction": "Fremen",
+    "agent_icon": ["blue", "yellow"],
+    "cost": 4,
+    "quantity": 2,
+    "agent_effects": [
+      [
+        {
+          "type": "exchange",
+          "cost": [
+            {
+              "type": "trash",
+              "deck": ["hand", "played"],
+              "amount": 1
+            }
+          ],
+          "reward": [
+            {
+              "type": "draw",
+              "deck": "deck",
+              "amount": 1
+            }
+          ]
+        }
+      ]
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "sword",
+        "amount": 2
+      }
+    ],
+    "fremen_bond_effects": [
+      {
+        "type": "influence",
+        "target": "fremen",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": 44,
+    "name": "Smuggler's Harvester",
+    "faction": "Spacing Guild",
+    "agent_icon": ["yellow"],
+    "cost": 1,
+    "quantity": 3,
+    "agent_effects": [
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "sent_an_agent_on",
+            "target": ["maker"]
+          }
+        ],
+        "reward": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 1
+          }
+        ]
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": 45,
+    "name": "Smuggler's Haven",
+    "faction": "Spacing Guild",
+    "agent_icon": ["spacing_guild", "yellow"],
+    "cost": 4,
+    "quantity": 2,
+    "agent_effects": [
+      {
+        "type": "trade",
+        "cost": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 4
+          }
+        ],
+        "reward": [
+          {
+            "type": "resource",
+            "resource": "victory_point",
+            "amount": 1
+          }
+        ]
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "solari",
+        "amount": 1
+      },
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "spying",
+            "board_space_type": "maker"
+          }
+        ],
+        "reward": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 2
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 46,
+    "name": "Southern Elders",
+    "faction": ["Bene Gesserit", "Fremen"],
+    "agent_icon": ["bene_gesserit", "fremen"],
+    "cost": 4,
+    "quantity": 2,
+    "agent_effects": [
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "faction_bond",
+            "faction": "bene_gesserit"
+          }
+        ],
+        "reward": [
+          {
+            "type": "resource",
+            "resource": "troop",
+            "amount": 2
+          }
+        ]
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "water",
+        "amount": 1
+      }
+    ],
+    "fremen_bond_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 2
+      }
+    ]
+  },
+  {
+    "id": 47,
+    "name": "Space-time Folding",
+    "faction": "Spacing Guild",
+    "agent_icon": ["spacing_guild"],
+    "cost": 1,
+    "quantity": 3,
+    "agent_effects": [
+      {
+        "type": "exchange",
+        "cost": [
+          {
+            "type": "discard",
+            "deck": "hand",
+            "amount": 1
+          }
+        ],
+        "reward": [
+          {
+            "type": "draw",
+            "deck": "deck",
+            "amount": 1
+          }
+        ]
+      },
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "discarded_faction_card",
+            "faction": "spacing_guild"
+          }
+        ],
+        "reward": [
+          {
+            "type": "draw",
+            "deck": "deck",
+            "amount": 1
+          }
+        ]
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": 48,
+    "name": "Spacing Guild's Favor",
+    "faction": "Spacing Guild",
+    "agent_icon": ["spacing_guild", "yellow"],
+    "cost": 5,
+    "quantity": 2,
+    "on_discard_effects": [
+      {
+        "type": "resource",
+        "resource": "spice",
+        "amount": 2
+      }
+    ],
+    "agent_effects": [{ "type": "draw", "deck": "hand", "amount": 1 }],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 2
+      },
+      {
+        "type": "exchange",
+        "cost": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 3
+          }
+        ],
+        "reward": [
+          {
+            "type": "influence",
+            "target": "any",
+            "amount": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 49,
+    "name": "Spy Network",
+    "faction": ["Emperor", "Spacing Guild"],
+    "cost": 2,
+    "quantity": 2,
+    "on_acquire_effects": [{ "type": "play", "unit": "spy", "amount": 1 }],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 2
+      },
+      {
+        "type": "resource",
+        "resource": "sword",
+        "amount": 1
+      },
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "spies_on_board",
+            "amount": 2
+          }
+        ],
+        "reward": [
+          {
+            "type": "recall",
+            "unit": "spy",
+            "amount": 1
+          },
+          {
+            "type": "draw",
+            "deck": "intrigue",
+            "amount": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 50,
+    "name": "Steersman",
+    "faction": "Spacing Guild",
+    "agent_icon": ["spacing_guild", "green", "blue", "yellow"],
+    "cost": 8,
+    "quantity": 1,
+    "on_acquire_effects": [
+      { "type": "influence", "target": "spacing_guild", "amount": 1 }
+    ],
+    "agent_effects": [
+      {
+        "type": "draw",
+        "deck": "deck",
+        "amount": 1
+      },
+      {
+        "type": "recall",
+        "unit": "agent",
+        "amount": 1
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 2
+      },
+      {
+        "type": "resource",
+        "resource": "spice",
+        "amount": 2
+      }
+    ]
+  },
+  {
+    "id": 51,
+    "name": "Stilgar, the Devoted",
+    "faction": "Fremen",
+    "agent_icon": ["fremen", "blue", "yellow"],
+    "cost": 6,
+    "quantity": 1,
+    "agent_effects": [
+      {
+        "type": "resource",
+        "resource": "troops",
+        "amount": 2
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "multiple",
+        "per": "fremen_card_revealed",
+        "reward": [
+          {
+            "type": "resource",
+            "resource": "persuasion",
+            "amount": 2
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 52,
+    "name": "Strike Fleet",
+    "agent_icon": ["spy"],
+    "cost": 5,
+    "quantity": 2,
+    "on_acquire_effects": [{ "type": "play", "unit": "spy", "amount": 1 }],
+    "agent_effects": [
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "recalled_spy",
+            "this_turn": true
+          }
+        ],
+        "reward": [
+          {
+            "type": "resource",
+            "resource": "troops",
+            "amount": 3
+          }
+        ]
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 1
+      },
+      {
+        "type": "resource",
+        "resource": "sword",
+        "amount": 3
+      }
+    ]
+  },
+  {
+    "id": 53,
+    "name": "Subversive Advisor",
+    "agent_icon": ["reveal"],
+    "cost": 5,
+    "quantity": 2,
+    "on_acquire_effects": [{ "type": "play", "unit": "spy", "amount": 1 }],
+    "agent_effects": [
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "sent_an_agent_on",
+            "target": ["fremen", "bene_gesserit", "emperor", "spacing_guild"]
+          }
+        ],
+        "reward": [
+          {
+            "type": "influence",
+            "target": "agent",
+            "amount": 1
+          },
+          {
+            "type": "trash",
+            "target": "self"
+          }
+        ]
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "solari",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": 54,
+    "name": "Treacherous Maneuver",
+    "faction": "Emperor",
+    "agent_icon": ["emperor", "spacing_guild", "bene_gesserit", "fremen"],
+    "cost": 5,
+    "quantity": 2,
+    "agent_effects": [
+      {
+        "cost": [
+          {
+            "type": "trash",
+            "deck": "self"
+          },
+          { "type": "trash", "deck": "hand", "amount": 1, "faction": "Emperor" }
+        ],
+        "reward": {
+          "type": "influence",
+          "target": "agent",
+          "amount": 1
+        }
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 1
+      },
+      {
+        "type": "draw",
+        "deck": "intrigue",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": 55,
+    "name": "Tread in Darkness",
+    "faction": "Bene Gesserit",
+    "agent_icon": ["green", "blue", "yellow"],
+    "cost": 4,
+    "quantity": 2,
+    "agent_effects": [
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "faction_bond",
+            "faction": "bene_gesserit"
+          }
+        ],
+        "reward": [
+          {
+            "type": "trash",
+            "deck": ["hand", "played"]
+          },
+          {
+            "type": "draw",
+            "deck": "hand",
+            "amount": 1
+          }
+        ]
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 2
+      },
+      {
+        "type": "resource",
+        "resource": "sword",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": 56,
+    "name": "Truthtrance",
+    "faction": "Bene Gesserit",
+    "agent_icon": ["emperor", "spacing_guild", "bene_gesserit", "fremen"],
+    "cost": 4,
+    "quantity": 2,
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": 57,
+    "name": "Undercover Asset",
+    "faction": ["Emperor", "Spacing Guild"],
+    "agent_icon": ["green", "blue", "yellow"],
+    "cost": 2,
+    "quantity": 2,
+    "agent_effects": [
+      {
+        "type": "bypass_influence_requirment_rule"
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "choice",
+        "options": [
+          {
+            "reward": [
+              {
+                "type": "play",
+                "unit": "spy",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "reward": [
+              {
+                "type": "resource",
+                "resource": "sword",
+                "amount": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 58,
+    "name": "Unswerving Loyalty",
+    "faction": "Fremen",
+    "cost": 1,
+    "quantity": 3,
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 1
+      },
+      {
+        "type": "resource",
+        "resource": "troop",
+        "amount": 1
+      }
+    ],
+    "fremen_bond_effects": [
+      {
+        "type": "deploy_or_retreat_troop",
+        "amount": 1,
+        "description": "You may deploy or retreat one of your troops"
+      }
+    ]
+  },
+  {
+    "id": 59,
+    "name": "Weirding Woman",
+    "faction": "Bene Gesserit",
+    "agent_icon": ["blue", "yellow"],
+    "cost": 1,
+    "quantity": 3,
+    "agent_effects": [
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "faction_bond",
+            "faction": "bene_gesserit"
+          }
+        ],
+        "reward": [
+          {
+            "type": "return_to_hand",
+            "target": "self",
+            "description": "Return this card from play to your hand"
+          }
+        ]
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 1
+      },
+      {
+        "type": "resource",
+        "resource": "sword",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": 60,
+    "name": "Wheels Within Wheels",
+    "faction": ["Emperor", "Spacing Guild"],
+    "agent_icon": ["spy"],
+    "cost": 2,
+    "quantity": 2,
+    "agent_effects": [
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "influence",
+            "target": "emperor",
+            "amount": 2
+          }
+        ],
+        "reward": [
+          {
+            "type": "resource",
+            "resource": "solari",
+            "amount": 2
+          }
+        ]
+      },
+      {
+        "type": "conditional",
+        "check": [
+          {
+            "type": "influence",
+            "target": "spacing_guild",
+            "amount": 2
+          }
+        ],
+        "reward": [
+          {
+            "type": "resource",
+            "resource": "spice",
+            "amount": 1
+          }
+        ]
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 1
+      },
+      {
+        "type": "play",
+        "unit": "spy",
+        "amount": 1
       }
     ]
   }
