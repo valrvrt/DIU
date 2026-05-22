@@ -1095,27 +1095,26 @@ class ActionExecutor:
 
         Returns:
             Ordered list of effects (same effects, possibly different order)
-
-        Implementation notes:
-        - For bots: Uses heuristic ordering (resources → draw → influence)
-        - For human players: Could be extended to prompt for preferred order
-          via play_game.py UI (e.g., "Choose which effect to resolve first")
-        - Bots could override the heuristic with ML-learned strategies
-
-        Future enhancement for human players:
-            1. In play_game.py, check if current player is human
-            2. If human and len(effects) > 1, show effects and ask for order
-            3. Player picks order (numbered list: "1, 3, 2" means effect 1, then 3, then 2)
-            4. Pass ordered effects to this method
-            5. This method just returns them as-is for humans
         """
         # If only 0-1 effects, no ordering needed
         if len(effects) <= 1:
             return effects
 
-        # For now, use heuristic ordering for all players
-        # Future: Check if player is human and prompt for order
-        return self._apply_effect_ordering_heuristic(effects)
+        # Check if this is a human player
+        # TODO: Add player.is_human or player.player_type check
+        # For now, always use heuristic
+        is_human = False  # Will be set from player object in future
+
+        # Use effect ordering manager
+        try:
+            from .effect_ordering import get_effect_ordering_manager
+            manager = get_effect_ordering_manager()
+            return manager.order_effects_interactive(
+                player_id, effects, context, is_human
+            )
+        except ImportError:
+            # Fallback to heuristic if module not available
+            return self._apply_effect_ordering_heuristic(effects)
 
     def _apply_effect_ordering_heuristic(self, effects: list) -> list:
         """

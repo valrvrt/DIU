@@ -61,7 +61,6 @@ class EffectResolver:
 
             # Faction effects
             "influence": self._handle_influence,
-            "influence_per_spy": self._handle_influence_per_spy,
 
             # Board control
             "control": self._handle_control,
@@ -95,6 +94,48 @@ class EffectResolver:
 
             # Card 30 specific effect
             "deck_manipulation": self._handle_deck_manipulation,
+
+            # Card 34 - Overthrow
+            "influence_double": self._handle_influence_double,
+
+            # Card 36 - Price is No Object
+            "acquire_with_solari": self._handle_acquire_with_solari,
+
+            # Card 37 - Priority Contracts
+            "choice": self._handle_choice,
+            "trash": self._handle_trash,
+
+            # Generic play effect for units (spy, agent, troops, etc.)
+            "play": self._handle_play,
+
+            # Card 41 - Sardaukar Coordination
+            "bypass_troops_deployment_rule": self._handle_bypass_troops_deployment_rule,
+
+            # Card 43 - Shishakli
+            "trash_to_acquire": self._handle_trash_to_acquire,
+
+            # Card 45 - Smuggler's Haven
+            "trade": self._handle_trade,
+
+            # Card 47, 48 - Acquire card effects
+            "acquire_card": self._handle_acquire_card,
+
+            # Card 54 - Treacherous Maneuver
+            "trash_hand_card": self._handle_trash_hand_card,
+
+            # Card 57 - Undercover Asset
+            "ignore_influence_requirements": self._handle_ignore_influence_requirements,
+
+            # Card 58 - Unswerving Loyalty
+            "deploy_or_retreat_troop": self._handle_deploy_or_retreat_troop,
+
+            # Card 59 - Weirding Woman
+            "return_to_hand": self._handle_return_to_hand,
+
+            # Additional effect types
+            "cost": self._handle_cost,
+            "exchange": self._handle_exchange,
+            "bypass_influence_requirment_rule": self._handle_bypass_influence_requirement_rule,
         }
 
     # ==================== MAIN RESOLUTION ENTRY POINT ====================
@@ -280,6 +321,11 @@ class EffectResolver:
                 {"type": "draw", "deck": "intrigue", "amount": total_amount},
                 context
             )
+        elif resource == "mentat":
+            # Add mentat(s) to player
+            if not hasattr(player, "mentats"):
+                player.mentats = 0
+            player.mentats += total_amount
         else:
             return {
                 "success": False,
@@ -1230,13 +1276,88 @@ class EffectResolver:
     ) -> Dict[str, Any]:
         """
         Handle signet effects: {"type": "signet"}
-        Signet abilities are triggered during reveal phase based on leader.
-        This is a placeholder - actual signet logic handled in reveal phase.
+
+        Signet Ring triggers the player's leader signet ability.
+        - Agent phase: Does nothing (just places agent)
+        - Reveal phase: Resolves leader's signet_ability effects
+
+        Args:
+            player_id: Player using signet
+            effect: Signet effect dict
+            context: Must include 'phase' to determine behavior
+
+        Returns:
+            Result dict with effects from leader ability
         """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": f"Player {player_id} not found"}
+
+        phase = context.get("phase", "agent")
+
+        # During agent phase, signet does nothing (agent placement handles it)
+        if phase == "agent":
+            return {
+                "success": True,
+                "effect_type": "signet",
+                "effects_applied": ["Signet agent placed"]
+            }
+
+        # During reveal phase, trigger leader's signet ability
+        if phase == "reveal":
+            # Get player's leader
+            if not hasattr(player, 'leader') or not player.leader:
+                return {
+                    "success": False,
+                    "error": "Player has no leader"
+                }
+
+            leader = player.leader
+
+            # Get leader's signet ability
+            if not hasattr(leader, 'signet_ability'):
+                return {
+                    "success": False,
+                    "error": f"Leader {getattr(leader, 'name', 'Unknown')} has no signet ability"
+                }
+
+            signet_ability = leader.signet_ability
+
+            # Get effects from signet ability
+            signet_effects = []
+            if isinstance(signet_ability, dict) and 'effects' in signet_ability:
+                signet_effects = signet_ability['effects']
+            elif hasattr(signet_ability, 'effects'):
+                signet_effects = signet_ability.effects
+
+            if not signet_effects:
+                return {
+                    "success": True,
+                    "effect_type": "signet",
+                    "effects_applied": ["No signet effects to resolve"]
+                }
+
+            # Resolve leader's signet effects
+            result = self.resolve_effects(
+                player_id,
+                signet_effects,
+                {**context, "source": "signet_ability", "leader": getattr(leader, 'name', 'Unknown')}
+            )
+
+            if result.get("success"):
+                leader_name = getattr(leader, 'name', 'Unknown Leader')
+                return {
+                    "success": True,
+                    "effect_type": "signet",
+                    "effects_applied": [f"Signet ability ({leader_name})"] + result.get("effects_applied", [])
+                }
+            else:
+                return result
+
+        # Unknown phase
         return {
-            "success": True,
-            "effect_type": "signet",
-            "applied": []
+            "success": False,
+            "error": f"Signet effect in unknown phase: {phase}"
         }
 
     def _handle_shieldwall_deactivate(
@@ -1736,6 +1857,197 @@ class EffectResolver:
                     return {
                         "success": False,
                         "error": f"Requires {amount} cards in deck (have {deck_count})"
+                    }
+
+            elif check_type == "swordmaster":
+                # Check if player has a Swordmaster
+                value = check.get("value", True)
+                has_swordmaster = getattr(player, 'has_swordmaster', False)
+
+                if has_swordmaster != value:
+                    return {
+                        "success": False,
+                        "error": "Requires Swordmaster" if value else "Must not have Swordmaster"
+                    }
+
+            elif check_type == "recalled_spy":
+                # Check if player recalled a spy this turn
+                this_turn = check.get("this_turn", True)
+                recalled_spy = False
+
+                if this_turn and hasattr(player, 'recalled_spy_this_turn'):
+                    recalled_spy = player.recalled_spy_this_turn
+
+                if not recalled_spy:
+                    return {
+                        "success": False,
+                        "error": "Requires recalling a spy this turn"
+                    }
+
+            elif check_type == "contracts_completed":
+                # Check if player has completed at least N contracts
+                amount = check.get("amount", 0)
+                contracts_count = len(player.contracts_completed) if hasattr(player, 'contracts_completed') else 0
+
+                if contracts_count < amount:
+                    return {
+                        "success": False,
+                        "error": f"Requires {amount} completed contracts (have {contracts_count})"
+                    }
+
+            elif check_type == "board_space_faction":
+                # Check if agent was placed on a board space of specific faction
+                faction = check.get("faction", "").lower().replace(" ", "_")
+                board_space_id = context.get("board_space_id") if context else None
+
+                if not board_space_id:
+                    return {
+                        "success": False,
+                        "error": "No board space context available"
+                    }
+
+                # Get board space from game state
+                board_space = None
+                if hasattr(self.game, 'board') and hasattr(self.game.board, 'spaces'):
+                    for space in self.game.board.spaces:
+                        if str(space.id) == str(board_space_id):
+                            board_space = space
+                            break
+
+                if not board_space:
+                    return {
+                        "success": False,
+                        "error": f"Board space {board_space_id} not found"
+                    }
+
+                # Check if board space has the required faction
+                space_faction = getattr(board_space, 'faction', '').lower().replace(" ", "_")
+
+                if space_faction != faction:
+                    return {
+                        "success": False,
+                        "error": f"Board space is not {faction} (is {space_faction})"
+                    }
+
+            elif check_type == "sent_an_agent_on":
+                # Generic check: player sent agent to specific target(s) this turn
+                # target can be: "maker", "faction", specific faction names, etc.
+                targets = check.get("target", [])
+                if isinstance(targets, str):
+                    targets = [targets]
+
+                agent_sent = False
+                if hasattr(player, 'agents_sent_this_turn'):
+                    for board_space_id in player.agents_sent_this_turn:
+                        # Get board space from game state
+                        if hasattr(self.game, 'board') and hasattr(self.game.board, 'spaces'):
+                            for space in self.game.board.spaces:
+                                if str(space.id) == str(board_space_id):
+                                    # Check against each target type
+                                    for target in targets:
+                                        target_lower = target.lower().replace(" ", "_")
+
+                                        if target_lower == "maker":
+                                            # Check if this is a Maker space
+                                            space_type = getattr(space, 'type', '').lower()
+                                            if space_type == "maker":
+                                                agent_sent = True
+                                                break
+
+                                        elif target_lower == "faction":
+                                            # Check if this space has any faction
+                                            if hasattr(space, 'faction') and space.faction:
+                                                agent_sent = True
+                                                break
+
+                                        else:
+                                            # Check if space faction matches target
+                                            space_faction = getattr(space, 'faction', '').lower().replace(" ", "_")
+                                            if space_faction == target_lower:
+                                                agent_sent = True
+                                                break
+
+                                    if agent_sent:
+                                        break
+                        if agent_sent:
+                            break
+
+                if not agent_sent:
+                    target_str = ", ".join(targets) if targets else "specified target"
+                    return {
+                        "success": False,
+                        "error": f"Requires sending agent to {target_str} board space this turn"
+                    }
+
+            elif check_type == "spying":
+                # Check if player has spy on observation post for specific board space type
+                # Standardized check name for consistency
+                board_space_type = check.get("board_space_type", "").lower()
+
+                spying_on_type = False
+                if hasattr(player, 'spies_placed'):
+                    for observation_post_id in player.spies_placed:
+                        # Get observation post from game state
+                        if hasattr(self.game, 'board') and hasattr(self.game.board, 'observation_posts'):
+                            for observation_post in self.game.board.observation_posts:
+                                if str(observation_post.id) == str(observation_post_id):
+                                    # Check if this observation post watches board spaces of this type
+                                    post_type = getattr(observation_post, 'watches_type', '').lower()
+                                    if post_type == board_space_type:
+                                        spying_on_type = True
+                                        break
+                        if spying_on_type:
+                            break
+
+                if not spying_on_type:
+                    return {
+                        "success": False,
+                        "error": f"Requires spying on {board_space_type} board space"
+                    }
+
+            elif check_type == "other_faction_card_in_play":
+                # Check if player has another card of specific faction in play (revealed)
+                faction = check.get("faction", "").lower().replace(" ", "_")
+
+                has_other_faction_card = False
+                current_card_name = context.get("card") if context else None
+
+                if hasattr(player, 'revealed_cards_this_turn'):
+                    for card in player.revealed_cards_this_turn:
+                        # Skip the current card
+                        if current_card_name and hasattr(card, 'name') and card.name == current_card_name:
+                            continue
+
+                        if hasattr(card, 'faction'):
+                            card_faction = card.faction
+                            # Handle both string and list faction
+                            if isinstance(card_faction, str):
+                                if card_faction.lower().replace(" ", "_") == faction:
+                                    has_other_faction_card = True
+                                    break
+                            elif isinstance(card_faction, list):
+                                for f in card_faction:
+                                    if f.lower().replace(" ", "_") == faction:
+                                        has_other_faction_card = True
+                                        break
+                            if has_other_faction_card:
+                                break
+
+                if not has_other_faction_card:
+                    return {
+                        "success": False,
+                        "error": f"Requires another {faction} card in play"
+                    }
+
+            elif check_type == "spies_on_board":
+                # Check if player has at least N spies on board
+                amount = check.get("amount", 2)
+                spies_count = len(player.spies_placed) if hasattr(player, 'spies_placed') else 0
+
+                if spies_count < amount:
+                    return {
+                        "success": False,
+                        "error": f"Requires {amount} spies on board (have {spies_count})"
                     }
 
             elif check_type == "always":
@@ -2515,11 +2827,12 @@ class EffectResolver:
         - "contract": Count completed contracts
         - "spy": Count spies placed on board
         - "sword_card": Count OTHER revealed cards that provided swords this turn
+        - "emperor_card" or "emperor_card_revealed": Count revealed Emperor cards this turn
 
         Args:
             effect: {
                 "type": "multiple",
-                "per": "sandworm"|"contract"|"spy"|"sword_card",
+                "per": "sandworm"|"contract"|"spy"|"sword_card"|"emperor_card_revealed",
                 "reward": [<effect objects>]
             }
 
@@ -2544,6 +2857,9 @@ class EffectResolver:
         elif per_type == "spy":
             # Count spies placed (for each spy, grant influence with that faction)
             # Special handling: need to track which factions are being spied on
+            # Can be filtered by 'target' parameter (list of allowed factions)
+            allowed_factions = effect.get("target", ["fremen", "bene_gesserit", "spacing_guild", "emperor"])
+
             spied_factions = set()
             if hasattr(player, 'spies_placed'):
                 for observation_post_id in player.spies_placed:
@@ -2552,14 +2868,15 @@ class EffectResolver:
                         if str(observation_post.id) == str(observation_post_id):
                             # Determine faction from observation post name
                             faction_name = observation_post.name.lower().replace(" ", "_")
-                            if faction_name in ["fremen", "bene_gesserit", "spacing_guild", "emperor"]:
+                            # Only count if faction is in allowed list
+                            if faction_name in allowed_factions:
                                 spied_factions.add(faction_name)
 
             # For each spied faction, apply the reward
             if len(spied_factions) == 0:
                 return {
                     "success": True,
-                    "effects_applied": ["No spies placed"]
+                    "effects_applied": ["No spies placed on allowed factions"]
                 }
 
             # Apply reward for each faction
@@ -2607,6 +2924,34 @@ class EffectResolver:
                                 elif reveal_effect.get('type') == 'sword':
                                     multiplier += 1
                                     break
+
+        elif per_type == "emperor_card" or per_type == "emperor_card_revealed":
+            # Count revealed Emperor cards this turn (including current card)
+            if hasattr(player, 'revealed_cards_this_turn'):
+                for card in player.revealed_cards_this_turn:
+                    if hasattr(card, 'faction'):
+                        card_faction = card.faction
+                        # Handle both string and list faction
+                        if isinstance(card_faction, str):
+                            if card_faction.lower() == "emperor":
+                                multiplier += 1
+                        elif isinstance(card_faction, list):
+                            if "Emperor" in card_faction or "emperor" in card_faction:
+                                multiplier += 1
+
+        elif per_type == "fremen_card_revealed":
+            # Count revealed Fremen cards this turn (including current card)
+            if hasattr(player, 'revealed_cards_this_turn'):
+                for card in player.revealed_cards_this_turn:
+                    if hasattr(card, 'faction'):
+                        card_faction = card.faction
+                        # Handle both string and list faction
+                        if isinstance(card_faction, str):
+                            if card_faction.lower() == "fremen":
+                                multiplier += 1
+                        elif isinstance(card_faction, list):
+                            if "Fremen" in card_faction or "fremen" in card_faction:
+                                multiplier += 1
 
         else:
             return {
@@ -2726,4 +3071,828 @@ class EffectResolver:
             "success": True,
             "effects_applied": [f"Manipulated top {len(top_cards)} cards (drew/discarded/trashed)"],
             "choices_required": []  # TODO: Add choice for human players
+        }
+
+    def _handle_influence_double(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Card 34 - Overthrow agent effect.
+
+        Doubles the influence gained from this board space.
+        When placed on an alliance space, gain 2 influence instead of 1.
+
+        This is a modifier effect that changes how the board space influence works.
+        It should be tracked and applied when the board space processes influence.
+
+        Args:
+            effect: {
+                "type": "influence_double",
+                "description": "Gain 2 influence instead of 1"
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+
+        # Mark that this player should get doubled influence from the current board space
+        if not hasattr(player, 'influence_double_active'):
+            player.influence_double_active = False
+
+        player.influence_double_active = True
+
+        return {
+            "success": True,
+            "effects_applied": ["Influence gains doubled for this board space"],
+            "influence_double": True  # Signal to board space processor
+        }
+
+    def _handle_acquire_with_solari(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Card 36 - Price is No Object agent effect.
+
+        Allows player to acquire a card using solari instead of persuasion.
+        This is a modifier effect that changes the acquisition rules for this turn.
+
+        Args:
+            effect: {
+                "type": "acquire_with_solari",
+                "description": "Acquire card using solari instead of persuasion"
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+
+        # Mark that this player can acquire with solari this turn
+        if not hasattr(player, 'can_acquire_with_solari'):
+            player.can_acquire_with_solari = False
+
+        player.can_acquire_with_solari = True
+
+        return {
+            "success": True,
+            "effects_applied": ["Can acquire cards with solari instead of persuasion this turn"],
+            "acquire_with_solari": True  # Signal to acquisition system
+        }
+
+    def _handle_choice(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Card 37 - Priority Contracts agent effect.
+
+        Presents the player with a choice between multiple options.
+        Each option can have checks and rewards.
+
+        For AI/bot: randomly select first valid option.
+        For human: would require choice prompt.
+
+        Args:
+            effect: {
+                "type": "choice",
+                "options": [
+                    {
+                        "reward": [...]
+                    },
+                    {
+                        "check": [...],
+                        "reward": [...]
+                    }
+                ]
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+        options = effect.get("options", [])
+
+        if not options:
+            return {
+                "success": False,
+                "error": "No options provided for choice"
+            }
+
+        # Find first valid option (checks pass)
+        valid_options = []
+        for i, option in enumerate(options):
+            checks = option.get("check", [])
+
+            if checks:
+                # Evaluate checks for this option
+                check_result = self._evaluate_checks(player_id, checks, context)
+                if check_result.get("success"):
+                    valid_options.append(i)
+            else:
+                # No checks means always valid
+                valid_options.append(i)
+
+        if not valid_options:
+            # If no options are valid, fail gracefully
+            # (Player might not meet requirements for any option)
+            return {
+                "success": True,
+                "effects_applied": ["No valid choice options available"]
+            }
+
+        # For AI/bot: select first valid option
+        # For human: would prompt for choice
+        # TODO: Implement choice system for human players
+        selected_index = valid_options[0]
+        selected_option = options[selected_index]
+
+        # Apply the rewards from selected option
+        rewards = selected_option.get("reward", [])
+        if rewards:
+            result = self.resolve_effects(player_id, rewards, {**context, "monitor_triggers": False})
+            return {
+                "success": True,
+                "effects_applied": result.get("effects_applied", [f"Choice option {selected_index + 1} selected"]),
+                "choice_made": selected_index
+            }
+        else:
+            return {
+                "success": True,
+                "effects_applied": [f"Choice option {selected_index + 1} selected (no effects)"],
+                "choice_made": selected_index
+            }
+
+    def _handle_trash(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Card 37 - Priority Contracts trash effect.
+
+        Removes a card from the game permanently.
+
+        Args:
+            effect: {
+                "type": "trash",
+                "target": "self"  # or card_id for other cards
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+        target = effect.get("target", "self")
+
+        if target == "self":
+            # Trash the current card being resolved
+            card_name = context.get("card") if context else None
+
+            if not card_name:
+                return {
+                    "success": False,
+                    "error": "No card context for trashing self"
+                }
+
+            # Find and remove the card from player's areas
+            card_found = False
+
+            # Check hand
+            if hasattr(player, 'hand') and hasattr(player.hand, 'cards'):
+                for card in player.hand.cards[:]:
+                    if hasattr(card, 'name') and card.name == card_name:
+                        player.hand.cards.remove(card)
+                        card_found = True
+                        break
+
+            # Check play area (revealed cards)
+            if not card_found and hasattr(player, 'play_area'):
+                for card in player.play_area[:]:
+                    if hasattr(card, 'name') and card.name == card_name:
+                        player.play_area.remove(card)
+                        card_found = True
+                        break
+
+            # Check discard pile
+            if not card_found and hasattr(player, 'discard_pile') and hasattr(player.discard_pile, 'cards'):
+                for card in player.discard_pile.cards[:]:
+                    if hasattr(card, 'name') and card.name == card_name:
+                        player.discard_pile.cards.remove(card)
+                        card_found = True
+                        break
+
+            if card_found:
+                # Track trashed card
+                if not hasattr(player, 'trashed_cards'):
+                    player.trashed_cards = []
+                player.trashed_cards.append(card_name)
+
+                return {
+                    "success": True,
+                    "effects_applied": [f"Trashed {card_name}"]
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Could not find card {card_name} to trash"
+                }
+        else:
+            # TODO: Handle trashing other cards by ID
+            return {
+                "success": False,
+                "error": f"Trashing target {target} not implemented"
+            }
+
+    def _handle_play(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Generic play effect for placing units (spies, agents, troops, etc.).
+
+        Args:
+            effect: {
+                "type": "play",
+                "unit": "spy"|"agent"|"troop",
+                "amount": 1,
+                "target": ["emperor", "bene_gesserit", "spacing_guild"]  # For spies: observation posts
+            }
+
+        Examples:
+            Card 40: {"type": "play", "unit": "spy", "amount": 1, "target": ["emperor", "bene_gesserit", "spacing_guild"]}
+        """
+        player = self.state.get_player_by_id(player_id)
+        unit_type = effect.get("unit", "")
+        amount = effect.get("amount", 1)
+        targets = effect.get("target", [])
+
+        if unit_type == "spy":
+            # Place spy on observation post
+            if not targets:
+                return {
+                    "success": False,
+                    "error": "No target observation posts specified for spy placement"
+                }
+
+            # Check if player has available spies
+            if not hasattr(player, 'available_spies'):
+                player.available_spies = 2  # Default spy count
+
+            if player.available_spies < amount:
+                return {
+                    "success": False,
+                    "error": f"Not enough available spies (need {amount}, have {player.available_spies})"
+                }
+
+            # Find available observation posts from the allowed list
+            available_observation_posts = []
+            if hasattr(self.game, 'board') and hasattr(self.game.board, 'observation_posts'):
+                for observation_post in self.game.board.observation_posts:
+                    faction_name = observation_post.name.lower().replace(" ", "_")
+                    # Check if this post is in the allowed list and not already occupied
+                    if faction_name in targets:
+                        # Check if spy already placed here
+                        already_placed = False
+                        if hasattr(player, 'spies_placed'):
+                            if str(observation_post.id) in player.spies_placed:
+                                already_placed = True
+
+                        if not already_placed:
+                            available_observation_posts.append((faction_name, observation_post.id))
+
+            if not available_observation_posts:
+                return {
+                    "success": False,
+                    "error": "No available observation posts to place spy"
+                }
+
+            # For AI/bot: select first available post
+            # For human: would prompt for choice
+            # TODO: Implement choice system for human players
+            selected_faction, selected_post_id = available_observation_posts[0]
+
+            # Place the spy
+            if not hasattr(player, 'spies_placed'):
+                player.spies_placed = []
+
+            player.spies_placed.append(str(selected_post_id))
+            player.available_spies -= amount
+
+            return {
+                "success": True,
+                "effects_applied": [f"Placed spy on {selected_faction} observation post"],
+                "spy_placed": selected_faction
+            }
+
+        elif unit_type == "troop":
+            # Deploy troops to conflict or garrison
+            # TODO: Implement troop deployment
+            return {
+                "success": False,
+                "error": "Troop deployment not yet implemented"
+            }
+
+        elif unit_type == "agent":
+            # Place agent on board space
+            # TODO: Implement agent placement
+            return {
+                "success": False,
+                "error": "Agent placement not yet implemented"
+            }
+
+        else:
+            return {
+                "success": False,
+                "error": f"Unknown unit type: {unit_type}"
+            }
+
+    def _handle_bypass_troops_deployment_rule(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Card 41 - Sardaukar Coordination agent effect.
+
+        Allows player to deploy any troops recruited this turn directly to the Conflict.
+        This bypasses the normal deployment rules for this turn.
+
+        Args:
+            effect: {
+                "type": "bypass_troops_deployment_rule",
+                "description": "You may deploy any troops you recruit this turn to the Conflict"
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+
+        # Mark that this player can bypass deployment rules this turn
+        if not hasattr(player, 'can_bypass_deployment_rule'):
+            player.can_bypass_deployment_rule = False
+
+        player.can_bypass_deployment_rule = True
+
+        return {
+            "success": True,
+            "effects_applied": ["Can bypass troop deployment rules this turn"],
+            "bypass_deployment_rule": True  # Signal to recruitment system
+        }
+
+    def _handle_trash_to_acquire(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Card 43 - Shishakli agent effect.
+
+        Trash a card from hand to acquire a card from the reserves.
+
+        Args:
+            effect: {
+                "type": "trash_to_acquire",
+                "description": "Trash a card to acquire a card from the reserves"
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+
+        # Check if player has cards to trash
+        if not hasattr(player, 'hand') or not hasattr(player.hand, 'cards'):
+            return {
+                "success": False,
+                "error": "No hand to trash from"
+            }
+
+        if len(player.hand.cards) == 0:
+            return {
+                "success": False,
+                "error": "No cards in hand to trash"
+            }
+
+        # For AI/bot: trash first card
+        # For human: would prompt for choice
+        # TODO: Implement choice system for human players
+        card_to_trash = player.hand.cards[0]
+        player.hand.cards.remove(card_to_trash)
+
+        # Track trashed card
+        if not hasattr(player, 'trashed_cards'):
+            player.trashed_cards = []
+        player.trashed_cards.append(card_to_trash.name if hasattr(card_to_trash, 'name') else str(card_to_trash))
+
+        # Now allow player to acquire from reserves
+        # This would trigger acquisition system
+        # For now, just mark that player can acquire from reserves
+        if not hasattr(player, 'can_acquire_from_reserves'):
+            player.can_acquire_from_reserves = False
+
+        player.can_acquire_from_reserves = True
+
+        return {
+            "success": True,
+            "effects_applied": [f"Trashed {card_to_trash.name if hasattr(card_to_trash, 'name') else 'card'}, can acquire from reserves"],
+            "trash_to_acquire": True  # Signal to acquisition system
+        }
+
+    def _handle_trade(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Card 45 - Smuggler's Haven agent effect.
+
+        Trade resources for rewards (pay costs to get rewards).
+
+        Args:
+            effect: {
+                "type": "trade",
+                "cost": [{"type": "resource", "resource": "spice", "amount": 4}],
+                "reward": [{"type": "resource", "resource": "victory_point", "amount": 1}]
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+        costs = effect.get("cost", [])
+        rewards = effect.get("reward", [])
+
+        if not costs:
+            return {
+                "success": False,
+                "error": "No costs specified for trade"
+            }
+
+        if not rewards:
+            return {
+                "success": False,
+                "error": "No rewards specified for trade"
+            }
+
+        # Check if player can afford the costs
+        cost_check = self._check_costs(player_id, costs)
+        if not cost_check.get("success"):
+            return cost_check
+
+        # Apply costs
+        cost_result = self.apply_costs(player_id, costs)
+        if not cost_result.get("success"):
+            return cost_result
+
+        # Apply rewards
+        reward_result = self.resolve_effects(player_id, rewards, {**context, "monitor_triggers": False})
+
+        if reward_result.get("success"):
+            return {
+                "success": True,
+                "effects_applied": ["Trade completed"] + reward_result.get("effects_applied", [])
+            }
+        else:
+            # Rollback costs if reward failed (though this shouldn't happen)
+            return {
+                "success": False,
+                "error": "Trade reward failed"
+            }
+
+    def _handle_acquire_card(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Card 47, 48 - Acquire card effect.
+
+        Allows player to acquire a card from the Imperium row or reserves.
+        This is a signal effect that marks the player as able to acquire.
+
+        Args:
+            effect: {
+                "type": "acquire_card"
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+
+        # Mark that player can acquire a card
+        if not hasattr(player, 'can_acquire_card'):
+            player.can_acquire_card = 0
+
+        player.can_acquire_card += 1
+
+        return {
+            "success": True,
+            "effects_applied": ["Can acquire a card"],
+            "acquire_card": True  # Signal to acquisition system
+        }
+
+    def _handle_trash_hand_card(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Card 54 - Treacherous Maneuver agent effect.
+
+        Trash this card and a card of specific faction from hand.
+
+        Args:
+            effect: {
+                "type": "trash_hand_card",
+                "faction": "emperor",
+                "description": "Trash this card and an Emperor card from hand"
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+        required_faction = effect.get("faction", "").lower().replace(" ", "_")
+
+        # Trash the current card (self)
+        current_card_name = context.get("card") if context else None
+        if current_card_name:
+            # Find and remove from hand
+            card_found = False
+            if hasattr(player, 'hand') and hasattr(player.hand, 'cards'):
+                for card in player.hand.cards[:]:
+                    if hasattr(card, 'name') and card.name == current_card_name:
+                        player.hand.cards.remove(card)
+                        card_found = True
+                        break
+
+            if card_found:
+                # Track trashed card
+                if not hasattr(player, 'trashed_cards'):
+                    player.trashed_cards = []
+                player.trashed_cards.append(current_card_name)
+
+        # Find and trash a card of required faction from hand
+        faction_card_found = False
+        faction_card_name = None
+
+        if hasattr(player, 'hand') and hasattr(player.hand, 'cards'):
+            for card in player.hand.cards[:]:
+                if hasattr(card, 'faction'):
+                    card_faction = card.faction
+                    # Handle both string and list faction
+                    matches_faction = False
+                    if isinstance(card_faction, str):
+                        if card_faction.lower().replace(" ", "_") == required_faction:
+                            matches_faction = True
+                    elif isinstance(card_faction, list):
+                        for f in card_faction:
+                            if f.lower().replace(" ", "_") == required_faction:
+                                matches_faction = True
+                                break
+
+                    if matches_faction:
+                        faction_card_name = card.name if hasattr(card, 'name') else str(card)
+                        player.hand.cards.remove(card)
+                        faction_card_found = True
+                        break
+
+        if not faction_card_found:
+            return {
+                "success": False,
+                "error": f"No {required_faction} card in hand to trash"
+            }
+
+        # Track trashed faction card
+        if not hasattr(player, 'trashed_cards'):
+            player.trashed_cards = []
+        player.trashed_cards.append(faction_card_name)
+
+        return {
+            "success": True,
+            "effects_applied": [f"Trashed {current_card_name or 'this card'} and {faction_card_name}"]
+        }
+
+    def _handle_ignore_influence_requirements(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Card 57 - Undercover Asset agent effect.
+
+        Ignore Influence requirements on board spaces when sending an Agent this turn.
+
+        Args:
+            effect: {
+                "type": "ignore_influence_requirements",
+                "description": "Ignore Influence requirements on board spaces when sending an Agent this turn"
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+
+        # Mark that this player can ignore influence requirements this turn
+        if not hasattr(player, 'ignore_influence_requirements'):
+            player.ignore_influence_requirements = False
+
+        player.ignore_influence_requirements = True
+
+        return {
+            "success": True,
+            "effects_applied": ["Can ignore influence requirements this turn"],
+            "ignore_influence_requirements": True  # Signal to board space system
+        }
+
+    def _handle_deploy_or_retreat_troop(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Card 58 - Unswerving Loyalty Fremen bond effect.
+
+        You may deploy or retreat one of your troops.
+
+        Args:
+            effect: {
+                "type": "deploy_or_retreat_troop",
+                "amount": 1,
+                "description": "You may deploy or retreat one of your troops"
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+        amount = effect.get("amount", 1)
+
+        # This is a choice effect that would require player input
+        # For AI/bot: default to deploying if troops available
+        # For human: would prompt for choice
+
+        if player.troops_in_garrison >= amount:
+            # Deploy troops to conflict
+            player.troops_in_garrison -= amount
+            player.troops_in_conflict += amount
+            return {
+                "success": True,
+                "effects_applied": [f"Deployed {amount} troop(s) to conflict"]
+            }
+        elif player.troops_in_conflict >= amount:
+            # Retreat troops to garrison
+            player.troops_in_conflict -= amount
+            player.troops_in_garrison += amount
+            return {
+                "success": True,
+                "effects_applied": [f"Retreated {amount} troop(s) to garrison"]
+            }
+        else:
+            return {
+                "success": False,
+                "error": "No troops available to deploy or retreat"
+            }
+
+    def _handle_return_to_hand(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Card 59 - Weirding Woman agent effect.
+
+        Return a card from play to your hand.
+
+        Args:
+            effect: {
+                "type": "return_to_hand",
+                "target": "self",
+                "description": "Return this card from play to your hand"
+            }
+        """
+        player = self.state.get_player_by_id(player_id)
+        target = effect.get("target", "self")
+
+        if target == "self":
+            # Return the current card from play to hand
+            current_card_name = context.get("card") if context else None
+
+            if not current_card_name:
+                return {
+                    "success": False,
+                    "error": "No card context for returning to hand"
+                }
+
+            # Find the card in play area
+            card_found = False
+            card_to_return = None
+
+            if hasattr(player, 'play_area'):
+                for card in player.play_area[:]:
+                    if hasattr(card, 'name') and card.name == current_card_name:
+                        card_to_return = card
+                        player.play_area.remove(card)
+                        card_found = True
+                        break
+
+            if not card_found:
+                return {
+                    "success": False,
+                    "error": f"Card {current_card_name} not found in play area"
+                }
+
+            # Add card to hand
+            if hasattr(player, 'hand') and hasattr(player.hand, 'add_card'):
+                player.hand.add_card(card_to_return)
+            elif hasattr(player, 'hand') and hasattr(player.hand, 'cards'):
+                player.hand.cards.append(card_to_return)
+
+            return {
+                "success": True,
+                "effects_applied": [f"Returned {current_card_name} to hand"]
+            }
+        else:
+            # TODO: Handle returning other cards
+            return {
+                "success": False,
+                "error": f"Returning target {target} not implemented"
+            }
+
+    def _handle_cost(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Handle cost/reward pattern - pay a cost to get a reward.
+
+        Format:
+        {
+            "type": "cost",
+            "payment": {"type": "trash_intrigue", "amount": 1},
+            "reward": [...]
+        }
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": f"Player {player_id} not found"}
+
+        payment = effect.get('payment', {})
+        reward = effect.get('reward', [])
+
+        # Try to pay the cost
+        # For now, just mark it as optional choice (player can choose to pay or not)
+        # TODO: Implement actual payment validation
+        payment_result = {"success": True, "effects_applied": ["Cost payment (stub)"]}
+
+        # If payment succeeded, give reward
+        if payment_result.get('success'):
+            reward_result = self.resolve_effects(player_id, reward, context)
+            return {
+                "success": True,
+                "effects_applied": payment_result.get('effects_applied', []) + reward_result.get('effects_applied', [])
+            }
+
+        return {"success": False, "error": "Payment failed"}
+
+    def _handle_exchange(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Handle exchange pattern - pay a cost to get a reward (similar to cost).
+
+        Format:
+        {
+            "type": "exchange",
+            "cost": [{"type": "discard", "deck": "hand", "amount": 1}],
+            "reward": [{"type": "draw", "deck": "deck", "amount": 1}]
+        }
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": f"Player {player_id} not found"}
+
+        cost = effect.get('cost', [])
+        reward = effect.get('reward', [])
+
+        # Pay the cost
+        cost_result = self.resolve_effects(player_id, cost, context)
+
+        if cost_result.get('success'):
+            # If cost paid, give reward
+            reward_result = self.resolve_effects(player_id, reward, context)
+            return {
+                "success": True,
+                "effects_applied": cost_result.get('effects_applied', []) + reward_result.get('effects_applied', [])
+            }
+
+        return {"success": False, "error": "Cost payment failed"}
+
+    def _handle_bypass_influence_requirement_rule(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Handle bypassing influence requirements for acquiring cards.
+
+        Format:
+        {
+            "type": "bypass_influence_requirment_rule"
+        }
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": f"Player {player_id} not found"}
+
+        # Set a flag on the player to indicate they can bypass influence requirements
+        if not hasattr(player, 'can_bypass_influence_requirements'):
+            player.can_bypass_influence_requirements = False
+
+        player.can_bypass_influence_requirements = True
+
+        return {
+            "success": True,
+            "effects_applied": ["Can bypass influence requirements"]
         }
