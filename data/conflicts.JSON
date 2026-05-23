@@ -319,8 +319,7 @@
             "times": 1
           },
           {
-            "type": "draw",
-            "deck": "contract",
+            "type": "accept",
             "amount": 1
           },
           {
@@ -531,8 +530,7 @@
       "rewards": {
         "1": [
           {
-            "type": "draw",
-            "deck": "contract",
+            "type": "accept",
             "amount": 1
           },
           {

@@ -82,7 +82,7 @@
     ]
   },
   {
-    "id": 6,
+    "id": 61,
     "name": "Signet Ring",
     "agent_icon": ["blue", "yellow", "green"],
     "starting_deck": true,
@@ -90,6 +90,13 @@
     "agent_effects": [
       {
         "type": "signet"
+      }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 1
       }
     ]
   },
@@ -137,7 +144,7 @@
     "agent_icon": ["bene_gesserit", "blue"],
     "cost": 3,
     "quantity": 3,
-    "reward": [
+    "agent_effects": [
       {
         "type": "cost",
         "payment": {
@@ -161,6 +168,13 @@
         "type": "persuasion",
         "amount": 2
       }
+    ],
+    "reveal_effects": [
+      {
+        "type": "resource",
+        "resource": "persuasion",
+        "amount": 2
+      }
     ]
   },
   {
@@ -170,10 +184,10 @@
     "agent_icon": ["spy"],
     "cost": 3,
     "quantity": 3,
-    "reward": [
+    "agent_effects": [
       {
         "type": "cost",
-        "payment": {
+        "cost": {
           "type": "trash",
           "deck": "imperium",
           "amount": 1
@@ -185,9 +199,12 @@
             "amount": 1
           }
         ]
-      },
+      }
+    ],
+    "reveal_effects": [
       {
-        "type": "persuasion",
+        "type": "resource",
+        "resource": "persuasion",
         "amount": 2
       },
       {
@@ -215,12 +232,12 @@
     "agent_icon": ["green", "yellow"],
     "cost": 5,
     "quantity": 2,
-    "reward": [
+    "agent_effects": [
       {
         "type": "cost",
         "payment": {
           "type": "discard",
-          "deck": "imperium",
+          "deck": ["hand", "played"],
           "amount": 1
         },
         "reward": [
@@ -231,14 +248,16 @@
           },
           {
             "type": "draw",
-            "deck": "imperium",
+            "deck": "deck",
             "amount": 1
           }
         ]
-      },
-
+      }
+    ],
+    "reveal_effects": [
       {
-        "type": "persuasion",
+        "type": "resource",
+        "resource": "persuasion",
         "amount": 1
       },
       {
@@ -334,14 +353,37 @@
     ],
     "reveal_effects": [
       {
-        "type": "retreat",
-        "unit": "troop",
-        "amount": 2
+        "type": "action",
+        "cost": [
+          {
+            "type": "retreat",
+            "unit": "troop",
+            "amount": 2
+          }
+        ],
+        "reward": [
+          {
+            "type": "resource",
+            "resource": "sword",
+            "amount": 4
+          }
+        ]
       },
       {
-        "type": "influence",
-        "target": "fremen",
-        "amount": 2
+        "type": "conditional",
+        "check": [
+          {
+            "type": "faction_bond",
+            "faction": "Fremen"
+          }
+        ],
+        "reward": [
+          {
+            "type": "resource",
+            "resource": "persuasion",
+            "amount": 2
+          }
+        ]
       }
     ]
   },
@@ -964,7 +1006,11 @@
           "amount": 2
         },
         "reward": [
-          { "type": "resource", "resource": "persuasion", "amount": 2 }
+          {
+            "type": "resource",
+            "resource": "persuasion",
+            "amount": 2
+          }
         ]
       },
       {
@@ -1288,7 +1334,7 @@
       },
       {
         "type": "resource",
-        "target": "troop",
+        "resource": "troop",
         "amount": 1
       }
     ]
@@ -1384,7 +1430,12 @@
     "agent_icon": ["spice", "solari", "intrigue"],
     "cost": 6,
     "quantity": 2,
-    "agent_effects": [{ "type": "accept", "amount": 1 }],
+    "agent_effects": [
+      {
+        "type": "accept",
+        "amount": 1
+      }
+    ],
     "reveal_effects": [
       {
         "type": "choice",
@@ -1814,7 +1865,13 @@
         "amount": 2
       }
     ],
-    "agent_effects": [{ "type": "draw", "deck": "hand", "amount": 1 }],
+    "agent_effects": [
+      {
+        "type": "draw",
+        "deck": "hand",
+        "amount": 1
+      }
+    ],
     "reveal_effects": [
       {
         "type": "resource",
@@ -1846,7 +1903,13 @@
     "faction": ["Emperor", "Spacing Guild"],
     "cost": 2,
     "quantity": 2,
-    "on_acquire_effects": [{ "type": "play", "unit": "spy", "amount": 1 }],
+    "on_acquire_effects": [
+      {
+        "type": "play",
+        "unit": "spy",
+        "amount": 1
+      }
+    ],
     "reveal_effects": [
       {
         "type": "resource",
@@ -1889,7 +1952,11 @@
     "cost": 8,
     "quantity": 1,
     "on_acquire_effects": [
-      { "type": "influence", "target": "spacing_guild", "amount": 1 }
+      {
+        "type": "influence",
+        "target": "spacing_guild",
+        "amount": 1
+      }
     ],
     "agent_effects": [
       {
@@ -1950,7 +2017,13 @@
     "agent_icon": ["spy"],
     "cost": 5,
     "quantity": 2,
-    "on_acquire_effects": [{ "type": "play", "unit": "spy", "amount": 1 }],
+    "on_acquire_effects": [
+      {
+        "type": "play",
+        "unit": "spy",
+        "amount": 1
+      }
+    ],
     "agent_effects": [
       {
         "type": "conditional",
@@ -1988,7 +2061,13 @@
     "agent_icon": ["reveal"],
     "cost": 5,
     "quantity": 2,
-    "on_acquire_effects": [{ "type": "play", "unit": "spy", "amount": 1 }],
+    "on_acquire_effects": [
+      {
+        "type": "play",
+        "unit": "spy",
+        "amount": 1
+      }
+    ],
     "agent_effects": [
       {
         "type": "conditional",
@@ -2033,13 +2112,19 @@
             "type": "trash",
             "deck": "self"
           },
-          { "type": "trash", "deck": "hand", "amount": 1, "faction": "Emperor" }
+          {
+            "type": "trash",
+            "deck": "hand",
+            "amount": 1,
+            "faction": "Emperor"
+          }
         ],
         "reward": {
           "type": "influence",
           "target": "agent",
           "amount": 1
-        }
+        },
+        "type": "action"
       }
     ],
     "reveal_effects": [

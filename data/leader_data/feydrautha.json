@@ -50,9 +50,9 @@
     }
   ],
   "passive": {
-    "name": "Devious Strenght",
+    "name": "Devious Strength",
     "phase": "reveal",
     "cost": [{ "type": "recall", "unit": "spy", "amount": 1 }],
-    "reward": [{ "type": "ressources", "resource": "swords", "amount": 2 }]
+    "reward": [{ "type": "resource", "resource": "sword", "amount": 2 }]
   }
 }

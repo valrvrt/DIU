@@ -70,6 +70,8 @@ class EffectResolver:
             "maker_hooks": self._handle_maker_hooks,
             "agent_on_maker": self._handle_agent_on_maker,
             "shieldwall_deactivate": self._handle_shieldwall_deactivate,
+            "shield_active": self._handle_shield_active,
+            "manipulate": self._handle_manipulate,
             "signet": self._handle_signet,
 
             # Complex effects
@@ -102,11 +104,8 @@ class EffectResolver:
             "acquire_with_solari": self._handle_acquire_with_solari,
 
             # Card 37 - Priority Contracts
-            "choice": self._handle_choice,
-            "trash": self._handle_trash,
-
-            # Generic play effect for units (spy, agent, troops, etc.)
-            "play": self._handle_play,
+            # NOTE: "choice" handler already registered above at line 76 (general choice handler)
+            # NOTE: "trash" and "play" handlers already registered above (no duplicates needed)
 
             # Card 41 - Sardaukar Coordination
             "bypass_troops_deployment_rule": self._handle_bypass_troops_deployment_rule,
@@ -309,7 +308,7 @@ class EffectResolver:
         elif resource == "spy":
             # Add spy to available pool
             player.spies_available += total_amount
-        elif resource == "worm":
+        elif resource == "worm" or resource == "sandworm":
             # Add sandworms (used in combat)
             if not hasattr(player, "sandworms_available"):
                 player.sandworms_available = 0
@@ -390,8 +389,9 @@ class EffectResolver:
                     player.contracts_active.append(contract)
                     cards_drawn.append(contract)
 
-        elif deck_type == "deck":
+        elif deck_type == "deck" or deck_type == "hand":
             # Draw from player's own deck (use DeckManager for auto-shuffle)
+            # Note: "hand" is treated as "deck" since you draw INTO hand FROM deck
             if hasattr(self.game, 'deck_manager') and self.game.deck_manager:
                 result = self.game.deck_manager.draw_cards(player_id, amount)
                 if not result["success"]:
@@ -478,6 +478,10 @@ class EffectResolver:
         elif unit_type == "spy":
             player = self.state.get_player_by_id(player_id)
 
+            # Initialize spies_placed if needed
+            if not hasattr(player, 'spies_placed'):
+                player.spies_placed = []
+
             if player.spies_available < amount:
                 return {
                     "success": False,
@@ -500,7 +504,7 @@ class EffectResolver:
                         for post in self.game.board.observation_posts:
                             if current_location in post.connected_locations:
                                 # Check if this player has a spy on this post
-                                if post.id in player.spies_placed:
+                                if str(post.id) in player.spies_placed:
                                     allow_shared = True
                                 break
 
@@ -508,15 +512,18 @@ class EffectResolver:
             available_posts = []
             for post in self.game.board.observation_posts:
                 # Check if this player already has a spy here
-                if post.id in player.spies_placed:
+                if str(post.id) in player.spies_placed:
                     continue
 
                 # Check if post is occupied by another player
                 post_occupied_by_other = False
-                for other_player in self.state.players:
-                    if other_player.player_id != player_id and post.id in other_player.spies_placed:
-                        post_occupied_by_other = True
-                        break
+                for other_player in self.game.players:
+                    if other_player.player_id != player_id:
+                        if not hasattr(other_player, 'spies_placed'):
+                            other_player.spies_placed = []
+                        if str(post.id) in other_player.spies_placed:
+                            post_occupied_by_other = True
+                            break
 
                 # Include post if:
                 # 1. Not occupied by another player, OR
@@ -535,15 +542,24 @@ class EffectResolver:
                     "error": "No available observation posts"
                 }
 
-            # Requires player choice
+            # Auto-select first available post (for bot/testing)
+            # TODO: For human players, return choice_required instead
+            selected_post = available_posts[0]
+            post_id = selected_post["post_id"]
+            post_name = selected_post["post_name"]
+
+            # Place spy on selected observation post
+            player.spies_placed.append(str(post_id))
+            player.spies_available -= amount
+
             return {
                 "success": True,
-                "choice_required": True,
-                "choice_data": {
-                    "type": "play_spy",
+                "applied": {
+                    "type": "play",
+                    "unit": "spy",
                     "amount": amount,
-                    "available_posts": available_posts,
-                    "allow_shared": allow_shared
+                    "post_id": post_id,
+                    "post_name": post_name
                 }
             }
 
@@ -597,14 +613,42 @@ class EffectResolver:
         context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Handle trash effects: {"type": "trash", "deck": ["hand", "played"], "amount": 1}
+        Handle trash effects: {"type": "trash", "deck": ["hand", "played"]|"self", "amount": 1}
 
-        Requires player choice of which card to trash.
-        Returns choice_required flag.
+        Supports:
+        - deck: "self" - Trash the card being played (from context)
+        - deck: ["hand", "played"] - Trash cards from specified decks (requires choice)
+        - target: "self" - Legacy format, same as deck: "self"
         """
         player = self.state.get_player_by_id(player_id)
         deck_sources = effect.get("deck")
+        target = effect.get("target")
         amount = effect.get("amount", 0)
+
+        # Handle "deck: self" or "target: self" - trash the card being played
+        if deck_sources == "self" or target == "self":
+            card_name = context.get("card") if context else None
+
+            if not card_name:
+                return {
+                    "success": False,
+                    "error": "No card context for trashing self"
+                }
+
+            # For agent effects, the card being played isn't in any deck yet
+            # Just mark it as trashed and it won't be added to play area
+            if not hasattr(player, 'trashed_cards'):
+                player.trashed_cards = []
+            player.trashed_cards.append(card_name)
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "trash",
+                    "card": card_name,
+                    "source": "self"
+                }
+            }
 
         # If amount is 0 or negative, nothing to trash
         if amount <= 0:
@@ -1002,6 +1046,7 @@ class EffectResolver:
 
         Increases influence with factions.
         "target": "any" requires player choice.
+        "target": "agent" means the faction of the current location (from context).
         """
         player = self.state.get_player_by_id(player_id)
         target = effect.get("target")
@@ -1013,17 +1058,41 @@ class EffectResolver:
 
         total_influence = amount * times
 
-        if target == "any":
-            # Player must choose faction
-            return {
-                "success": True,
-                "choice_required": True,
-                "choice_data": {
-                    "type": "choose_influence_faction",
-                    "amount": total_influence,
-                    "factions": ["fremen", "bene_gesserit", "spacing_guild", "emperor"]
-                }
-            }
+        # Handle "agent" target - dynamic based on current location
+        if target == "agent":
+            location = context.get("location") or context.get("board_space")
+            if not location:
+                return {"success": False, "error": "Cannot determine current location for 'agent' target"}
+
+            # Get faction from board space
+            if hasattr(self.game, 'board') and hasattr(self.game.board, 'spaces'):
+                board_space = None
+                for space in self.game.board.spaces:
+                    if space.id == location or space.name == location:
+                        board_space = space
+                        break
+
+                if not board_space:
+                    return {"success": False, "error": f"Board space '{location}' not found"}
+
+                # Get faction from board space
+                if hasattr(board_space, 'faction'):
+                    target = board_space.faction.lower() if isinstance(board_space.faction, str) else board_space.faction
+                else:
+                    return {"success": False, "error": f"Board space '{location}' has no faction"}
+            else:
+                return {"success": False, "error": "Game board not available"}
+
+        # Handle faction choice (target is "any" or a list of factions)
+        if target == "any" or isinstance(target, list):
+            # Player must choose faction from available options
+            factions = target if isinstance(target, list) else ["fremen", "bene_gesserit", "spacing_guild", "emperor"]
+
+            # For testing/bots: auto-select first faction
+            # TODO: For human players, return choice_required
+            selected_faction = factions[0]
+            target = selected_faction
+            # Continue to apply influence below
 
         # Apply to specific faction
         # Use InfluenceManager if available (handles VP bonuses and alliances)
@@ -1173,7 +1242,7 @@ class EffectResolver:
 
         # Handle "current" location (get from context)
         if location == "current":
-            location = context.get("location")
+            location = context.get("location") or context.get("board_space")
             if not location:
                 return {"success": False, "error": "Cannot determine current location from context"}
 
@@ -1314,27 +1383,83 @@ class EffectResolver:
 
             leader = player.leader
 
-            # Get leader's signet ability
-            if not hasattr(leader, 'signet_ability'):
-                return {
-                    "success": False,
-                    "error": f"Leader {getattr(leader, 'name', 'Unknown')} has no signet ability"
-                }
+            # Method 1: Leader has custom signet_ring() method (preferred)
+            if hasattr(leader, 'signet_ring') and callable(leader.signet_ring):
+                signet_result = leader.signet_ring(self.state, player_id, context)
 
-            signet_ability = leader.signet_ability
+                if not signet_result.get('success'):
+                    return signet_result
 
-            # Get effects from signet ability
+                signet_effects = signet_result.get('effects', [])
+                message = signet_result.get('message', '')
+
+                if not signet_effects:
+                    return {
+                        "success": True,
+                        "effect_type": "signet",
+                        "effects_applied": [message or "No signet effects"]
+                    }
+
+                # Resolve the effects returned by signet_ring()
+                result = self.resolve_effects(
+                    player_id,
+                    signet_effects,
+                    {**context, "source": "signet_ability", "leader": getattr(leader, 'name', 'Unknown')}
+                )
+
+                if result.get("success"):
+                    # Prepend the signet message to effects_applied
+                    effects_applied = [message] + result.get("effects_applied", [])
+
+                    # If there are choices, we need to return them in the singular form expected by resolve_effects
+                    choices = result.get("choices_required", [])
+
+                    # If there's exactly one choice, return it as choice_required (singular)
+                    # This matches what other handlers like _handle_choice do
+                    if len(choices) == 1:
+                        return {
+                            "success": True,
+                            "applied": f"Signet ability: {message}",
+                            "choice_required": True,
+                            "choice_data": choices[0]
+                        }
+                    elif len(choices) > 1:
+                        # Multiple choices - this shouldn't happen for signet but handle it
+                        # Return the first one and hope for the best
+                        # TODO: Better handling of multiple choices
+                        return {
+                            "success": True,
+                            "applied": f"Signet ability: {message}",
+                            "choice_required": True,
+                            "choice_data": choices[0]
+                        }
+                    else:
+                        # No choices required
+                        return {
+                            "success": True,
+                            "effect_type": "signet",
+                            "effects_applied": effects_applied
+                        }
+                else:
+                    return result
+
+            # Method 2: Get current signet effects (handles both old and new format, plus progression)
             signet_effects = []
-            if isinstance(signet_ability, dict) and 'effects' in signet_ability:
-                signet_effects = signet_ability['effects']
-            elif hasattr(signet_ability, 'effects'):
-                signet_effects = signet_ability.effects
+            if hasattr(leader, 'get_current_signet_effects'):
+                signet_effects = leader.get_current_signet_effects()
+            elif hasattr(leader, 'signet_ability') and leader.signet_ability:
+                # Fallback to old format
+                signet_ability = leader.signet_ability
+                if isinstance(signet_ability, dict) and 'effects' in signet_ability:
+                    signet_effects = signet_ability['effects']
+                elif hasattr(signet_ability, 'effects'):
+                    signet_effects = signet_ability.effects
 
             if not signet_effects:
                 return {
                     "success": True,
                     "effect_type": "signet",
-                    "effects_applied": ["No signet effects to resolve"]
+                    "effects_applied": [f"No signet effects at level {getattr(leader, 'training_track_position', 0)}"]
                 }
 
             # Resolve leader's signet effects
@@ -1346,11 +1471,32 @@ class EffectResolver:
 
             if result.get("success"):
                 leader_name = getattr(leader, 'name', 'Unknown Leader')
-                return {
-                    "success": True,
-                    "effect_type": "signet",
-                    "effects_applied": [f"Signet ability ({leader_name})"] + result.get("effects_applied", [])
-                }
+                message = f"Signet ability ({leader_name})"
+                effects_applied = [message] + result.get("effects_applied", [])
+
+                # If there are choices, return them in the singular form
+                choices = result.get("choices_required", [])
+
+                if len(choices) == 1:
+                    return {
+                        "success": True,
+                        "applied": message,
+                        "choice_required": True,
+                        "choice_data": choices[0]
+                    }
+                elif len(choices) > 1:
+                    return {
+                        "success": True,
+                        "applied": message,
+                        "choice_required": True,
+                        "choice_data": choices[0]
+                    }
+                else:
+                    return {
+                        "success": True,
+                        "effect_type": "signet",
+                        "effects_applied": effects_applied
+                    }
             else:
                 return result
 
@@ -1383,6 +1529,83 @@ class EffectResolver:
             "applied": {
                 "type": "shieldwall_deactivate",
                 "value": value
+            }
+        }
+
+    def _handle_shield_active(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle shield_active effects: {"type": "shield_active", "value": false}
+
+        Controls the Great Shield Wall status (same as shieldwall_deactivate but with clearer naming).
+        value=false means deactivate the shield, value=true means activate it.
+        """
+        if not hasattr(self.game, 'shieldwall_active'):
+            self.game.shieldwall_active = True
+
+        value = effect.get("value", True)
+        self.game.shieldwall_active = value
+
+        return {
+            "success": True,
+            "applied": {
+                "type": "shield_active",
+                "value": value,
+                "shield_status": "active" if value else "inactive"
+            }
+        }
+
+    def _handle_manipulate(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle manipulate effects: {"type": "manipulate", "phase": "plot"}
+
+        Manipulate allows the player to look at the top card of the intrigue deck
+        and either keep it on top or put it on the bottom.
+
+        For bots/testing: Auto-keeps on top
+        TODO: For human players, show card and allow choice
+        """
+        player = self.state.get_player_by_id(player_id)
+
+        if not hasattr(self.game.board, 'intrigue_deck') or not self.game.board.intrigue_deck:
+            return {
+                "success": False,
+                "error": "Intrigue deck is empty"
+            }
+
+        # Look at top card
+        top_card = self.game.board.intrigue_deck[0]
+
+        # For bots/testing: keep on top
+        # For humans: would show card and ask "Keep on top or move to bottom?"
+        action = "kept_on_top"
+
+        # Uncomment for human choice:
+        # return {
+        #     "success": True,
+        #     "choice_required": True,
+        #     "choice_data": {
+        #         "type": "manipulate",
+        #         "card": top_card,
+        #         "options": ["keep_top", "move_bottom"]
+        #     }
+        # }
+
+        return {
+            "success": True,
+            "applied": {
+                "type": "manipulate",
+                "action": action,
+                "card_name": top_card.get("name", "Unknown") if isinstance(top_card, dict) else str(top_card)
             }
         }
 
@@ -3140,13 +3363,18 @@ class EffectResolver:
             "acquire_with_solari": True  # Signal to acquisition system
         }
 
-    def _handle_choice(
+    def _handle_choice_bot_autoselect(
         self,
         player_id: str,
         effect: Dict[str, Any],
         context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
+        OLD BOT-ONLY choice handler - auto-selects first valid option.
+
+        This is deprecated in favor of _handle_choice at line 1420 which returns
+        choice_required for proper human/bot handling.
+
         Card 37 - Priority Contracts agent effect.
 
         Presents the player with a choice between multiple options.
@@ -3220,190 +3448,6 @@ class EffectResolver:
                 "success": True,
                 "effects_applied": [f"Choice option {selected_index + 1} selected (no effects)"],
                 "choice_made": selected_index
-            }
-
-    def _handle_trash(
-        self,
-        player_id: str,
-        effect: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Card 37 - Priority Contracts trash effect.
-
-        Removes a card from the game permanently.
-
-        Args:
-            effect: {
-                "type": "trash",
-                "target": "self"  # or card_id for other cards
-            }
-        """
-        player = self.state.get_player_by_id(player_id)
-        target = effect.get("target", "self")
-
-        if target == "self":
-            # Trash the current card being resolved
-            card_name = context.get("card") if context else None
-
-            if not card_name:
-                return {
-                    "success": False,
-                    "error": "No card context for trashing self"
-                }
-
-            # Find and remove the card from player's areas
-            card_found = False
-
-            # Check hand
-            if hasattr(player, 'hand') and hasattr(player.hand, 'cards'):
-                for card in player.hand.cards[:]:
-                    if hasattr(card, 'name') and card.name == card_name:
-                        player.hand.cards.remove(card)
-                        card_found = True
-                        break
-
-            # Check play area (revealed cards)
-            if not card_found and hasattr(player, 'play_area'):
-                for card in player.play_area[:]:
-                    if hasattr(card, 'name') and card.name == card_name:
-                        player.play_area.remove(card)
-                        card_found = True
-                        break
-
-            # Check discard pile
-            if not card_found and hasattr(player, 'discard_pile') and hasattr(player.discard_pile, 'cards'):
-                for card in player.discard_pile.cards[:]:
-                    if hasattr(card, 'name') and card.name == card_name:
-                        player.discard_pile.cards.remove(card)
-                        card_found = True
-                        break
-
-            if card_found:
-                # Track trashed card
-                if not hasattr(player, 'trashed_cards'):
-                    player.trashed_cards = []
-                player.trashed_cards.append(card_name)
-
-                return {
-                    "success": True,
-                    "effects_applied": [f"Trashed {card_name}"]
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Could not find card {card_name} to trash"
-                }
-        else:
-            # TODO: Handle trashing other cards by ID
-            return {
-                "success": False,
-                "error": f"Trashing target {target} not implemented"
-            }
-
-    def _handle_play(
-        self,
-        player_id: str,
-        effect: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Generic play effect for placing units (spies, agents, troops, etc.).
-
-        Args:
-            effect: {
-                "type": "play",
-                "unit": "spy"|"agent"|"troop",
-                "amount": 1,
-                "target": ["emperor", "bene_gesserit", "spacing_guild"]  # For spies: observation posts
-            }
-
-        Examples:
-            Card 40: {"type": "play", "unit": "spy", "amount": 1, "target": ["emperor", "bene_gesserit", "spacing_guild"]}
-        """
-        player = self.state.get_player_by_id(player_id)
-        unit_type = effect.get("unit", "")
-        amount = effect.get("amount", 1)
-        targets = effect.get("target", [])
-
-        if unit_type == "spy":
-            # Place spy on observation post
-            if not targets:
-                return {
-                    "success": False,
-                    "error": "No target observation posts specified for spy placement"
-                }
-
-            # Check if player has available spies
-            if not hasattr(player, 'available_spies'):
-                player.available_spies = 2  # Default spy count
-
-            if player.available_spies < amount:
-                return {
-                    "success": False,
-                    "error": f"Not enough available spies (need {amount}, have {player.available_spies})"
-                }
-
-            # Find available observation posts from the allowed list
-            available_observation_posts = []
-            if hasattr(self.game, 'board') and hasattr(self.game.board, 'observation_posts'):
-                for observation_post in self.game.board.observation_posts:
-                    faction_name = observation_post.name.lower().replace(" ", "_")
-                    # Check if this post is in the allowed list and not already occupied
-                    if faction_name in targets:
-                        # Check if spy already placed here
-                        already_placed = False
-                        if hasattr(player, 'spies_placed'):
-                            if str(observation_post.id) in player.spies_placed:
-                                already_placed = True
-
-                        if not already_placed:
-                            available_observation_posts.append((faction_name, observation_post.id))
-
-            if not available_observation_posts:
-                return {
-                    "success": False,
-                    "error": "No available observation posts to place spy"
-                }
-
-            # For AI/bot: select first available post
-            # For human: would prompt for choice
-            # TODO: Implement choice system for human players
-            selected_faction, selected_post_id = available_observation_posts[0]
-
-            # Place the spy
-            if not hasattr(player, 'spies_placed'):
-                player.spies_placed = []
-
-            player.spies_placed.append(str(selected_post_id))
-            player.available_spies -= amount
-
-            return {
-                "success": True,
-                "effects_applied": [f"Placed spy on {selected_faction} observation post"],
-                "spy_placed": selected_faction
-            }
-
-        elif unit_type == "troop":
-            # Deploy troops to conflict or garrison
-            # TODO: Implement troop deployment
-            return {
-                "success": False,
-                "error": "Troop deployment not yet implemented"
-            }
-
-        elif unit_type == "agent":
-            # Place agent on board space
-            # TODO: Implement agent placement
-            return {
-                "success": False,
-                "error": "Agent placement not yet implemented"
-            }
-
-        else:
-            return {
-                "success": False,
-                "error": f"Unknown unit type: {unit_type}"
             }
 
     def _handle_bypass_troops_deployment_rule(

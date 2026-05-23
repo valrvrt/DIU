@@ -36,7 +36,7 @@
               "reward": [
                 {
                   "type": "resource",
-                  "resource": "swords",
+                  "resource": "sword",
                   "amount": 4
                 }
               ]
@@ -45,13 +45,11 @@
         }
       ]
     },
-
     {
       "id": 2,
       "name": "Buy Access",
       "effects": [
         {
-          "type": "action",
           "phase": "plot",
           "cost": [
             {
@@ -67,11 +65,11 @@
               "amount": 1,
               "times": 2
             }
-          ]
+          ],
+          "type": "action"
         }
       ]
     },
-
     {
       "id": 3,
       "name": "Call to Arms",
@@ -87,14 +85,12 @@
             {
               "type": "resource",
               "resource": "troop",
-              "target": "any",
               "amount": 1
             }
           ]
         }
       ]
     },
-
     {
       "id": 4,
       "name": "Change Allegiances",
@@ -141,7 +137,6 @@
         }
       ]
     },
-
     {
       "id": 5,
       "name": "CHOAM Profits",
@@ -149,9 +144,8 @@
         {
           "type": "endgame_condition",
           "condition": {
-            "type": "influence_threshold",
-            "target": "any",
-            "amount": 2
+            "type": "contracts_completed",
+            "amount": 4
           },
           "reward": [
             {
@@ -160,6 +154,1143 @@
               "amount": 1
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Contingency Plan",
+      "effects": [
+        {
+          "type": "choice",
+          "required": true,
+          "options": [
+            {
+              "id": "plot",
+              "phase": "plot",
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "solari",
+                  "amount": 2
+                }
+              ]
+            },
+            {
+              "id": "combat",
+              "phase": "combat",
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "sword",
+                  "amount": 3
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Councilor's Ambition",
+      "effects": [
+        {
+          "phase": "plot",
+          "check": [
+            {
+              "type": "council_seat",
+              "value": true
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "water",
+              "amount": 2
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Crysknife",
+      "effects": [
+        {
+          "type": "choice",
+          "required": true,
+          "options": [
+            {
+              "id": "spice",
+              "phase": "plot",
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "spice",
+                  "amount": 1
+                }
+              ]
+            },
+            {
+              "id": "conflict",
+              "phase": "endgame",
+              "cost": [
+                {
+                  "type": "flip_conflict",
+                  "tag": [
+                    "crysknife",
+                    "?"
+                  ],
+                  "amount": 1
+                }
+              ],
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "victory_point",
+                  "amount": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Cunning",
+      "effects": [
+        {
+          "type": "choice",
+          "required": true,
+          "options": [
+            {
+              "id": "draw",
+              "phase": "plot",
+              "reward": [
+                {
+                  "type": "draw",
+                  "deck": "deck",
+                  "amount": 1
+                }
+              ]
+            },
+            {
+              "id": "influence_trash",
+              "phase": "plot",
+              "cost": [
+                {
+                  "type": "resource",
+                  "resource": "spice",
+                  "amount": 1
+                }
+              ],
+              "reward": [
+                {
+                  "type": "draw",
+                  "deck": "deck",
+                  "amount": 1
+                },
+                {
+                  "type": "trash",
+                  "deck": [
+                    "hand",
+                    "played"
+                  ],
+                  "amount": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Depart for Arrakis",
+      "effects": [
+        {
+          "phase": "plot",
+          "cost": [
+            {
+              "type": "resource",
+              "resource": "spice",
+              "amount": 2
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "troop",
+              "amount": 3
+            }
+          ],
+          "type": "action"
+        },
+        {
+          "phase": "plot",
+          "check": [
+            {
+              "type": "influence",
+              "target": "spacing_guild",
+              "amount": 3
+            }
+          ],
+          "reward": [
+            {
+              "type": "draw",
+              "deck": "deck",
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Desert Mouse",
+      "effects": [
+        {
+          "type": "choice",
+          "required": true,
+          "options": [
+            {
+              "id": "spice",
+              "phase": "plot",
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "spice",
+                  "amount": 1
+                }
+              ]
+            },
+            {
+              "id": "conflict",
+              "phase": "endgame",
+              "check": [
+                {
+                  "type": "flip_conflict",
+                  "tag": [
+                    "desert_mouse",
+                    "?"
+                  ],
+                  "amount": 1
+                }
+              ],
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "victory_point",
+                  "amount": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Detonation",
+      "effects": [
+        {
+          "type": "choice",
+          "required": true,
+          "options": [
+            {
+              "id": "intrigue",
+              "phase": "plot",
+              "reward": [
+                {
+                  "type": "shield_active",
+                  "value": false
+                }
+              ]
+            },
+            {
+              "id": "deploy",
+              "phase": "plot",
+              "reward": [
+                {
+                  "type": "deploy_from_garrison",
+                  "amount": 4
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Devour",
+      "effects": [
+        {
+          "phase": "combat",
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "sword",
+              "amount": 2
+            }
+          ],
+          "type": "action"
+        },
+        {
+          "phase": "combat",
+          "check": [
+            {
+              "type": "units_in_conflict",
+              "unit": "sandworm",
+              "amount": 1
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "sword",
+              "amount": 2
+            },
+            {
+              "type": "trash",
+              "deck": [
+                "hand",
+                "played"
+              ],
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Distraction",
+      "effects": [
+        {
+          "type": "conditional_reward",
+          "phase": "plot",
+          "condition": {
+            "type": "deploy_units",
+            "amount": 3
+          },
+          "reward": [
+            {
+              "type": "play",
+              "unit": "spy",
+              "shared_post": true,
+              "amount": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "Find Weakness",
+      "effects": [
+        {
+          "phase": "combat",
+          "cost": [
+            {
+              "type": "recall",
+              "unit": "spy",
+              "amount": 1
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "sword",
+              "amount": 3
+            }
+          ],
+          "type": "action"
+        },
+        {
+          "phase": "combat",
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "sword",
+              "amount": 2
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "name": "Go to Ground",
+      "effects": [
+        {
+          "phase": "combat",
+          "cost": [
+            {
+              "type": "retreat",
+              "unit": "troop",
+              "amount": [
+                1,
+                2
+              ]
+            }
+          ],
+          "reward": [
+            {
+              "type": "play",
+              "unit": "spy",
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "Imperium Politics",
+      "effects": [
+        {
+          "phase": "plot",
+          "cost": [
+            {
+              "type": "resource",
+              "resource": "solari",
+              "amount": 1
+            }
+          ],
+          "reward": [
+            {
+              "type": "influence",
+              "target": [
+                "spacing_guild",
+                "bene_gesserit"
+              ],
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "name": "Impress",
+      "effects": [
+        {
+          "phase": "combat",
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "sword",
+              "amount": 2
+            },
+            {
+              "type": "acquire",
+              "cost_limit": 4,
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "name": "Inspire Awe",
+      "effects": [
+        {
+          "phase": "plot",
+          "reward": [
+            {
+              "type": "acquire",
+              "cost_limit": 3,
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        },
+        {
+          "phase": "plot",
+          "check": [
+            {
+              "type": "units_in_conflict",
+              "unit": "sandworm",
+              "amount": 1
+            }
+          ],
+          "reward": [
+            {
+              "type": "acquire_to_hand",
+              "last_acquired": true
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "name": "Manipulate",
+      "effects": [
+        {
+          "type": "manipulate",
+          "phase": "plot"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "Market Opportunity",
+      "effects": [
+        {
+          "type": "choice",
+          "required": true,
+          "options": [
+            {
+              "id": "spice_to_solari",
+              "phase": "plot",
+              "cost": [
+                {
+                  "type": "resource",
+                  "resource": "spice",
+                  "amount": 2
+                }
+              ],
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "solari",
+                  "amount": 5
+                }
+              ]
+            },
+            {
+              "id": "solari_to_spice",
+              "phase": "plot",
+              "cost": [
+                {
+                  "type": "resource",
+                  "resource": "solari",
+                  "amount": 5
+                }
+              ],
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "spice",
+                  "amount": 5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "name": "Mercenaries",
+      "effects": [
+        {
+          "phase": "plot",
+          "cost": [
+            {
+              "type": "resource",
+              "resource": "solari",
+              "amount": 3
+            }
+          ],
+          "reward": [
+            {
+              "type": "draw",
+              "deck": "intrigue",
+              "amount": 1
+            },
+            {
+              "type": "resource",
+              "resource": "troop",
+              "amount": 2
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "name": "Intelligence Report",
+      "effects": [
+        {
+          "phase": "plot",
+          "check": [
+            {
+              "type": "spies_on_board",
+              "amount": 2
+            }
+          ],
+          "reward": [
+            {
+              "type": "draw",
+              "deck": "deck",
+              "amount": 2
+            }
+          ],
+          "type": "action"
+        },
+        {
+          "reward": [
+            {
+              "type": "draw",
+              "deck": "deck",
+              "amount": 1
+            }
+          ],
+          "type": "action",
+          "phase": "plot"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "name": "Leverage",
+      "effects": [
+        {
+          "phase": "plot",
+          "check": [
+            {
+              "type": "gained_resource_this_turn",
+              "resource": "spice",
+              "amount": 1
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "solari",
+              "amount": 1
+            },
+            {
+              "type": "draw",
+              "deck": "deck",
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "name": "Opportunism",
+      "effects": [
+        {
+          "phase": "plot",
+          "cost": [
+            {
+              "type": "influence",
+              "target": "any",
+              "amount": 1
+            },
+            {
+              "type": "influence",
+              "target": "any",
+              "amount": 1
+            },
+            {
+              "type": "resource",
+              "resource": "solari",
+              "amount": 2
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "victory_point",
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "name": "Ornithopter",
+      "effects": [
+        {
+          "type": "choice",
+          "required": true,
+          "options": [
+            {
+              "id": "conflict",
+              "phase": "endgame",
+              "check": [
+                {
+                  "type": "flip_conflict",
+                  "tag": [
+                    "ornithopter",
+                    "?"
+                  ],
+                  "amount": 1
+                }
+              ],
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "victory_point",
+                  "amount": 1
+                }
+              ]
+            },
+            {
+              "id": "spice",
+              "phase": "plot",
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "spice",
+                  "amount": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "name": "Questionable Methods",
+      "effects": [
+        {
+          "phase": "combat",
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "sword",
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        },
+        {
+          "phase": "combat",
+          "cost": [
+            {
+              "type": "influence",
+              "target": "any",
+              "amount": 1
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "sword",
+              "amount": 4
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "name": "Reach Agreement",
+      "effects": [
+        {
+          "phase": "combat",
+          "cost": [
+            {
+              "type": "retreat",
+              "unit": "troop",
+              "amount": [
+                1,
+                2
+              ]
+            }
+          ],
+          "reward": [
+            {
+              "type": "accept",
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "name": "Secure Spice Trade",
+      "effects": [
+        {
+          "type": "endgame_condition",
+          "condition": {
+            "type": "spice_must_flow_tokens",
+            "amount": 2
+          },
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "victory_point",
+              "amount": 1
+            },
+            {
+              "type": "resource",
+              "resource": "spice",
+              "amount": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "name": "Shaddam's Favor",
+      "effects": [
+        {
+          "phase": "plot",
+          "check": [
+            {
+              "type": "influence",
+              "target": "emperor",
+              "amount": 3
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "solari",
+              "amount": 3
+            }
+          ],
+          "type": "action"
+        },
+        {
+          "type": "resource",
+          "resource": "troop",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "name": "Shadow Alliance",
+      "effects": [
+        {
+          "type": "endgame_condition",
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "victory_point",
+              "amount": 1
+            }
+          ],
+          "condition": {
+            "type": "influence",
+            "target": "any",
+            "amount": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "name": "Sietch Ritual",
+      "effects": [
+        {
+          "id": "spice",
+          "phase": "plot",
+          "cost": [
+            {
+              "type": "discard",
+              "deck": [
+                "played",
+                "hand"
+              ],
+              "amount": 1
+            }
+          ],
+          "reward": [
+            {
+              "type": "influence",
+              "target": [
+                "bene_gesserit",
+                "fremen"
+              ],
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "name": "Special Mission",
+      "effects": [
+        {
+          "type": "choice",
+          "required": true,
+          "options": [
+            {
+              "id": "bene_gesserit",
+              "phase": "plot",
+              "reward": [
+                {
+                  "type": "play",
+                  "unit": "spy",
+                  "amount": 1,
+                  "target": "blue"
+                }
+              ]
+            },
+            {
+              "id": "fremen",
+              "phase": "plot",
+              "check": [
+                {
+                  "type": "recall",
+                  "unit": "spy",
+                  "amount": 1
+                }
+              ],
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "spice",
+                  "amount": 2
+                },
+                {
+                  "type": "shield_active",
+                  "value": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "name": "Spice is Power",
+      "effects": [
+        {
+          "type": "choice",
+          "required": true,
+          "options": [
+            {
+              "id": "retreat_3",
+              "phase": "combat",
+              "cost": [
+                {
+                  "type": "retreat",
+                  "unit": "troop",
+                  "amount": 3
+                }
+              ],
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "spice",
+                  "amount": 3
+                }
+              ]
+            },
+            {
+              "id": "swords",
+              "phase": "combat",
+              "cost": [
+                {
+                  "type": "resource",
+                  "resource": "spice",
+                  "amount": 3
+                }
+              ],
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "sword",
+                  "amount": 6
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "name": "Spring The Trap",
+      "effects": [
+        {
+          "phase": "combat",
+          "cost": [
+            {
+              "type": "recall",
+              "unit": "spy",
+              "amount": 2
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "sword",
+              "amount": 7
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "name": "Strategic Stockpiling",
+      "effects": [
+        {
+          "phase": "plot",
+          "cost": [
+            {
+              "type": "resource",
+              "resource": "spice",
+              "amount": 5
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "victory_point",
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        },
+        {
+          "phase": "plot",
+          "check": [
+            {
+              "type": "influence",
+              "target": "fremen",
+              "amount": 3
+            }
+          ],
+          "cost": [
+            {
+              "type": "resource",
+              "resource": "water",
+              "amount": 3
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "victory_point",
+              "amount": 1
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "name": "Tactical Option",
+      "effects": [
+        {
+          "type": "choice",
+          "required": false,
+          "options": [
+            {
+              "id": "swords",
+              "phase": "combat",
+              "reward": [
+                {
+                  "type": "resource",
+                  "resource": "sword",
+                  "amount": 2
+                }
+              ]
+            },
+            {
+              "id": "retreat",
+              "phase": "combat",
+              "reward": [
+                {
+                  "type": "retreat",
+                  "unit": "troop",
+                  "amount": "any"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "name": "Unexpected Allies",
+      "effects": [
+        {
+          "phase": "plot",
+          "cost": [
+            {
+              "type": "resource",
+              "resource": "water",
+              "amount": 2
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "sandworm",
+              "amount": 1
+            },
+            {
+              "type": "shield_active",
+              "value": false
+            }
+          ],
+          "type": "action"
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "name": "Weirding Combat",
+      "effects": [
+        {
+          "phase": "combat",
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "sword",
+              "amount": 3
+            }
+          ],
+          "type": "action"
+        },
+        {
+          "phase": "combat",
+          "check": [
+            {
+              "type": "influence",
+              "target": "bene_gesserit",
+              "amount": 3
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "sword",
+              "amount": 2
+            }
+          ],
+          "type": "action"
         }
       ]
     }

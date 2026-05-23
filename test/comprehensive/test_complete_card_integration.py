@@ -190,8 +190,9 @@ class TestAllImperiumCards:
                     changes_str = ", ".join(f"{k}:{v:+d}" for k, v in changes.items()) if changes else "no changes"
                     print(f"  [{card_id:2d}] {card_name:40s} ✓ ({changes_str})")
                 else:
-                    failed.append((card_id, card_name, "Resolution failed"))
-                    print(f"  [{card_id:2d}] {card_name:40s} ✗ Resolution failed")
+                    error_msg = result.get('error', 'Resolution failed')
+                    failed.append((card_id, card_name, error_msg))
+                    print(f"  [{card_id:2d}] {card_name:40s} ✗ {error_msg}")
 
             except Exception as e:
                 failed.append((card_id, card_name, str(e)))
@@ -265,8 +266,9 @@ class TestAllImperiumCards:
                     changes_str = ", ".join(f"{k}:{v:+d}" for k, v in changes.items()) if changes else "no changes"
                     print(f"  [{card_id:2d}] {card_name:40s} ✓ ({changes_str})")
                 else:
-                    failed.append((card_id, card_name, "Resolution failed"))
-                    print(f"  [{card_id:2d}] {card_name:40s} ✗ Resolution failed")
+                    error_msg = result.get('error', 'Resolution failed')
+                    failed.append((card_id, card_name, error_msg))
+                    print(f"  [{card_id:2d}] {card_name:40s} ✗ {error_msg}")
 
             except Exception as e:
                 failed.append((card_id, card_name, str(e)))
@@ -327,8 +329,9 @@ class TestAllImperiumCards:
                     changes_str = ", ".join(f"{k}:{v:+d}" for k, v in changes.items()) if changes else "no changes"
                     print(f"  [{card_id:2d}] {card_name:40s} ✓ ({changes_str})")
                 else:
-                    failed.append((card_id, card_name, "Resolution failed"))
-                    print(f"  [{card_id:2d}] {card_name:40s} ✗ Resolution failed")
+                    error_msg = result.get('error', 'Resolution failed')
+                    failed.append((card_id, card_name, error_msg))
+                    print(f"  [{card_id:2d}] {card_name:40s} ✗ {error_msg}")
 
             except Exception as e:
                 failed.append((card_id, card_name, str(e)))
@@ -576,8 +579,9 @@ class TestAllContractCards:
                     changes_str = ", ".join(f"{k}:{v:+d}" for k, v in changes.items()) if changes else "no changes"
                     print(f"  [{card_id:2d}] {card_name:40s} ✓ ({changes_str})")
                 else:
-                    failed.append((card_id, card_name, "Resolution failed"))
-                    print(f"  [{card_id:2d}] {card_name:40s} ✗ Resolution failed")
+                    error_msg = result.get('error', 'Resolution failed')
+                    failed.append((card_id, card_name, error_msg))
+                    print(f"  [{card_id:2d}] {card_name:40s} ✗ {error_msg}")
 
             except Exception as e:
                 failed.append((card_id, card_name, str(e)))
@@ -657,8 +661,9 @@ class TestAllLeaderCards:
                     changes_str = ", ".join(f"{k}:{v:+d}" for k, v in changes.items()) if changes else "no changes"
                     print(f"  [{card_id:2d}] {card_name:40s} ✓ ({changes_str})")
                 else:
-                    failed.append((card_id, card_name, "Resolution failed"))
-                    print(f"  [{card_id:2d}] {card_name:40s} ✗ Resolution failed")
+                    error_msg = result.get('error', 'Resolution failed')
+                    failed.append((card_id, card_name, error_msg))
+                    print(f"  [{card_id:2d}] {card_name:40s} ✗ {error_msg}")
 
             except Exception as e:
                 failed.append((card_id, card_name, str(e)))
