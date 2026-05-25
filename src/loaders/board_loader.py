@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from pprint import pprint
 from typing import List
 
 from ..models.boardspace import BoardSpace, ObservationPost
@@ -47,6 +48,8 @@ def load_board_spaces() -> List[BoardSpace]:
             control_bonus=space_data.get('control_bonus', {})
         )
         spaces.append(space)
+        
+    pprint(spaces)
 
     return spaces
 

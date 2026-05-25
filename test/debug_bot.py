@@ -1,5 +1,9 @@
 """Debug why bots always reveal."""
 
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from src.engine.core.game_setup import GameSetup
 from src.engine.actions.action_generator import ActionGenerator
 

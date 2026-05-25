@@ -110,6 +110,8 @@ class TestHelper:
             'deck_size': len(player.deck.cards),
             'discard_size': len(player.discard_pile.cards),
             'intrigue_cards': len(player.intrigue_cards),
+            'spies_available': player.spies_available,
+            'spies_placed_count': len(getattr(player, 'spies_placed', [])),
             # Temporary resources (created dynamically by effect resolver)
             'persuasion': getattr(player, 'temp_persuasion', 0),
             'swords': getattr(player, 'temp_swords', 0),
@@ -135,8 +137,8 @@ class TestAllImperiumCards:
         return TestHelper.load_card_data("imperium.JSON")
 
     def test_all_imperium_cards_load(self, imperium_cards):
-        """Verify all 60 imperium cards load correctly."""
-        assert len(imperium_cards) == 60, f"Expected 60 imperium cards, found {len(imperium_cards)}"
+        """Verify all 61 imperium cards load correctly."""
+        assert len(imperium_cards) == 61, f"Expected 61 imperium cards, found {len(imperium_cards)}"
 
     def test_all_reveal_effects(self, imperium_cards):
         """
@@ -602,7 +604,20 @@ class TestAllLeaderCards:
     @pytest.fixture
     def leader_data(self):
         """Load all leader cards."""
-        return TestHelper.load_card_data("leaders.JSON")
+        from src.loaders.leader_loader import load_leaders
+        # Load leaders using the new loader
+        leaders = load_leaders()
+        # Convert to dict format for compatibility with tests
+        return [
+            {
+                'id': leader.leader_id,
+                'name': leader.name,
+                'signet_ability': {
+                    'effects': leader.signet_ability.get('effects', []) if leader.signet_ability else []
+                }
+            }
+            for leader in leaders
+        ]
 
     def test_all_leader_cards_load(self, leader_data):
         """Verify all leader cards load correctly."""

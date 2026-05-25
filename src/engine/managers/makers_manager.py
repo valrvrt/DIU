@@ -60,18 +60,15 @@ class MakersManager:
         all_spaces = self._get_all_maker_spaces()
 
         for space in all_spaces:
-            # Check if space is unoccupied
+            # Check if space is unoccupied (occupied_by is None)
             if space.occupied_by is None:
-                # Add 1 bonus spice
-                if not hasattr(space, 'bonus_spice'):
-                    space.bonus_spice = 0
-
-                space.bonus_spice += 1
+                # Add 1 bonus spice to this maker space
+                space.spice_bonus += 1
                 total_bonus_added += 1
 
                 spaces_updated.append({
                     "space": space.name,
-                    "bonus_spice": space.bonus_spice
+                    "spice_bonus": space.spice_bonus
                 })
 
         return {
@@ -114,11 +111,9 @@ class MakersManager:
         Returns:
             Amount of bonus spice collected
         """
-        if not hasattr(space, 'bonus_spice'):
-            return 0
-
-        bonus_collected = space.bonus_spice
-        space.bonus_spice = 0  # Reset after collection
+        # Get the accumulated spice bonus
+        bonus_collected = space.spice_bonus
+        space.spice_bonus = 0  # Reset after collection
 
         return bonus_collected
 
@@ -143,12 +138,12 @@ class MakersManager:
         status = []
 
         for space in maker_spaces:
-            bonus_spice = getattr(space, 'bonus_spice', 0)
+            bonus_spice = getattr(space, 'spice_bonus', 0)
             status.append({
                 "name": space.name,
                 "occupied": space.occupied_by is not None,
                 "occupied_by": space.occupied_by if space.occupied_by else None,
-                "bonus_spice": bonus_spice
+                "spice_bonus": bonus_spice
             })
 
         return status

@@ -135,6 +135,13 @@ class EffectResolver:
             "cost": self._handle_cost,
             "exchange": self._handle_exchange,
             "bypass_influence_requirment_rule": self._handle_bypass_influence_requirement_rule,
+
+            # Leader-specific effects
+            "play_spy": self._handle_play_spy,
+            "ply": self._handle_ply,
+            "transform_leader": self._handle_transform_leader,
+            "retrigger_board_space": self._handle_retrigger_board_space,
+            "contract_choice_expansion": self._handle_contract_choice_expansion,
         }
 
     # ==================== MAIN RESOLUTION ENTRY POINT ====================
@@ -325,6 +332,11 @@ class EffectResolver:
             if not hasattr(player, "mentats"):
                 player.mentats = 0
             player.mentats += total_amount
+        elif resource == "memory" or resource == "memories":
+            # Add memory/memories (Lady Jessica mechanic)
+            if not hasattr(player, "memories"):
+                player.memories = 0
+            player.memories += total_amount
         else:
             return {
                 "success": False,
@@ -488,6 +500,13 @@ class EffectResolver:
                     "error": f"Not enough spies available (have {player.spies_available}, need {amount})"
                 }
 
+            # Check if observation posts exist
+            if not hasattr(self.game.board, 'observation_posts') or not self.game.board.observation_posts:
+                return {
+                    "success": False,
+                    "error": "No observation posts available on board"
+                }
+
             # Check if special condition allows sharing observation posts
             allow_shared = False
             allow_shared_condition = effect.get("allow_shared_post_if")
@@ -499,7 +518,7 @@ class EffectResolver:
                     # Check if current location (from context) is being spied by this player
                     current_location = context.get("location")
 
-                    if current_location and hasattr(self.game.board, 'observation_posts'):
+                    if current_location:
                         # Find observation post that controls current location
                         for post in self.game.board.observation_posts:
                             if current_location in post.connected_locations:
@@ -3939,4 +3958,176 @@ class EffectResolver:
         return {
             "success": True,
             "effects_applied": ["Can bypass influence requirements"]
+        }
+
+    # ==================== LEADER-SPECIFIC EFFECT HANDLERS ====================
+
+    def _handle_play_spy(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Handle playing a spy (Staban Tuek signet).
+
+        Format:
+        {
+            "type": "play_spy",
+            "description": "Play a spy anywhere"
+        }
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": f"Player {player_id} not found"}
+
+        # Check if player has spies available
+        if player.spies_available <= 0:
+            return {"success": False, "error": "No spies available"}
+
+        # Set a flag indicating player can place a spy
+        # The actual placement will be handled by action_executor
+        if not hasattr(player, 'can_place_spy_from_signet'):
+            player.can_place_spy_from_signet = False
+
+        player.can_place_spy_from_signet = True
+
+        return {
+            "success": True,
+            "effects_applied": ["Can place spy"],
+            "requires_action": "place_spy"  # Signals that player needs to choose where to place
+        }
+
+    def _handle_ply(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Handle ply effect (Lady Margot Fenring - play spy on blue space).
+
+        Format:
+        {
+            "type": "ply",
+            "agent": "spy",
+            "amount": 1,
+            "target": "blue"
+        }
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": f"Player {player_id} not found"}
+
+        agent_type = effect.get('agent', 'spy')
+        amount = effect.get('amount', 1)
+        target = effect.get('target')  # "blue" for Bene Gesserit spaces
+
+        if agent_type == 'spy':
+            if player.spies_available < amount:
+                return {"success": False, "error": f"Not enough spies available"}
+
+            # Set flag for restricted spy placement
+            if not hasattr(player, 'restricted_spy_placement'):
+                player.restricted_spy_placement = None
+
+            player.restricted_spy_placement = target
+            player.can_place_spy_from_signet = True
+
+            return {
+                "success": True,
+                "effects_applied": [f"Can place {amount} {agent_type} on {target} space"],
+                "requires_action": "place_spy",
+                "restriction": target
+            }
+
+        return {"success": False, "error": f"Unknown agent type: {agent_type}"}
+
+    def _handle_transform_leader(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Handle leader transformation (Lady Jessica → Reverend Mother).
+
+        Format:
+        {
+            "type": "transform_leader",
+            "target": "reverend_mother"
+        }
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": f"Player {player_id} not found"}
+
+        target_leader = effect.get('target')
+
+        if not target_leader:
+            return {"success": False, "error": "No target leader specified"}
+
+        # Import ReverendMother class
+        try:
+            from ...models.leader import ReverendMother
+        except ImportError:
+            return {"success": False, "error": "ReverendMother class not found"}
+
+        # Transform the leader
+        if target_leader == 'reverend_mother':
+            old_leader = player.leader.name
+            player.leader = ReverendMother()
+
+            return {
+                "success": True,
+                "effects_applied": [f"Transformed {old_leader} to Reverend Mother"]
+            }
+
+        return {"success": False, "error": f"Unknown transformation target: {target_leader}"}
+
+    def _handle_retrigger_board_space(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Handle retriggering a board space effect (Reverend Mother passive).
+
+        Format:
+        {
+            "type": "retrigger_board_space"
+        }
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": f"Player {player_id} not found"}
+
+        # Get the location from context
+        location = context.get('location') if context else None
+
+        if not location:
+            return {"success": False, "error": "No location in context to retrigger"}
+
+        # Get the board space effects
+        if hasattr(location, 'reward') and location.reward:
+            # Resolve the board space effects again
+            from ..actions.action_executor import ActionExecutor
+            executor = ActionExecutor(self.game)
+
+            # Re-resolve location effects
+            result = self.resolve_effects(player_id, location.reward, context)
+
+            return {
+                "success": True,
+                "effects_applied": [f"Retriggered {location.name}"] + result.get('effects_applied', [])
+            }
+
+        return {"success": False, "error": "Location has no effects to retrigger"}
+
+    def _handle_contract_choice_expansion(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Handle expanding contract choices (Shaddam Corrino IV passive - Sardaukar contracts).
+
+        Format:
+        {
+            "type": "contract_choice_expansion",
+            "sources": ["board", "sardaukar_reserve"]
+        }
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": f"Player {player_id} not found"}
+
+        sources = effect.get('sources', [])
+
+        # Set a flag on the player indicating they can choose from expanded sources
+        if not hasattr(player, 'contract_sources'):
+            player.contract_sources = ['board']  # Default
+
+        player.contract_sources = sources
+
+        return {
+            "success": True,
+            "effects_applied": [f"Can choose contracts from: {', '.join(sources)}"]
         }

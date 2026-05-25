@@ -1,0 +1,63 @@
+{
+  "id": 7,
+  "name": "Princess Irulan",
+  "signet": {
+    "type": "choice",
+    "required": true,
+    "options": [
+      {
+        "id": "acquire",
+        "reward": [
+          {
+            "type": "acquire",
+            "source": "row",
+            "cost_max": 1
+          }
+        ]
+      },
+      {
+        "id": "trash",
+        "reward": [
+          {
+            "type": "trash",
+            "deck": "hand",
+            "amount": 1
+          }
+        ],
+        "conditional_reward": {
+          "check": {
+            "type": "trashed_card_cost",
+            "min_persuasion": 1
+          },
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "spice",
+              "amount": 2
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "passive": {
+    "name": "Imperial Privilege",
+    "phase": "any",
+    "trigger": "on_influence_gained",
+    "check": [
+      {
+        "type": "influence_reached",
+        "target": "emperor",
+        "amount": 2
+      }
+    ],
+    "reward": [
+      {
+        "type": "draw",
+        "deck": "intrigue",
+        "amount": 1
+      }
+    ],
+    "description": "When you reach 2 influence with Emperor, draw 1 intrigue card."
+  }
+}

@@ -32,21 +32,20 @@ def load_starter_deck() -> List[ImperiumCard]:
         amount = card_data.get('amount')
 
         for _ in range(amount):
-            for i in range(amount):
-                card = ImperiumCard(
-                    id=str(card_data['id']),
-                    name=card_data['name'],
-                    card_type=CardType.IMPERIUM,
-                    type="Imperium",
-                    factions=card_data.get('factions', []),
-                    starting_hand=True,
-                    cost=0,  # Starter cards are free
-                    on_acquire_effects=[],
-                    agent_icons=card_data.get('agent_icon', []),
-                    agent_effects=card_data.get('agent_effects', []),
-                    reveal_effects=card_data.get('reveal_effects', [])
-                )
-                cards.append(card)
+            card = ImperiumCard(
+                id=str(card_data['id']),
+                name=card_data['name'],
+                card_type=CardType.IMPERIUM,
+                type="Imperium",
+                factions=card_data.get('factions', []),
+                starting_hand=True,
+                cost=0,  # Starter cards are free
+                on_acquire_effects=[],
+                agent_icons=card_data.get('agent_icon', []),
+                agent_effects=card_data.get('agent_effects', []),
+                reveal_effects=card_data.get('reveal_effects', [])
+            )
+            cards.append(card)
 
     return cards
 

@@ -17,9 +17,10 @@ from ...models.board import Board
 from ...models.deck import Deck
 from ...loaders.card_loader import (
     load_starter_deck, load_imperium_cards, load_intrigue_cards,
-    load_conflict_cards, load_contract_cards, load_leaders,
+    load_conflict_cards, load_contract_cards,
     get_objectives_for_player_count, get_reserve_cards, ObjectiveCard
 )
+from ...loaders.leader_loader import load_leaders
 from ...loaders.board_loader import load_board_spaces, load_observation_posts
 
 
@@ -39,13 +40,26 @@ class GameSetup:
     """
 
     @staticmethod
-    def create_game(player_count: int, human_player_name: str = "Player") -> Tuple[Game, Dict[str, Any]]:
+    def get_available_leaders():
+        """
+        Get all leaders available for selection.
+
+        Returns:
+            List of Leader objects (excludes Reverend Mother)
+        """
+        all_leaders = load_leaders()
+        # Filter out Reverend Mother (transformed form, not selectable)
+        return [l for l in all_leaders if l.name != "Reverend Mother"]
+
+    @staticmethod
+    def create_game(player_count: int, human_player_name: str = "Player", selected_leaders: List[int] = None) -> Tuple[Game, Dict[str, Any]]:
         """
         Create a fully initialized game.
 
         Args:
             player_count: 3 or 4 players
             human_player_name: Name for the human player
+            selected_leaders: Optional list of leader IDs for each player (must be unique, no Reverend Mother)
 
         Returns:
             (game, setup_info) where setup_info contains:
@@ -59,17 +73,41 @@ class GameSetup:
             raise ValueError("Player count must be 3 or 4")
 
         # 1. Load all game data
-        leaders = load_leaders()
+        all_leaders = load_leaders()
+
+        # Filter out Reverend Mother (she's the transformed side of Lady Jessica, not selectable)
+        selectable_leaders = [l for l in all_leaders if l.name != "Reverend Mother"]
+
         starter_deck_cards = load_starter_deck()
 
-        # 2. Create players
+        # 2. Validate and assign leaders
+        if selected_leaders:
+            if len(selected_leaders) != player_count:
+                raise ValueError(f"Must provide exactly {player_count} leader IDs")
+
+            # Check for duplicates
+            if len(set(selected_leaders)) != len(selected_leaders):
+                raise ValueError("Each player must have a unique leader")
+
+            # Verify all leader IDs are valid and not Reverend Mother
+            assigned_leaders = []
+            for leader_id in selected_leaders:
+                leader = next((l for l in selectable_leaders if l.leader_id == leader_id), None)
+                if not leader:
+                    raise ValueError(f"Invalid leader ID: {leader_id} or Reverend Mother cannot be selected")
+                assigned_leaders.append(leader)
+        else:
+            # Random leader selection (ensure uniqueness)
+            assigned_leaders = random.sample(selectable_leaders, player_count)
+
+        # 3. Create players
         players = []
         player_names = [human_player_name] + [f"Bot {i}" for i in range(1, player_count)]
         player_colors = ["blue", "red", "green", "yellow"][:player_count]
 
         for i in range(player_count):
-            # Select random leader
-            leader = random.choice(leaders)
+            # Get assigned leader
+            leader = assigned_leaders[i]
 
             # Create player deck with starter cards (7 cards)
             player_deck = Deck()
@@ -227,7 +265,7 @@ class GameSetup:
         # Check players
         checks["has_players"] = len(game.players) in [3, 4]
         checks["all_players_have_hands"] = all(len(p.hand.cards) == 5 for p in game.players)
-        checks["all_players_have_decks"] = all(len(p.deck.cards) == 2 for p in game.players)  # 7 starter - 5 drawn
+        checks["all_players_have_decks"] = all(len(p.deck.cards) == 5 for p in game.players)  # 10 starter - 5 drawn
         checks["all_players_have_objectives"] = all(len(p.objectives) > 0 for p in game.players)
 
         # Check board

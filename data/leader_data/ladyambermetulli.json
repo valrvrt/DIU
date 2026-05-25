@@ -1,4 +1,6 @@
 {
+  "id": 3,
+  "name": "Lady Amber Metulli",
   "signet": [
     {
       "reward": [
@@ -10,7 +12,7 @@
       ]
     },
     {
-      "check": [],
+      "check": [{ "type": "alliance", "amount": 1 }],
       "reward": [
         {
           "type": "resource",
@@ -22,16 +24,6 @@
   ],
   "passive": {
     "name": "Desert Scouts",
-    "check": [
-      {
-        "type": "resource",
-        "resource": "strength",
-        "amount": 6
-      },
-      {
-        "phase": "reveal"
-      }
-    ],
     "required": false,
     "reward": [
       {
