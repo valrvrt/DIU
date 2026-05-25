@@ -380,7 +380,9 @@ class SimpleCLI:
 
         # Ask about troops if this is a combat space and player has troops
         troops_to_deploy = 0
-        if placement_type == "normal" and player.troops_in_garrison > 0:
+        # placement_type can be an icon ('blue', 'green', 'fremen', etc.) or 'spy_infiltrate'
+        # Only spy infiltration doesn't allow troop deployment
+        if placement_type != "spy_infiltrate" and player.troops_in_garrison > 0:
             # Check if this is a combat space
             if hasattr(location, 'is_combat_space') and location.is_combat_space:
                 print(f"\n⚔️  {location.name} is a combat space!")
@@ -408,9 +410,7 @@ class SimpleCLI:
 
             # Check if signet ring was played
             if card.name == "Signet Ring" and player.leader:
-                self.print_section(f"⚡ {player.leader.name}'s Signet Ability")
-                self.print_info(f"  Note: Signet abilities are currently auto-resolved")
-                # TODO: Implement interactive signet ability choices
+                self.process_signet_ability(player, location)
 
             # Show what was gained
             if 'effects_applied' in result and result['effects_applied']:
@@ -430,6 +430,66 @@ class SimpleCLI:
             self.print_error(f"Failed: {result.get('error', 'Unknown error')}")
             time.sleep(2)
             self.take_turn_human(player)
+
+    def process_signet_ability(self, player: Player, location=None):
+        """Process leader signet ability when Signet Ring is played."""
+        self.print_section(f"⚡ {player.leader.name}'s Signet Ability")
+        # location parameter reserved for future use (conditional signets based on placement)
+
+        # Simple implementation for Princess Irulan
+        if player.leader.name == "Princess Irulan":
+            print("\nChoose signet ability:")
+            print("  1. Acquire a card (cost ≤1) from the imperium row")
+            print("  2. Trash a card from hand (gain 2 spice if it cost ≥1)")
+            print("  3. Skip signet ability")
+
+            choice = self.get_input("Choice:", ["1", "2", "3"])
+
+            if choice == "1":
+                # Show affordable cards (cost ≤ 1)
+                affordable = [c for c in self.game.board.imperium_row if c and c.cost <= 1]
+                if affordable:
+                    print("\nChoose card to acquire:")
+                    for i, card in enumerate(affordable, 1):
+                        print(f"  {i}. {card.name} (cost: {card.cost})")
+                    print("  0. Cancel")
+
+                    card_choice = self.get_input("Card:", [str(i) for i in range(len(affordable) + 1)])
+                    if card_choice != "0":
+                        card_to_acquire = affordable[int(card_choice) - 1]
+                        player.discard_pile.add_card(card_to_acquire)
+                        self.game.board.imperium_row.remove(card_to_acquire)
+                        self.print_success(f"Acquired {card_to_acquire.name}!")
+                else:
+                    self.print_info("No affordable cards in imperium row")
+
+            elif choice == "2":
+                # Trash a card
+                if player.hand.cards:
+                    print("\nChoose card to trash:")
+                    for i, card in enumerate(player.hand.cards, 1):
+                        print(f"  {i}. {card.name}")
+                    print("  0. Cancel")
+
+                    card_choice = self.get_input("Card:", [str(i) for i in range(len(player.hand.cards) + 1)])
+                    if card_choice != "0":
+                        card_to_trash = player.hand.cards[int(card_choice) - 1]
+                        player.hand.cards.remove(card_to_trash)
+
+                        # Check if card cost ≥ 1 for bonus
+                        if card_to_trash.cost >= 1:
+                            player.spice += 2
+                            self.print_success(f"Trashed {card_to_trash.name}! Gained 2 spice")
+                        else:
+                            self.print_success(f"Trashed {card_to_trash.name}!")
+                else:
+                    self.print_info("No cards in hand to trash")
+
+        else:
+            # For other leaders, show note
+            self.print_info(f"  {player.leader.name}'s signet ability not yet implemented")
+
+        time.sleep(1)
 
     def action_reveal(self, player: Player):
         """Handle reveal action."""
