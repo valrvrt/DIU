@@ -49,6 +49,26 @@ class Colors:
     END = '\033[0m'
 
 
+def _format_contract_rewards(rewards) -> str:
+    """Format a contract's reward list into a readable string."""
+    if not rewards:
+        return "none"
+    parts = []
+    for r in rewards:
+        rtype = r.get("type", "")
+        if rtype == "resource":
+            parts.append(f"+{r.get('amount', 1)} {r.get('resource', '?')}")
+        elif rtype == "influence":
+            parts.append(f"+{r.get('amount', 1)} {r.get('target', '?')} influence")
+        elif rtype == "accept":
+            parts.append("accept a contract")
+        elif rtype == "draw":
+            parts.append(f"draw {r.get('amount', 1)} {r.get('deck', 'card')}(s)")
+        else:
+            parts.append(rtype)
+    return ", ".join(parts)
+
+
 class SimpleCLI:
     """Simple command-line interface for DUNE Imperium."""
 
@@ -220,6 +240,26 @@ class SimpleCLI:
               f"|  🗑️  Discard: {len(player.discard_pile.cards)} cards")
         print(f"  🔍 Intrigue: {len(player.intrigue_cards)} cards")
 
+        # Active contracts
+        if getattr(player, 'contracts_active', []):
+            print(f"\n  📋 Active Contracts ({len(player.contracts_active)}):")
+            for c in player.contracts_active:
+                ctype = c.completion_type
+                if ctype == "harvest":
+                    cond = f"harvest {c.required_spice} spice"
+                elif ctype == "location":
+                    cond = f"visit {c.completion_target or '?'}"
+                elif ctype == "acquire_card":
+                    cond = f"buy {c.completion_target or 'any card'}"
+                else:
+                    cond = ctype
+                rewards_str = _format_contract_rewards(c.rewards)
+                print(f"    • {c.name}: {cond} → {rewards_str}")
+
+        # Completed contracts
+        if getattr(player, 'contracts_completed', []):
+            print(f"  ✅ Completed Contracts: {len(player.contracts_completed)}")
+
     def display_hand(self, player: Player):
         """Display player's hand."""
         if not player.hand.cards:
@@ -274,7 +314,7 @@ class SimpleCLI:
             print(f"  {i}. {space.name:30s} {status}{cost_info}{reward_info}{spice_info}")
 
     def display_imperium_row(self):
-        """Display the imperium row."""
+        """Display the imperium row and contract row."""
         self.print_section("Imperium Row (Cards for Purchase)")
 
         if hasattr(self.game.board, 'imperium_row') and self.game.board.imperium_row:
@@ -285,6 +325,38 @@ class SimpleCLI:
         else:
             print("  (imperium row not available)")
 
+        # Reserve piles
+        prepare = getattr(self.game.board, 'reserve_prepare_the_way', [])
+        spice_flow = getattr(self.game.board, 'reserve_spice_must_flow', [])
+        if prepare or spice_flow:
+            print(f"\n  🔮 Reserve Piles:")
+            if prepare:
+                print(f"    Prepare the Way   — Cost: 2   ×{len(prepare)} remaining")
+            if spice_flow:
+                print(f"    The Spice Must Flow — Cost: 8  ×{len(spice_flow)} remaining")
+
+        # Contract row
+        self.display_contract_row()
+
+    def display_contract_row(self):
+        """Display the two visible contracts in the contract row."""
+        contract_row = getattr(self.game.board, 'contract_row', [])
+        if not contract_row:
+            return
+
+        self.print_section("Contract Row")
+        for i, c in enumerate(contract_row[:2], 1):
+            if c.completion_type == "harvest":
+                cond = f"harvest {c.required_spice} spice"
+            elif c.completion_type == "location":
+                cond = f"visit {c.completion_target or '?'}"
+            elif c.completion_type == "acquire_card":
+                cond = f"buy {c.completion_target or 'any card'}"
+            else:
+                cond = c.completion_type
+            rewards_str = _format_contract_rewards(c.rewards)
+            print(f"  {i}. {c.name:20s} Complete: {cond:30s} → {rewards_str}")
+
     def take_turn_human(self, player: Player):
         """Handle human player's turn."""
         self.clear_screen()
@@ -292,6 +364,9 @@ class SimpleCLI:
 
         # Show conflict status first
         self.display_conflict_status()
+
+        # Show contract row (always visible)
+        self.display_contract_row()
 
         # Then show player status
         self.display_player_state(player)
