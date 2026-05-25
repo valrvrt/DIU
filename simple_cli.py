@@ -422,17 +422,26 @@ class SimpleCLI:
 
         location, placement_type = locations[int(choice) - 1]
 
-        # Ask about troops if this is a combat space and player has troops
+        # Calculate how many troops player will have AFTER location rewards
+        future_troops = player.troops_in_garrison
+        if hasattr(location, 'reward') and location.reward:
+            for r in location.reward:
+                if r.get('type') == 'resource' and r.get('resource') == 'troop':
+                    future_troops += r.get('amount', 0)
+
+        # Ask about troops if this is a combat space and player has/will have troops
         troops_to_deploy = 0
         # placement_type can be an icon ('blue', 'green', 'fremen', etc.) or 'spy_infiltrate'
         # Only spy infiltration doesn't allow troop deployment
-        if placement_type != "spy_infiltrate" and player.troops_in_garrison > 0:
+        if placement_type != "spy_infiltrate" and future_troops > 0:
             # Check if this is a combat space
             if hasattr(location, 'is_combat_space') and location.is_combat_space:
                 print(f"\n⚔️  {location.name} is a combat space!")
-                print(f"You have {player.troops_in_garrison} troops in garrison.")
+                print(f"You currently have {player.troops_in_garrison} troops in garrison.")
+                if future_troops > player.troops_in_garrison:
+                    print(f"After gaining rewards, you'll have {future_troops} troops.")
                 print("How many troops to deploy to the conflict? (0-2)")
-                max_troops = min(2, player.troops_in_garrison)
+                max_troops = min(2, future_troops)
                 troop_choice = self.get_input("Troops:", [str(i) for i in range(max_troops + 1)])
                 troops_to_deploy = int(troop_choice)
 
