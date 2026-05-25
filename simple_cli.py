@@ -156,11 +156,51 @@ class SimpleCLI:
         self.game.current_phase = GamePhase.PLAYER_TURNS
         self.game.current_round = 1
 
+        # Draw first conflict
+        if self.game.board.conflict_deck:
+            self.game.board.current_conflict = self.game.board.conflict_deck.pop(0)
+            self.print_success(f"First conflict: {self.game.board.current_conflict.name}")
+
         time.sleep(2)
+
+    def display_conflict_status(self):
+        """Display current conflict and player combat strength."""
+        if not self.game.board.current_conflict:
+            return
+
+        conflict = self.game.board.current_conflict
+
+        self.print_section(f"⚔️  Current Conflict: {conflict.name}")
+
+        # Show conflict rewards
+        if hasattr(conflict, 'rewards') and conflict.rewards:
+            print(f"  Rewards:")
+            for rank, reward_list in conflict.rewards.items():
+                reward_strs = []
+                for r in reward_list:
+                    if r.get('type') == 'resource':
+                        reward_strs.append(f"+{r.get('amount', 0)} {r.get('resource', '')}")
+                    elif r.get('type') == 'victory_points':
+                        reward_strs.append(f"+{r.get('amount', 0)} VP")
+                    elif r.get('type') == 'influence':
+                        reward_strs.append(f"+{r.get('amount', 0)} {r.get('target', '')} influence")
+                if reward_strs:
+                    print(f"    {rank}: {', '.join(reward_strs)}")
+
+        # Show player combat strength
+        print(f"\n  Combat Strength:")
+        for player in sorted(self.game.players, key=lambda p: p.troops_in_conflict, reverse=True):
+            strength_icon = "🏆" if player.troops_in_conflict > 0 else "  "
+            print(f"    {strength_icon} {player.name:20s} {player.troops_in_conflict} troops")
 
     def display_player_state(self, player: Player):
         """Display current player state."""
         self.print_section(f"{player.name}'s Status")
+
+        # Show objectives
+        if hasattr(player, 'objectives') and player.objectives:
+            obj_names = [obj.name for obj in player.objectives]
+            print(f"  🎯 Objective: {', '.join(obj_names)}")
 
         # Resources
         print(f"  💰 Solari: {player.solari}  |  🧂 Spice: {player.spice}  |  💧 Water: {player.water}")
@@ -250,6 +290,10 @@ class SimpleCLI:
         self.clear_screen()
         self.print_header(f"Round {self.game.current_round} - {player.name}'s Turn")
 
+        # Show conflict status first
+        self.display_conflict_status()
+
+        # Then show player status
         self.display_player_state(player)
 
         # Show hand
