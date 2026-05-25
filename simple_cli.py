@@ -538,6 +538,43 @@ class SimpleCLI:
                 else:
                     self.print_info("No cards in hand to trash")
 
+        elif player.leader.name == "Feyd Rautha Harkonnen":
+            # Simplified Feyd-Rautha signet (complex multi-step ability)
+            print("\nFeyd-Rautha's Signet (simplified):")
+            print("  1. Choice: Pay 1 solari to trash a card, OR skip")
+            print("  2. Trash a card from hand (mandatory)")
+            print("  3. Gain 2 spice")
+            print("  4. Skip")
+
+            choice = self.get_input("Choice:", ["1", "2", "3", "4"])
+
+            if choice == "1" and player.solari >= 1:
+                # Pay 1 solari to trash
+                if player.hand.cards:
+                    print("\nChoose card to trash:")
+                    for i, card in enumerate(player.hand.cards, 1):
+                        print(f"  {i}. {card.name}")
+                    card_choice = self.get_input("Card:", [str(i) for i in range(1, len(player.hand.cards) + 1)])
+                    card_to_trash = player.hand.cards[int(card_choice) - 1]
+                    player.hand.cards.remove(card_to_trash)
+                    player.solari -= 1
+                    self.print_success(f"Paid 1 solari, trashed {card_to_trash.name}")
+
+            elif choice == "2":
+                # Mandatory trash
+                if player.hand.cards:
+                    print("\nChoose card to trash:")
+                    for i, card in enumerate(player.hand.cards, 1):
+                        print(f"  {i}. {card.name}")
+                    card_choice = self.get_input("Card:", [str(i) for i in range(1, len(player.hand.cards) + 1)])
+                    card_to_trash = player.hand.cards[int(card_choice) - 1]
+                    player.hand.cards.remove(card_to_trash)
+                    self.print_success(f"Trashed {card_to_trash.name}")
+
+            # Always get 2 spice
+            player.spice += 2
+            self.print_success("Gained 2 spice from signet")
+
         else:
             # For other leaders, show note
             self.print_info(f"  {player.leader.name}'s signet ability not yet implemented")
