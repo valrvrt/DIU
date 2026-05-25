@@ -27,6 +27,7 @@ from src.engine.managers.combat_manager import CombatManager
 from src.engine.managers.makers_manager import MakersManager
 from src.engine.managers.influence_manager import InfluenceManager
 from src.engine.managers.victory_point_manager import VictoryPointManager
+from src.engine.managers.contract_manager import ContractManager
 from src.engine.actions.action_generator import ActionGenerator
 from src.engine.actions.action_executor import ActionExecutor, PlaceAgentAction, RevealAction, AcquireCardAction, PlayIntrigueAction
 from src.engine.effects.effect_resolver import EffectResolver
@@ -150,6 +151,8 @@ class SimpleCLI:
         action_generator = ActionGenerator(game, phase_manager, effect_resolver)
         action_executor = ActionExecutor(game, phase_manager, deck_manager, effect_resolver)
 
+        contract_manager = ContractManager(game)
+
         self.managers = {
             "phase_manager": phase_manager,
             "deck_manager": deck_manager,
@@ -160,6 +163,7 @@ class SimpleCLI:
             "influence_manager": influence_manager,
             "victory_point_manager": victory_point_manager,
             "effect_resolver": effect_resolver,
+            "contract_manager": contract_manager,
             "game": game
         }
 
@@ -753,6 +757,8 @@ class SimpleCLI:
 
     def _human_acquisition(self, player: Player, action_gen, action_exec):
         """Interactive acquisition menu for the human player."""
+        contract_manager = self.managers.get("contract_manager")
+
         while True:
             options = action_gen.get_acquisition_options(player.player_id)
             persuasion = options.get("total_persuasion", 0)
@@ -761,7 +767,7 @@ class SimpleCLI:
             self.print_section(f"{player.name}'s Acquisition — {persuasion_left} persuasion remaining")
 
             # Build numbered buy list: imperium row + reserve piles
-            choices = []   # list of (card, source_str)
+            choices = []   # list of (card_or_contract, source_str)
 
             print("\n  IMPERIUM ROW:")
             for card in options.get("imperium_row", []):
@@ -790,26 +796,67 @@ class SimpleCLI:
                     print(f"    [{idx}] {marker} {card.name:30s} Cost: {card.cost}  ×{len(reserve_spice)} left")
                     choices.append((card, "reserve"))
 
+            # Show contracts (free to accept — no persuasion cost)
+            contract_row = getattr(self.game.board, 'contract_row', [])
+            if contract_manager and contract_row:
+                print("\n  CONTRACTS (free — accept to take on a mission):")
+                for contract in contract_row[:2]:
+                    ctype = getattr(contract, 'completion_type', '?')
+                    ctarget = getattr(contract, 'completion_target', '') or ''
+                    creq = getattr(contract, 'required_spice', 0)
+                    if ctype == 'location':
+                        cond = f"visit {ctarget}"
+                    elif ctype == 'harvest':
+                        cond = f"harvest {creq} spice total"
+                    elif ctype == 'acquire_card':
+                        cond = f"acquire '{ctarget}'"
+                    else:
+                        cond = "immediate"
+                    rewards_str = _format_contract_rewards(getattr(contract, 'rewards', []))
+                    idx = len(choices) + 1
+                    print(f"    [{idx}] 📋 {contract.name:28s} {cond} → {rewards_str}")
+                    choices.append((contract, "contract"))
+
             valid = [str(i) for i in range(len(choices) + 1)]
-            choice = self.get_input(f"\n  Buy [1-{len(choices)}] or [0] pass:", valid)
+            choice = self.get_input(f"\n  Choose [1-{len(choices)}] or [0] pass:", valid)
 
             if choice == "0":
                 break
 
             idx = int(choice) - 1
-            card, source = choices[idx]
+            item, source = choices[idx]
 
-            if card.cost > persuasion_left:
-                self.print_error(f"Cannot afford {card.name} (need {card.cost}, have {persuasion_left})")
+            if source == "contract":
+                # Accept a contract — no persuasion cost
+                result = contract_manager.acquire_contract(player.player_id, item)
+                if result.get("success"):
+                    if result.get("completed"):
+                        self.print_success(f"Contract '{item.name}' completed immediately!")
+                        rewards = result.get("rewards", {})
+                        applied = rewards.get("rewards_applied", [])
+                        if applied:
+                            print(f"  Rewards: {', '.join(f'+{r[\"amount\"]} {r[\"reward\"]}' for r in applied)}")
+                    else:
+                        self.print_success(f"Contract '{item.name}' accepted!")
+                        ctype = result.get("completion_type", "")
+                        ctarget = result.get("target", "")
+                        print(f"  Complete by: {ctype} {ctarget or ''}")
+                else:
+                    self.print_error(f"Cannot accept contract: {result.get('error', 'Unknown error')}")
+                continue  # Don't break — player can still buy cards
+
+            # Card purchase
+            if item.cost > persuasion_left:
+                self.print_error(f"Cannot afford {item.name} (need {item.cost}, have {persuasion_left})")
                 continue
 
             result = action_exec.execute_acquire_card(
-                AcquireCardAction(player_id=player.player_id, card=card, source=source)
+                AcquireCardAction(player_id=player.player_id, card=item, source=source)
             )
             if result.get("success"):
-                self.print_success(f"Acquired {card.name}!")
+                self.print_success(f"Acquired {item.name}!")
                 # Deduct cost from temp_persuasion
-                player.temp_persuasion = getattr(player, 'temp_persuasion', persuasion_left) - card.cost
+                player.temp_persuasion = getattr(player, 'temp_persuasion', persuasion_left) - item.cost
                 if player.temp_persuasion <= 0:
                     break
             else:
@@ -818,6 +865,7 @@ class SimpleCLI:
     def _bot_acquisition(self, player: Player, action_gen, action_exec):
         """Simple random bot acquisition fallback."""
         import random
+        contract_manager = self.managers.get("contract_manager")
         options = action_gen.get_acquisition_options(player.player_id)
         persuasion = options.get("total_persuasion", 0)
 
@@ -836,6 +884,15 @@ class SimpleCLI:
             )
             if result.get("success"):
                 self.print_bot_action(f"{player.name} acquires {card.name}")
+
+        # Bots accept a contract ~30% of the time if one is available
+        if contract_manager and random.random() < 0.3:
+            contract_row = getattr(self.game.board, 'contract_row', [])
+            if contract_row:
+                contract = random.choice(contract_row[:2])
+                result = contract_manager.acquire_contract(player.player_id, contract)
+                if result.get("success"):
+                    self.print_bot_action(f"{player.name} accepts contract '{contract.name}'")
 
     def run_combat_phase(self):
         """Run the combat phase."""
