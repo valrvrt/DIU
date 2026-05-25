@@ -81,9 +81,9 @@ def test_phase_manager_triggers_makers_phase():
     phase_manager._initialize_phase(GamePhase.MAKERS)
 
     # All unoccupied maker spaces should have 1 bonus spice
-    assert deep_desert.bonus_spice == 1
-    assert haga_bassin.bonus_spice == 1
-    assert imperial_bassin.bonus_spice == 1
+    assert deep_desert.spice_bonus == 1
+    assert haga_bassin.spice_bonus == 1
+    assert imperial_bassin.spice_bonus == 1
 
     print("✓ PhaseManager automatically triggers MAKERS phase")
     print(f"  Bonus spice added to all 3 maker spaces")
@@ -102,7 +102,7 @@ def test_makers_phase_in_round_progression():
 
     # Should now be in MAKERS phase
     assert game.current_phase == GamePhase.MAKERS
-    assert deep_desert.bonus_spice == 1
+    assert deep_desert.spice_bonus == 1
 
     # MAKERS → RECALL
     phase_manager.advance_phase()
@@ -117,10 +117,10 @@ def test_makers_phase_in_round_progression():
     phase_manager._initialize_phase(GamePhase.MAKERS)
 
     # Bonus spice should have accumulated
-    assert deep_desert.bonus_spice == 2  # 1 from round 1 + 1 from round 2
+    assert deep_desert.spice_bonus == 2  # 1 from round 1 + 1 from round 2
 
     print("✓ MAKERS phase works in round progression")
-    print(f"  Bonus spice after 2 rounds: {deep_desert.bonus_spice}")
+    print(f"  Bonus spice after 2 rounds: {deep_desert.spice_bonus}")
 
 
 def test_occupied_spaces_skipped_during_phase_transition():
@@ -138,11 +138,11 @@ def test_occupied_spaces_skipped_during_phase_transition():
     phase_manager._initialize_phase(GamePhase.MAKERS)
 
     # Occupied space should NOT get bonus (attribute won't exist if never updated)
-    assert getattr(deep_desert, 'bonus_spice', 0) == 0
+    assert getattr(deep_desert, 'spice_bonus', 0) == 0
 
     # Unoccupied spaces should get bonus
-    assert haga_bassin.bonus_spice == 1
-    assert imperial_bassin.bonus_spice == 1
+    assert haga_bassin.spice_bonus == 1
+    assert imperial_bassin.spice_bonus == 1
 
     print("✓ Occupied spaces correctly skipped during phase transition")
 
@@ -157,29 +157,29 @@ def test_multiple_rounds_accumulation():
     # Round 1
     game.current_phase = GamePhase.MAKERS
     phase_manager._initialize_phase(GamePhase.MAKERS)
-    assert deep_desert.bonus_spice == 1
+    assert deep_desert.spice_bonus == 1
 
     # Round 2
     phase_manager._initialize_phase(GamePhase.MAKERS)
-    assert deep_desert.bonus_spice == 2
+    assert deep_desert.spice_bonus == 2
 
     # Round 3
     phase_manager._initialize_phase(GamePhase.MAKERS)
-    assert deep_desert.bonus_spice == 3
+    assert deep_desert.spice_bonus == 3
 
     # Round 4 - occupy Deep Desert before MAKERS
     deep_desert.occupied_by = "player1"
     phase_manager._initialize_phase(GamePhase.MAKERS)
-    assert deep_desert.bonus_spice == 3  # Unchanged (occupied)
+    assert deep_desert.spice_bonus == 3  # Unchanged (occupied)
 
     # Other spaces continue accumulating
-    assert haga_bassin.bonus_spice == 4
-    assert imperial_bassin.bonus_spice == 4
+    assert haga_bassin.spice_bonus == 4
+    assert imperial_bassin.spice_bonus == 4
 
     print("✓ Bonus spice accumulates correctly over multiple rounds")
-    print(f"  Deep Desert (occupied): {deep_desert.bonus_spice}")
-    print(f"  Haga Bassin: {haga_bassin.bonus_spice}")
-    print(f"  Imperial Bassin: {imperial_bassin.bonus_spice}")
+    print(f"  Deep Desert (occupied): {deep_desert.spice_bonus}")
+    print(f"  Haga Bassin: {haga_bassin.spice_bonus}")
+    print(f"  Imperial Bassin: {imperial_bassin.spice_bonus}")
 
 
 def test_custom_makers_manager_can_be_injected():
@@ -202,7 +202,7 @@ def test_custom_makers_manager_can_be_injected():
     phase_manager._initialize_phase(GamePhase.MAKERS)
 
     # Should still work correctly
-    assert deep_desert.bonus_spice == 1
+    assert deep_desert.spice_bonus == 1
 
     print("✓ Custom MakersManager can be injected")
 

@@ -32,21 +32,20 @@ def load_starter_deck() -> List[ImperiumCard]:
         amount = card_data.get('amount')
 
         for _ in range(amount):
-            for i in range(amount):
-                card = ImperiumCard(
-                    id=str(card_data['id']),
-                    name=card_data['name'],
-                    card_type=CardType.IMPERIUM,
-                    type="Imperium",
-                    factions=card_data.get('factions', []),
-                    starting_hand=True,
-                    cost=0,  # Starter cards are free
-                    on_acquire_effects=[],
-                    agent_icons=card_data.get('agent_icon', []),
-                    agent_effects=card_data.get('agent_effects', []),
-                    reveal_effects=card_data.get('reveal_effects', [])
-                )
-                cards.append(card)
+            card = ImperiumCard(
+                id=str(card_data['id']),
+                name=card_data['name'],
+                card_type=CardType.IMPERIUM,
+                type="Imperium",
+                factions=card_data.get('factions', []),
+                starting_hand=True,
+                cost=0,  # Starter cards are free
+                on_acquire_effects=[],
+                agent_icons=card_data.get('agent_icon', []),
+                agent_effects=card_data.get('agent_effects', []),
+                reveal_effects=card_data.get('reveal_effects', [])
+            )
+            cards.append(card)
 
     return cards
 
@@ -206,22 +205,27 @@ def load_contract_cards() -> List[ContractCard]:
 
 
 def load_leaders() -> List[LeaderCard]:
-    """Load all Leader cards."""
-    file_path = _get_data_path("leaders.JSON")
-
-    with open(file_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+    """Load all Leader cards from data/leader_data/*.json."""
+    from pathlib import Path
+    leader_data_dir = Path(__file__).parent.parent.parent / "data" / "leader_data"
 
     leaders = []
-    for leader_data in data:
-        signet_ability = leader_data.get('signet_ability', {})
+    for json_file in sorted(leader_data_dir.glob("*.json")):
+        # reverendmother is a transformation target, not a standalone leader
+        if json_file.name == 'reverendmother.json':
+            continue
+
+        with open(json_file, 'r', encoding='utf-8') as f:
+            leader_data = json.load(f)
+
+        signet = leader_data.get('signet', [])
 
         leader = LeaderCard(
-            id=str(leader_data['id']),
+            id=str(leader_data.get('id', json_file.stem)),
             name=leader_data['name'],
             card_type=CardType.LEADER,
             type="Leader",
-            ring=signet_ability.get('effects', []),
+            ring=signet,
             passive_condition=[],
             passive_gain=[]
         )

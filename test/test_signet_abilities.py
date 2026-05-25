@@ -132,7 +132,8 @@ def test_all_leaders_signet_abilities():
 
     for leader in leaders:
         print(f"\n{leader.name}:")
-        print(f"  Signet: {leader.signet_ability.get('description', 'No description')}")
+        signet = leader.signet_ability or {}
+        print(f"  Signet: {signet.get('description', 'No description')}")
 
         # Create test game
         game = Game()

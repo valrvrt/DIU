@@ -1,4 +1,6 @@
 {
+  "id": 2,
+  "name": "Gurney Halleck",
   "signet": {
     "reward": [{ "type": "resource", "resource": "troop", "amount": 1 }]
   },
@@ -6,7 +8,7 @@
     "name": "Always Smiling",
     "check": [
       { "type": "resource", "resource": "strength", "amount": 6 },
-      { "phase": "reveal" }
+      { "type": "phase", "phase": "reveal" }
     ],
     "reward": [{ "type": "resource", "resource": "persuasion", "amount": 1 }]
   }

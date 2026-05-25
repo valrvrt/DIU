@@ -89,9 +89,9 @@ def test_makers_phase_adds_bonus_spice():
     assert len(result["spaces_updated"]) == 3
 
     # Each maker space should have 1 bonus spice
-    assert deep_desert.bonus_spice == 1
-    assert haga_bassin.bonus_spice == 1
-    assert imperial_bassin.bonus_spice == 1
+    assert deep_desert.spice_bonus == 1
+    assert haga_bassin.spice_bonus == 1
+    assert imperial_bassin.spice_bonus == 1
 
     print("✓ MAKERS phase adds bonus spice correctly")
     print(f"  Total bonus added: {result['total_bonus_added']}")
@@ -118,11 +118,11 @@ def test_makers_phase_skips_occupied_spaces():
     assert result["total_bonus_added"] == 2  # Only 2 unoccupied spaces
 
     # Occupied space should NOT get bonus
-    assert getattr(deep_desert, 'bonus_spice', 0) == 0  # Unchanged (no attribute = not updated)
+    assert getattr(deep_desert, 'spice_bonus', 0) == 0  # Unchanged (no attribute = not updated)
 
     # Unoccupied spaces should get bonus
-    assert haga_bassin.bonus_spice == 1
-    assert imperial_bassin.bonus_spice == 1
+    assert haga_bassin.spice_bonus == 1
+    assert imperial_bassin.spice_bonus == 1
 
     print("✓ MAKERS phase correctly skips occupied spaces")
     print(f"  Spaces updated: {len(result['spaces_updated'])} (should be 2)")
@@ -140,18 +140,18 @@ def test_bonus_spice_accumulates_over_rounds():
 
     # Round 1: Add 1 spice to each
     makers_manager.execute_makers_phase()
-    assert deep_desert.bonus_spice == 1
+    assert deep_desert.spice_bonus == 1
 
     # Round 2: Add 1 more spice to each
     makers_manager.execute_makers_phase()
-    assert deep_desert.bonus_spice == 2
+    assert deep_desert.spice_bonus == 2
 
     # Round 3: Add 1 more spice to each
     makers_manager.execute_makers_phase()
-    assert deep_desert.bonus_spice == 3
+    assert deep_desert.spice_bonus == 3
 
     print("✓ Bonus spice accumulates correctly over rounds")
-    print(f"  Deep Desert after 3 rounds: {deep_desert.bonus_spice} spice")
+    print(f"  Deep Desert after 3 rounds: {deep_desert.spice_bonus} spice")
 
 
 def test_claim_bonus_spice():
@@ -163,7 +163,7 @@ def test_claim_bonus_spice():
     game.board = board
 
     # Accumulate spice over 3 rounds
-    deep_desert.bonus_spice = 3
+    deep_desert.spice_bonus = 3
 
     makers_manager = MakersManager(game)
 
@@ -171,11 +171,11 @@ def test_claim_bonus_spice():
     claimed = makers_manager.claim_bonus_spice(deep_desert, "player1")
 
     assert claimed == 3
-    assert deep_desert.bonus_spice == 0  # Reset after claiming
+    assert deep_desert.spice_bonus == 0  # Reset after claiming
 
     print("✓ Claiming bonus spice works correctly")
     print(f"  Claimed: {claimed} spice")
-    print(f"  Remaining: {deep_desert.bonus_spice} spice")
+    print(f"  Remaining: {deep_desert.spice_bonus} spice")
 
 
 def test_get_maker_spaces_status():
@@ -187,10 +187,10 @@ def test_get_maker_spaces_status():
     game.board = board
 
     # Set up different states
-    deep_desert.bonus_spice = 3
-    haga_bassin.bonus_spice = 1
+    deep_desert.spice_bonus = 3
+    haga_bassin.spice_bonus = 1
     haga_bassin.occupied_by = "player1"
-    imperial_bassin.bonus_spice = 2
+    imperial_bassin.spice_bonus = 2
 
     makers_manager = MakersManager(game)
 
@@ -201,13 +201,13 @@ def test_get_maker_spaces_status():
     # Find Deep Desert status
     dd_status = next(s for s in status if s["name"] == "Deep Desert")
     assert dd_status["occupied"] == False
-    assert dd_status["bonus_spice"] == 3
+    assert dd_status["spice_bonus"] == 3
 
     # Find Haga Bassin status
     hb_status = next(s for s in status if s["name"] == "Haga Bassin")
     assert hb_status["occupied"] == True
     assert hb_status["occupied_by"] == "player1"
-    assert hb_status["bonus_spice"] == 1
+    assert hb_status["spice_bonus"] == 1
 
     print("✓ Getting maker spaces status works")
     print(f"  Maker spaces: {len(status)}")

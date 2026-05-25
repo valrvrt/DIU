@@ -1,0 +1,28 @@
+{
+  "id": 5,
+  "name": "Lady Margot Fenring",
+  "signet": [
+    {
+      "reward": [
+        {
+          "type": "ply",
+          "agent": "spy",
+          "amount": 1,
+          "target": "blue"
+        }
+      ]
+    }
+  ],
+  "passive": {
+    "check": [
+      { "type": "influence_reached", "target": "bene_gesserit", "amount": 2 }
+    ],
+    "reward": [
+      {
+        "type": "resource",
+        "resource": "spice",
+        "amount": 2
+      }
+    ]
+  }
+}

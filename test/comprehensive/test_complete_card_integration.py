@@ -110,6 +110,8 @@ class TestHelper:
             'deck_size': len(player.deck.cards),
             'discard_size': len(player.discard_pile.cards),
             'intrigue_cards': len(player.intrigue_cards),
+            'spies_available': player.spies_available,
+            'spies_placed_count': len(getattr(player, 'spies_placed', [])),
             # Temporary resources (created dynamically by effect resolver)
             'persuasion': getattr(player, 'temp_persuasion', 0),
             'swords': getattr(player, 'temp_swords', 0),
@@ -139,9 +141,9 @@ class TestAllImperiumCards:
 
         Breakdown:
           - 54 market cards (non-starter, non-reserve)
-          - 7 starter cards (Reconnaissance x1, Convincing Argument x2, Dagger x2,
+          - 7 starter card definitions (Reconnaissance x1, Convincing Argument x2, Dagger x2,
             Diplomacy x2, Dune the Desert Planet x1, Seek Allies x1, Signet Ring x1)
-          - 2 reserve card definitions (Prepare the Way, The Spice Must Flow)
+          - 2 reserve card definitions (Prepare the Way ×4, The Spice Must Flow ×2)
           Total: 63 entries in imperium.JSON
         """
         assert len(imperium_cards) == 63, f"Expected 63 imperium card entries, found {len(imperium_cards)}"
@@ -610,7 +612,20 @@ class TestAllLeaderCards:
     @pytest.fixture
     def leader_data(self):
         """Load all leader cards."""
-        return TestHelper.load_card_data("leaders.JSON")
+        from src.loaders.leader_loader import load_leaders
+        # Load leaders using the new loader
+        leaders = load_leaders()
+        # Convert to dict format for compatibility with tests
+        return [
+            {
+                'id': leader.leader_id,
+                'name': leader.name,
+                'signet_ability': {
+                    'effects': leader.signet_ability.get('effects', []) if leader.signet_ability else []
+                }
+            }
+            for leader in leaders
+        ]
 
     def test_all_leader_cards_load(self, leader_data):
         """Verify all leader cards load correctly."""

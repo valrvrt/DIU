@@ -23,8 +23,11 @@ class BoardSpace:
     # Prerequisites (new JSON format with check array)
     check: Optional[list] = None  # e.g., [{"type": "influence", "target": "fremen", "amount": 2}]
 
-    # Effects when agent placed
+    # Effects when agent placed (old format - dict)
     effects: dict[str, int] = field(default_factory=dict)
+
+    # Rewards when agent placed (new format - list of effect objects)
+    reward: list = field(default_factory=list)  # e.g., [{"type": "resource", "resource": "water", "amount": 1}]
     
     # Combat-related
     is_combat_space: bool = False

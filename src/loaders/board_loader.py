@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from pprint import pprint
 from typing import List
 
 from ..models.boardspace import BoardSpace, ObservationPost
@@ -33,11 +34,13 @@ def load_board_spaces() -> List[BoardSpace]:
             name=space_data['name'],
             agent_icon=space_data['agent_icon'],
             faction=space_data.get('faction'),
-            cost=space_data.get('cost', {}),
+            cost=space_data.get('cost', []),
             required_influence=space_data.get('required_influence'),
             check=space_data.get('check'),  # New JSON format for requirements
-            # 'reward' in new format, 'effects' in old format
-            effects=space_data.get('reward', space_data.get('effects', {})),
+            # Old format: effects (dict)
+            effects=space_data.get('effects', {}),
+            # New format: reward (list)
+            reward=space_data.get('reward', []),
             # 'combat_space' in new format, 'is_combat_space' in old format
             is_combat_space=space_data.get('combat_space', space_data.get('is_combat_space', False)),
             # 'maker' in new format, 'is_maker_space' in old format
@@ -47,6 +50,8 @@ def load_board_spaces() -> List[BoardSpace]:
             control_bonus=space_data.get('control_bonus', {})
         )
         spaces.append(space)
+        
+    # pprint(spaces)
 
     return spaces
 

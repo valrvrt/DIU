@@ -11,7 +11,9 @@ Demonstrates:
 
 import sys
 from pathlib import Path
-
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.engine.actions.effect_ordering import EffectOrderingManager
