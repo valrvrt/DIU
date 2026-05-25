@@ -135,8 +135,8 @@ class TestAllImperiumCards:
         return TestHelper.load_card_data("imperium.JSON")
 
     def test_all_imperium_cards_load(self, imperium_cards):
-        """Verify all 60 imperium cards load correctly."""
-        assert len(imperium_cards) == 60, f"Expected 60 imperium cards, found {len(imperium_cards)}"
+        """Verify all imperium cards load correctly (60 market + 1 Signet Ring starter = 61 total)."""
+        assert len(imperium_cards) == 61, f"Expected 61 imperium cards (60 market + Signet Ring starter), found {len(imperium_cards)}"
 
     def test_all_reveal_effects(self, imperium_cards):
         """

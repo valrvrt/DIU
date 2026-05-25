@@ -2,13 +2,13 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.setup.game_setup import GameSetup
+from src.engine.core.game_setup import GameSetup
 from src.engine.effects.effect_resolver import EffectResolver
 
-# Create game
-game, setup_info = GameSetup.create_game(player_count=2)
+# Create game (minimum 3 players required)
+game, setup_info = GameSetup.create_game(player_count=3)
 player = game.players[0]
 
 # Initialize spy resources

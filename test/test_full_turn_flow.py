@@ -59,17 +59,13 @@ def setup_test_game():
         card_type=CardType.IMPERIUM,
         cost=3,
         agent_icons=["fremen"],
-        agent_effects={
-            "base": {
-                "water": 1,
-                "troops": 1
-            }
-        },
-        reveal_effects={
-            "base": {
-                "persuasion": 2
-            }
-        }
+        agent_effects=[
+            {"type": "resource", "resource": "water", "amount": 1},
+            {"type": "resource", "resource": "troop", "amount": 1}
+        ],
+        reveal_effects=[
+            {"type": "resource", "resource": "persuasion", "amount": 2}
+        ]
     )
 
     card2 = ImperiumCard(
@@ -79,16 +75,12 @@ def setup_test_game():
         card_type=CardType.IMPERIUM,
         cost=4,
         agent_icons=["landsraad"],
-        agent_effects={
-            "base": {
-                "solari": 3
-            }
-        },
-        reveal_effects={
-            "base": {
-                "persuasion": 3
-            }
-        }
+        agent_effects=[
+            {"type": "resource", "resource": "solari", "amount": 3}
+        ],
+        reveal_effects=[
+            {"type": "resource", "resource": "persuasion", "amount": 3}
+        ]
     )
 
     player.hand.add_card(card1)
@@ -99,18 +91,18 @@ def setup_test_game():
         id="fremen_camp",
         name="Fremen Camp",
         agent_icon="fremen",
-        effects={
-            "water": 1
-        }
+        effects=[
+            {"type": "resource", "resource": "water", "amount": 1}
+        ]
     )
 
     landsraad_hall = BoardSpace(
         id="landsraad",
         name="Landsraad Hall",
         agent_icon="landsraad",
-        effects={
-            "solari": 2
-        }
+        effects=[
+            {"type": "resource", "resource": "solari", "amount": 2}
+        ]
     )
 
     # Create board
@@ -196,9 +188,12 @@ def test_complete_agent_turn():
 
     print(f"\nExecution result:")
     print(f"  Success: {result['success']}")
-    print(f"  Action type: {result['action_type']}")
-    print(f"  Location: {result['location']}")
-    print(f"  Placement type: {result['placement_type']}")
+    if result['success']:
+        print(f"  Action type: {result.get('action_type', 'N/A')}")
+        print(f"  Location: {result.get('location', 'N/A')}")
+        print(f"  Placement type: {result.get('placement_type', 'N/A')}")
+    else:
+        print(f"  Error: {result.get('error', 'unknown')}")
 
     print(f"\nAfter execution:")
     print(f"  Water: {player.water}")

@@ -1,24 +1,21 @@
 """
 Comprehensive test suite for all 60 Imperium cards.
 
-Tests each card's:
-- on_acquire effects (when buying the card)
-- agent effects (when playing the card and sending agent)
-- reveal effects (when revealing the card from hand)
-- Any special effects (on_discard, on_trash, fremen_bond, etc.)
-
-This ensures every card works correctly in all scenarios.
+NOTE: This test is superseded by test/comprehensive/test_complete_card_integration.py
+which is the canonical test for all card effects. Kept for reference only.
 """
 
 import pytest
 import json
 from pathlib import Path
+
+pytestmark = pytest.mark.skip(reason="Superseded by test/comprehensive/test_complete_card_integration.py")
 from unittest.mock import Mock, MagicMock
 
 from src.engine.effects.effect_resolver import EffectResolver
 from src.models.player import Player
-from src.models.card import Card, Deck, Hand
-from src.models.board import BoardSpace, ObservationPost
+from src.models.deck import Deck
+from src.models.boardspace import BoardSpace, ObservationPost
 
 
 class TestImperiumCards:

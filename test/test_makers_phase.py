@@ -28,10 +28,9 @@ def create_test_board_with_maker_spaces():
         name="Deep Desert",
         faction=None,
         agent_icon="yellow",
-        is_combat_space=True
+        is_combat_space=True,
+        is_maker_space=True
     )
-    deep_desert.maker = True
-    deep_desert.bonus_spice = 0
     deep_desert.occupied_by = None
 
     haga_bassin = BoardSpace(
@@ -39,10 +38,9 @@ def create_test_board_with_maker_spaces():
         name="Haga Bassin",
         faction=None,
         agent_icon="yellow",
-        is_combat_space=True
+        is_combat_space=True,
+        is_maker_space=True
     )
-    haga_bassin.maker = True
-    haga_bassin.bonus_spice = 0
     haga_bassin.occupied_by = None
 
     imperial_bassin = BoardSpace(
@@ -50,10 +48,9 @@ def create_test_board_with_maker_spaces():
         name="Imperial Bassin",
         faction=None,
         agent_icon="yellow",
-        is_combat_space=True
+        is_combat_space=True,
+        is_maker_space=True
     )
-    imperial_bassin.maker = True
-    imperial_bassin.bonus_spice = 0
     imperial_bassin.occupied_by = None
 
     # Create a non-maker space
@@ -62,9 +59,9 @@ def create_test_board_with_maker_spaces():
         name="Fremkit",
         faction="fremen",
         agent_icon="fremen",
-        is_combat_space=True
+        is_combat_space=True,
+        is_maker_space=False
     )
-    fremkit.maker = False
     fremkit.occupied_by = None
 
     board.spaces = [deep_desert, haga_bassin, imperial_bassin, fremkit]
@@ -121,7 +118,7 @@ def test_makers_phase_skips_occupied_spaces():
     assert result["total_bonus_added"] == 2  # Only 2 unoccupied spaces
 
     # Occupied space should NOT get bonus
-    assert deep_desert.bonus_spice == 0  # Unchanged
+    assert getattr(deep_desert, 'bonus_spice', 0) == 0  # Unchanged (no attribute = not updated)
 
     # Unoccupied spaces should get bonus
     assert haga_bassin.bonus_spice == 1
@@ -226,7 +223,7 @@ def test_non_maker_spaces_ignored():
 
     # Get the non-maker space (Fremkit)
     fremkit = board.spaces[3]
-    assert fremkit.maker == False
+    assert fremkit.is_maker_space == False
 
     makers_manager = MakersManager(game)
 

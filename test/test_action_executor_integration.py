@@ -89,18 +89,19 @@ def test_place_agent_with_location_effects_from_json():
     action_exec = ActionExecutor(game)
 
     # Load real space from JSON
-    spaces = load_json_data("/Users/val/Desktop/Pythoneries/DUNE Imperium Uprising/data/spaces.JSON")
+    spaces = load_json_data("spaces.JSON")
     fremkit = next(s for s in spaces if s["name"] == "Fremkit")
 
     # Create BoardSpace from JSON data
+    # board_loader maps 'reward' -> 'effects', so use effects here too
     location = BoardSpace(
         id=fremkit["id"],
         name=fremkit["name"],
         faction=fremkit.get("faction"),
         agent_icon=fremkit.get("agent_icon", "neutral"),
-        is_combat_space=fremkit.get("combat_space", False)
+        is_combat_space=fremkit.get("combat_space", False),
+        effects=fremkit.get("reward", [])
     )
-    location.reward = fremkit["reward"]  # Store JSON reward data
 
     # Create a test card
     card = ImperiumCard(type="Imperium", card_type=CardType.IMPERIUM, 
@@ -141,17 +142,18 @@ def test_place_agent_with_choice_effect():
     action_exec = ActionExecutor(game)
 
     # Load Deep Desert from JSON (has choice: spice or worms)
-    spaces = load_json_data("/Users/val/Desktop/Pythoneries/DUNE Imperium Uprising/data/spaces.JSON")
+    spaces = load_json_data("spaces.JSON")
     deep_desert = next(s for s in spaces if s["name"] == "Deep Desert")
 
+    # board_loader maps 'reward' -> 'effects', so use effects here too
     location = BoardSpace(
         id=deep_desert["id"],
         name=deep_desert["name"],
         faction=None,
         agent_icon=deep_desert.get("agent_icon", "yellow"),
-        is_combat_space=deep_desert.get("combat_space", False)
+        is_combat_space=deep_desert.get("combat_space", False),
+        effects=deep_desert.get("reward", [])
     )
-    location.reward = deep_desert["reward"]
     location.cost_effects = deep_desert.get("cost", [])
 
     # Create card
@@ -288,11 +290,10 @@ def test_card_agent_effects_separate_from_location():
         {"type": "resource", "resource": "solari", "amount": 3}
     ]
 
-    # Create location with effects
-    location = BoardSpace(id=1, name="Test Location", faction=None, agent_icon="test", is_combat_space=False)
-    location.reward = [
-        {"type": "resource", "resource": "water", "amount": 1}
-    ]
+    # Create location with effects (engine reads 'effects', not 'reward')
+    location = BoardSpace(id=1, name="Test Location", faction=None, agent_icon="test",
+                          is_combat_space=False,
+                          effects=[{"type": "resource", "resource": "water", "amount": 1}])
 
     player.hand.add_card(card)
     initial_solari = player.solari

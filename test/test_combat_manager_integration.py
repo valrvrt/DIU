@@ -131,7 +131,7 @@ def test_combat_with_real_conflict_from_json():
 
     # Resolve combat
     combat_manager = CombatManager(game)
-    result = combat_manager.resolve_conflict()
+    result = combat_manager.resolve_conflict(intrigue_round_complete=True)
 
     assert result["success"] == True
     assert result["conflict"] == "Skirmish (Crysknife)"
@@ -180,7 +180,7 @@ def test_tied_first_place_no_conflict_card():
 
     # Resolve combat
     combat_manager = CombatManager(game)
-    result = combat_manager.resolve_conflict()
+    result = combat_manager.resolve_conflict(intrigue_round_complete=True)
 
     assert result["success"] == True
 
@@ -273,7 +273,7 @@ def test_effect_resolver_applies_combat_rewards():
 
     # Resolve combat
     combat_manager = CombatManager(game)
-    result = combat_manager.resolve_conflict()
+    result = combat_manager.resolve_conflict(intrigue_round_complete=True)
 
     # Winner should get 1st place rewards
     # According to conflicts.JSON: {"type": "influence", "target": "any", "amount": 1, "times": 1}

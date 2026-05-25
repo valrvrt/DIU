@@ -441,11 +441,12 @@ def test_cleanup_temp_resources_after_player_turns():
 
     # Check cleanup
     assert player1.temp_persuasion == 0, f"Expected 0 persuasion, got {player1.temp_persuasion}"
-    assert player1.temp_swords == 0, f"Expected 0 swords, got {player1.temp_swords}"
+    # temp_swords are intentionally preserved through PLAYER_TURNS→COMBAT (used for combat resolution)
+    assert player1.temp_swords == 3, f"temp_swords preserved for combat, got {player1.temp_swords}"
     assert player1.has_revealed_this_round == False, "Should reset reveal status"
 
     assert player2.temp_persuasion == 0, f"Expected 0 persuasion, got {player2.temp_persuasion}"
-    assert player2.temp_swords == 0, f"Expected 0 swords, got {player2.temp_swords}"
+    assert player2.temp_swords == 2, f"temp_swords preserved for combat, got {player2.temp_swords}"
 
     print("✓ Temp resources cleaned up")
 

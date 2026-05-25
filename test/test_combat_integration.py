@@ -83,9 +83,9 @@ def setup_test_game():
     return game, player1, player2, conflict
 
 
-def test_combat_phase_auto_resolves():
-    """Test that combat phase automatically resolves conflict."""
-    print("\n=== Test: Combat Phase Auto-Resolves ===")
+def test_combat_phase_resolves():
+    """Test that combat phase resolves conflict when explicitly triggered."""
+    print("\n=== Test: Combat Phase Resolves ===")
 
     game, player1, player2, conflict = setup_test_game()
 
@@ -95,13 +95,10 @@ def test_combat_phase_auto_resolves():
 
     # Create managers
     combat_manager = CombatManager(game)
-    phase_manager = PhaseManager(game, combat_manager)
 
-    # Advance to COMBAT phase
-    game.current_phase = GamePhase.COMBAT
-
-    # Initialize combat phase (should auto-resolve)
-    phase_manager._initialize_phase(GamePhase.COMBAT)
+    # Combat must be resolved explicitly (game loop responsibility)
+    result = combat_manager.resolve_conflict(intrigue_round_complete=True)
+    assert result["success"] == True, f"Combat resolution failed: {result.get('error')}"
 
     # Check conflict is resolved
     assert game.board.current_conflict is None, "Conflict should be resolved"
@@ -114,11 +111,11 @@ def test_combat_phase_auto_resolves():
     assert player1.victory_points == 2, "Player 1 should have 2 VP"
     assert player2.victory_points == 1, "Player 2 should have 1 VP"
 
-    print("✓ Combat phase auto-resolves")
+    print("✓ Combat phase resolves correctly")
 
 
 def test_complete_combat_flow_with_phase_manager():
-    """Test complete flow: PLAYER_TURNS → COMBAT → MAKERS."""
+    """Test complete flow: PLAYER_TURNS → COMBAT → (resolve) → MAKERS."""
     print("\n=== Test: Complete Combat Flow ===")
 
     game, player1, player2, conflict = setup_test_game()
@@ -144,7 +141,9 @@ def test_complete_combat_flow_with_phase_manager():
     result = phase_manager.advance_phase()
     assert game.current_phase == GamePhase.COMBAT, "Should be in COMBAT phase"
 
-    # Conflict should be auto-resolved
+    # Game loop must explicitly resolve combat (not auto-resolved)
+    combat_result = combat_manager.resolve_conflict(intrigue_round_complete=True)
+    assert combat_result["success"] == True, "Combat resolution should succeed"
     assert game.board.current_conflict is None, "Conflict should be resolved"
 
     # Advance to MAKERS
@@ -171,11 +170,10 @@ def test_troops_cleaned_up_after_combat():
 
     # Create managers
     combat_manager = CombatManager(game)
-    phase_manager = PhaseManager(game, combat_manager)
 
-    # Go to COMBAT phase
-    game.current_phase = GamePhase.COMBAT
-    phase_manager._initialize_phase(GamePhase.COMBAT)
+    # Resolve combat explicitly
+    result = combat_manager.resolve_conflict(intrigue_round_complete=True)
+    assert result["success"] == True
 
     # Troops should be back in reserve
     assert player1.troops_in_conflict == 0, "Player 1 should have 0 troops in conflict"
@@ -228,11 +226,10 @@ def test_tied_combat_rewards():
 
     # Create managers
     combat_manager = CombatManager(game)
-    phase_manager = PhaseManager(game, combat_manager)
 
-    # Resolve combat
-    game.current_phase = GamePhase.COMBAT
-    phase_manager._initialize_phase(GamePhase.COMBAT)
+    # Resolve combat explicitly
+    result = combat_manager.resolve_conflict(intrigue_round_complete=True)
+    assert result["success"] == True
 
     # Per game rules: tied 1st = NO conflict card, both ranked as 2nd place
     # Both get 2nd place rewards (ranked 2nd since they tied)

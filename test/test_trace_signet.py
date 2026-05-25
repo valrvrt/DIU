@@ -14,21 +14,6 @@ from src.engine.core.game_state import GameState
 from src.engine.effects.effect_resolver import EffectResolver
 
 
-# Monkey patch to trace calls
-original_resolve_effect = EffectResolver._resolve_effect
-
-
-def traced_resolve_effect(self, player_id, effect, context):
-    effect_type = effect.get("type", "unknown")
-    print(f"\n_resolve_effect called with type={effect_type}")
-    result = original_resolve_effect(self, player_id, effect, context)
-    print(f"_resolve_effect returned: {result}")
-    return result
-
-
-EffectResolver._resolve_effect = traced_resolve_effect
-
-
 def test_trace():
     # Create game
     game = Game()

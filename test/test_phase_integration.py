@@ -75,17 +75,13 @@ def setup_test_game():
         card_type=CardType.IMPERIUM,
         cost=3,
         agent_icons=["fremen"],
-        agent_effects={
-            "base": {
-                "water": 1,
-                "troops": 1
-            }
-        },
-        reveal_effects={
-            "base": {
-                "persuasion": 2
-            }
-        }
+        agent_effects=[
+            {"type": "resource", "resource": "water", "amount": 1},
+            {"type": "resource", "resource": "troop", "amount": 1}
+        ],
+        reveal_effects=[
+            {"type": "resource", "resource": "persuasion", "amount": 2}
+        ]
     )
 
     player1.hand.add_card(card1)
@@ -97,7 +93,7 @@ def setup_test_game():
             id="fremen_camp",
             name="Fremen Camp",
             agent_icon="fremen",
-            effects={"water": 1}
+            effects=[{"type": "resource", "resource": "water", "amount": 1}]
         )
     ]
 
@@ -278,8 +274,8 @@ def test_complete_turn_flow_with_phase_manager():
         card_type=CardType.IMPERIUM,
         cost=2,
         agent_icons=["fremen"],
-        agent_effects={"base": {"water": 1}},
-        reveal_effects={"base": {"persuasion": 1}}
+        agent_effects=[{"type": "resource", "resource": "water", "amount": 1}],
+        reveal_effects=[{"type": "resource", "resource": "persuasion", "amount": 1}]
     )
     player2.hand.add_card(card2)
 
@@ -359,7 +355,8 @@ def test_phase_cleanup_between_phases():
 
     # Check cleanup happened
     assert player1.temp_persuasion == 0, "Should cleanup temp persuasion"
-    assert player1.temp_swords == 0, "Should cleanup temp swords"
+    # temp_swords are intentionally kept through COMBAT phase (used for combat resolution)
+    assert player1.temp_swords == 3, "Should preserve temp swords for combat"
     assert player1.has_revealed_this_round == False, "Should reset reveal status"
 
     assert player2.temp_persuasion == 0, "Should cleanup player 2 persuasion"

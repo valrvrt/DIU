@@ -309,7 +309,7 @@ def test_reward_distribution():
     player3.troops_in_conflict = 1  # 2 strength
 
     # Resolve conflict
-    result = combat_manager.resolve_conflict()
+    result = combat_manager.resolve_conflict(intrigue_round_complete=True)
 
     assert result["success"] == True, "Conflict resolution should succeed"
 
@@ -340,7 +340,7 @@ def test_winner_gets_conflict_card():
     player2.troops_in_conflict = 2
     player3.troops_in_conflict = 1
 
-    result = combat_manager.resolve_conflict()
+    result = combat_manager.resolve_conflict(intrigue_round_complete=True)
 
     assert len(player1.conflict_cards_won) == 1, "Player 1 should have won conflict card"
     assert player1.conflict_cards_won[0].id == "test_conflict", "Should be the test conflict"
@@ -362,7 +362,7 @@ def test_tied_winners_both_get_conflict_card():
     # Player 3 has less
     player3.troops_in_conflict = 1
 
-    result = combat_manager.resolve_conflict()
+    result = combat_manager.resolve_conflict(intrigue_round_complete=True)
 
     # Per game rules: tied 1st place = NO ONE gets conflict card
     assert len(player1.conflict_cards_won) == 0, "Tied player 1 should NOT get conflict card"
@@ -388,7 +388,7 @@ def test_troops_return_to_reserve():
     player2.troops_in_reserve = 10
 
     # Resolve conflict
-    result = combat_manager.resolve_conflict()
+    result = combat_manager.resolve_conflict(intrigue_round_complete=True)
 
     # Check troops returned to reserve
     assert player1.troops_in_conflict == 0, "Player 1 should have 0 troops in conflict"
@@ -410,7 +410,7 @@ def test_conflict_marked_as_resolved():
     player1.troops_in_conflict = 3
 
     # Resolve conflict
-    result = combat_manager.resolve_conflict()
+    result = combat_manager.resolve_conflict(intrigue_round_complete=True)
 
     # Check conflict is resolved
     assert game.board.current_conflict is None, "Current conflict should be None"

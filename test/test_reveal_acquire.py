@@ -29,8 +29,8 @@ def create_test_card(card_id: str, name: str, cost: int = 3, persuasion: int = 1
         card_type=CardType.IMPERIUM,
         cost=cost,
         agent_icons=["fremen"],
-        agent_effects={"base": {"water": 1}},
-        reveal_effects={"base": {"persuasion": persuasion}}
+        agent_effects=[{"type": "resource", "resource": "water", "amount": 1}],
+        reveal_effects=[{"type": "resource", "resource": "persuasion", "amount": persuasion}]
     )
 
 
@@ -65,7 +65,7 @@ def setup_test_game():
             id="fremen_camp",
             name="Fremen Camp",
             agent_icon="fremen",
-            effects={"water": 1}
+            effects=[{"type": "resource", "resource": "water", "amount": 1}]
         )
     ]
 

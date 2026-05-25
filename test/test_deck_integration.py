@@ -28,8 +28,8 @@ def create_test_card(card_id: str, name: str, cost: int = 3) -> ImperiumCard:
         card_type=CardType.IMPERIUM,
         cost=cost,
         agent_icons=["fremen"],
-        agent_effects={"base": {"water": 1}},
-        reveal_effects={"base": {"persuasion": 1}}
+        agent_effects=[{"type": "resource", "resource": "water", "amount": 1}],
+        reveal_effects=[{"type": "resource", "resource": "persuasion", "amount": 1}]
     )
 
 
@@ -81,7 +81,7 @@ def setup_test_game():
             id="fremen_camp",
             name="Fremen Camp",
             agent_icon="fremen",
-            effects={"water": 1}
+            effects=[{"type": "resource", "resource": "water", "amount": 1}]
         )
     ]
 
@@ -122,6 +122,8 @@ def test_begin_round_draws_cards():
 
     # Set phase to RECALL (will advance to BEGIN_ROUND)
     game.current_phase = GamePhase.RECALL
+    # Set round to 1 so that after increment (→2) card draw is triggered (draw skipped on round 1 setup)
+    game.current_round = 1
 
     # Both players start with empty hands
     assert player1.hand.size == 0
@@ -206,8 +208,9 @@ def test_hand_discarded_after_recall():
     assert player1.hand.size == 5
     assert player2.hand.size == 5
 
-    # Set phase to RECALL
+    # Set phase to RECALL, round to 1 so draw triggers after increment to 2
     game.current_phase = GamePhase.RECALL
+    game.current_round = 1
 
     # Advance phase (RECALL → BEGIN_ROUND)
     result = phase_manager.advance_phase()
@@ -234,15 +237,15 @@ def test_complete_round_with_deck_management():
     phase_manager = PhaseManager(game, deck_manager=deck_manager)
     action_exec = ActionExecutor(game, phase_manager)
 
-    # Start from BEGIN_ROUND
+    # Start from RECALL, round=1 so draw triggers (round becomes 2, satisfying >1)
     game.current_phase = GamePhase.RECALL
-    game.current_round = 0
+    game.current_round = 1
 
     # Advance to BEGIN_ROUND (draws starting hands)
     phase_manager.advance_phase()
 
     assert game.current_phase == GamePhase.BEGIN_ROUND
-    assert game.current_round == 1
+    assert game.current_round == 2
     assert player1.hand.size == 5
     assert player2.hand.size == 5
 
