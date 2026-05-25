@@ -110,8 +110,13 @@ class GameSetup:
             leader = assigned_leaders[i]
 
             # Create player deck with starter cards (7 cards)
+            # Apply leader-specific deck modifications if available
+            cards_to_add = list(starter_deck_cards)  # Make a copy
+            if hasattr(leader, 'modify_starting_deck') and callable(leader.modify_starting_deck):
+                cards_to_add = leader.modify_starting_deck(cards_to_add)
+
             player_deck = Deck()
-            for card in starter_deck_cards:
+            for card in cards_to_add:
                 player_deck.add_card(card)
 
             # Shuffle deck

@@ -9,7 +9,7 @@ Features:
 - Clear game state display
 - Simple numbered menu choices
 - Play against bots
-- Auto-resolves complex choices for quick gameplay
+- Full game loop with all phases
 
 Usage:
     python3 simple_cli.py
@@ -33,6 +33,7 @@ from src.engine.effects.effect_resolver import EffectResolver
 from src.models.game import Game, GamePhase
 from src.models.player import Player
 from src.models.card import ImperiumCard
+from src.bots import RandomBot
 
 
 class Colors:
@@ -56,6 +57,7 @@ class SimpleCLI:
         self.game = None
         self.managers = {}
         self.human_player = None
+        self.bots = {}
 
     def clear_screen(self):
         """Clear the terminal screen."""
@@ -83,6 +85,10 @@ class SimpleCLI:
     def print_error(self, text: str):
         """Print error message."""
         print(f"{Colors.RED}✗ {text}{Colors.END}")
+
+    def print_bot_action(self, text: str):
+        """Print bot action in distinct color."""
+        print(f"{Colors.BLUE}🤖 {text}{Colors.END}")
 
     def get_input(self, prompt: str, valid_options: Optional[List[str]] = None) -> str:
         """Get user input with validation."""
@@ -133,8 +139,13 @@ class SimpleCLI:
             "action_executor": action_executor,
             "influence_manager": influence_manager,
             "victory_point_manager": victory_point_manager,
-            "effect_resolver": effect_resolver
+            "effect_resolver": effect_resolver,
+            "game": game
         }
+
+        # Create bots for AI players
+        for player in game.players[1:]:  # Skip human player
+            self.bots[player.player_id] = RandomBot(player, self.managers)
 
         self.print_success("Game initialized!")
         self.print_info(f"Players: {', '.join(p.name for p in game.players)}")
@@ -183,14 +194,61 @@ class SimpleCLI:
         """Display available board spaces."""
         self.print_section("Board Spaces")
 
-        for i, space in enumerate(game.board.spaces[:10], 1):  # Show first 10
+        for i, space in enumerate(game.board.spaces[:15], 1):  # Show first 15
             status = "🔴 Occupied" if hasattr(space, 'occupied_by') and space.occupied_by else "🟢 Available"
-            print(f"  {i}. {space.name:30s} {status}")
+
+            # Show maker space bonus
+            spice_info = ""
+            if hasattr(space, 'is_maker_space') and space.is_maker_space and hasattr(space, 'spice_bonus'):
+                if space.spice_bonus > 0:
+                    spice_info = f" [+{space.spice_bonus} 🧂]"
+
+            # Show cost if any
+            cost_info = ""
+            if hasattr(space, 'cost') and space.cost:
+                costs = []
+                for c in space.cost:
+                    if c.get('type') == 'resource':
+                        resource = c.get('resource', '')
+                        amount = c.get('amount', 0)
+                        costs.append(f"{amount} {resource}")
+                if costs:
+                    cost_info = f" (Cost: {', '.join(costs)})"
+
+            # Show rewards
+            reward_info = ""
+            if hasattr(space, 'reward') and space.reward:
+                rewards = []
+                for r in space.reward:
+                    if r.get('type') == 'resource':
+                        resource = r.get('resource', '')
+                        amount = r.get('amount', 0)
+                        rewards.append(f"+{amount} {resource}")
+                    elif r.get('type') == 'influence':
+                        faction = r.get('faction', '')
+                        amount = r.get('amount', 0)
+                        rewards.append(f"+{amount} {faction}")
+                if rewards:
+                    reward_info = f" → {', '.join(rewards)}"
+
+            print(f"  {i}. {space.name:30s} {status}{cost_info}{reward_info}{spice_info}")
+
+    def display_imperium_row(self):
+        """Display the imperium row."""
+        self.print_section("Imperium Row (Cards for Purchase)")
+
+        if hasattr(self.game.board, 'imperium_row') and self.game.board.imperium_row:
+            for i, card in enumerate(self.game.board.imperium_row, 1):
+                if card:
+                    factions = ", ".join(card.factions) if hasattr(card, 'factions') and card.factions else "any"
+                    print(f"  {i}. {card.name:30s} [{factions}] Cost: {card.cost} persuasion")
+        else:
+            print("  (imperium row not available)")
 
     def take_turn_human(self, player: Player):
         """Handle human player's turn."""
         self.clear_screen()
-        self.print_header(f"{player.name}'s Turn")
+        self.print_header(f"Round {self.game.current_round} - {player.name}'s Turn")
 
         self.display_player_state(player)
 
@@ -203,10 +261,11 @@ class SimpleCLI:
         print("  1. Place agent (play card + use board space)")
         print("  2. Reveal hand (end agent phase)")
         print("  3. View board spaces")
-        print("  4. View full game state")
-        print("  5. Quit game")
+        print("  4. View imperium row")
+        print("  5. View all players")
+        print("  6. Quit game")
 
-        choice = self.get_input("\nChoice:", ["1", "2", "3", "4", "5"])
+        choice = self.get_input("\nChoice:", ["1", "2", "3", "4", "5", "6"])
 
         if choice == "1":
             self.action_place_agent(player)
@@ -217,10 +276,14 @@ class SimpleCLI:
             input("\nPress Enter to continue...")
             self.take_turn_human(player)
         elif choice == "4":
-            self.display_full_state()
+            self.display_imperium_row()
             input("\nPress Enter to continue...")
             self.take_turn_human(player)
         elif choice == "5":
+            self.display_full_state()
+            input("\nPress Enter to continue...")
+            self.take_turn_human(player)
+        elif choice == "6":
             print("\nThanks for playing!")
             sys.exit(0)
 
@@ -266,7 +329,45 @@ class SimpleCLI:
         print(f"\nChoose location for {card.name}:")
         for i, (location, placement_type) in enumerate(locations, 1):
             status = f"({placement_type})" if placement_type != "normal" else ""
-            print(f"  {i}. {location.name} {status}")
+
+            # Show if combat space
+            combat_marker = ""
+            if hasattr(location, 'is_combat_space') and location.is_combat_space:
+                combat_marker = "⚔️  "
+
+            # Show cost
+            cost_info = ""
+            if hasattr(location, 'cost') and location.cost:
+                costs = []
+                for c in location.cost:
+                    if c.get('type') == 'resource':
+                        resource = c.get('resource', '')
+                        amount = c.get('amount', 0)
+                        costs.append(f"{amount} {resource}")
+                if costs:
+                    cost_info = f" [Cost: {', '.join(costs)}]"
+
+            # Show rewards
+            reward_info = ""
+            if hasattr(location, 'reward') and location.reward:
+                rewards = []
+                for r in location.reward:
+                    if r.get('type') == 'resource':
+                        resource = r.get('resource', '')
+                        amount = r.get('amount', 0)
+                        rewards.append(f"+{amount} {resource}")
+                    elif r.get('type') == 'influence':
+                        faction = r.get('faction', '')
+                        amount = r.get('amount', 0)
+                        rewards.append(f"+{amount} {faction}")
+                    elif r.get('type') == 'draw':
+                        deck = r.get('deck', 'card')
+                        amount = r.get('amount', 1)
+                        rewards.append(f"+{amount} {deck}")
+                if rewards:
+                    reward_info = f" → {', '.join(rewards)}"
+
+            print(f"  {i}. {combat_marker}{location.name:30s} {status}{cost_info}{reward_info}")
         print("  0. Cancel")
 
         choice = self.get_input("\nLocation:", [str(i) for i in range(len(locations) + 1)])
@@ -277,20 +378,54 @@ class SimpleCLI:
 
         location, placement_type = locations[int(choice) - 1]
 
+        # Ask about troops if this is a combat space and player has troops
+        troops_to_deploy = 0
+        if placement_type == "normal" and player.troops_in_garrison > 0:
+            # Check if this is a combat space
+            if hasattr(location, 'is_combat_space') and location.is_combat_space:
+                print(f"\n⚔️  {location.name} is a combat space!")
+                print(f"You have {player.troops_in_garrison} troops in garrison.")
+                print("How many troops to deploy to the conflict? (0-2)")
+                max_troops = min(2, player.troops_in_garrison)
+                troop_choice = self.get_input("Troops:", [str(i) for i in range(max_troops + 1)])
+                troops_to_deploy = int(troop_choice)
+
         # Execute placement
         action = PlaceAgentAction(
             player_id=player.player_id,
             card=card,
             location=location,
             placement_type=placement_type,
-            troops_to_deploy=0
+            troops_to_deploy=troops_to_deploy
         )
 
         result = action_exec.execute_place_agent(action)
 
         if result.get("success"):
             self.print_success(f"Placed agent on {location.name}!")
-            time.sleep(1)
+            if troops_to_deploy > 0:
+                self.print_info(f"  Deployed {troops_to_deploy} troops to conflict")
+
+            # Check if signet ring was played
+            if card.name == "Signet Ring" and player.leader:
+                self.print_section(f"⚡ {player.leader.name}'s Signet Ability")
+                self.print_info(f"  Note: Signet abilities are currently auto-resolved")
+                # TODO: Implement interactive signet ability choices
+
+            # Show what was gained
+            if 'effects_applied' in result and result['effects_applied']:
+                self.print_section("Rewards Gained")
+                for effect in result['effects_applied']:
+                    if isinstance(effect, dict):
+                        self.print_info(f"  • {effect}")
+                    else:
+                        self.print_info(f"  • {effect}")
+
+            # Show current resources after placement
+            self.print_info(f"\n  Current resources: 💰{player.solari} 🧂{player.spice} 💧{player.water}")
+            self.print_info(f"  Troops: {player.troops_in_garrison} garrison, {player.troops_in_conflict} in conflict")
+
+            time.sleep(2)
         else:
             self.print_error(f"Failed: {result.get('error', 'Unknown error')}")
             time.sleep(2)
@@ -313,6 +448,196 @@ class SimpleCLI:
             self.print_error(f"Failed: {result.get('error', 'Unknown error')}")
             time.sleep(2)
 
+    def take_turn_bot(self, player: Player):
+        """Handle bot player's turn."""
+        bot = self.bots[player.player_id]
+        action_exec = self.managers["action_executor"]
+
+        self.print_bot_action(f"{player.name} is thinking...")
+        time.sleep(0.5)
+
+        # Bot decides action
+        action = bot.decide_agent_action()
+
+        if action is None:
+            # Bot wants to reveal
+            self.print_bot_action(f"{player.name} reveals their hand")
+            reveal_action = RevealAction(player_id=player.player_id)
+            result = action_exec.execute_reveal(reveal_action)
+            if result.get("success"):
+                self.print_info(f"  Revealed {result.get('cards_revealed', 0)} cards")
+        else:
+            # Bot places agent
+            self.print_bot_action(f"{player.name} plays {action.card.name} on {action.location.name}")
+            result = action_exec.execute_place_agent(action)
+            if result.get("success"):
+                if action.troops_to_deploy > 0:
+                    self.print_info(f"  Deployed {action.troops_to_deploy} troops")
+            else:
+                self.print_error(f"  Bot action failed: {result.get('error')}")
+
+        time.sleep(1)
+
+    def run_agent_phase(self):
+        """Run the agent placement phase for all players."""
+        self.print_header(f"Round {self.game.current_round} - Agent Phase")
+
+        # Reset revealed status for all players
+        for player in self.game.players:
+            player.has_revealed_this_round = False
+
+        # Keep going until all players have revealed
+        while not all(p.has_revealed_this_round for p in self.game.players):
+            for player in self.game.players:
+                if player.has_revealed_this_round:
+                    continue
+
+                # Check if player still has agents
+                if player.agents_available <= 0:
+                    player.has_revealed_this_round = True
+                    continue
+
+                if player == self.human_player:
+                    self.take_turn_human(player)
+                else:
+                    self.take_turn_bot(player)
+
+    def run_reveal_phase(self):
+        """Run the reveal phase."""
+        self.print_header(f"Round {self.game.current_round} - Reveal Phase")
+        self.print_info("Processing reveal effects for all players...")
+
+        # Process reveal effects for each player who revealed
+        for player in self.game.players:
+            if player.has_revealed_this_round:
+                # Reveal effects are processed automatically when they revealed
+                pass
+
+        self.print_success("Reveal phase complete")
+        time.sleep(1)
+
+    def run_combat_phase(self):
+        """Run the combat phase."""
+        combat_manager = self.managers["combat_manager"]
+
+        self.print_header(f"Round {self.game.current_round} - Combat Phase")
+
+        # Show current conflict
+        if hasattr(self.game, 'current_conflict') and self.game.current_conflict:
+            conflict = self.game.current_conflict
+            self.print_section(f"Conflict: {conflict.name}")
+            print(f"  Rewards: {conflict.rewards}")
+
+        # Ask human player about troop deployment
+        if self.human_player.troops_in_garrison > 0:
+            print(f"\nYou have {self.human_player.troops_in_garrison} troops available.")
+            print("How many troops to deploy to conflict?")
+            max_troops = min(8, self.human_player.troops_in_garrison)
+            choice = self.get_input(f"Troops (0-{max_troops}):", [str(i) for i in range(max_troops + 1)])
+            troops = int(choice)
+            if troops > 0:
+                self.human_player.troops_in_conflict += troops
+                self.human_player.troops_in_garrison -= troops
+                self.print_success(f"Deployed {troops} troops to conflict")
+
+        # Bots deploy troops
+        for player in self.game.players[1:]:
+            bot = self.bots[player.player_id]
+            troops = bot.decide_troops_to_deploy(player.troops_in_garrison)
+            if troops > 0:
+                player.troops_in_conflict += troops
+                player.troops_in_garrison -= troops
+                self.print_bot_action(f"{player.name} deploys {troops} troops")
+
+        # Resolve combat
+        self.print_info("\nResolving combat...")
+        result = combat_manager.resolve_combat()
+
+        if result.get("success"):
+            self.print_success("Combat resolved!")
+            if "winners" in result:
+                for winner_id in result["winners"]:
+                    winner = self.game.get_player_by_id(winner_id)
+                    self.print_success(f"  {winner.name} wins combat!")
+
+        time.sleep(2)
+
+    def run_makers_phase(self):
+        """Run the MAKERS phase."""
+        makers_manager = self.managers["makers_manager"]
+
+        self.print_header(f"Round {self.game.current_round} - MAKERS Phase")
+
+        result = makers_manager.execute_makers_phase()
+
+        if result.get("success"):
+            total_spice = result.get("total_bonus_added", 0)
+            if total_spice > 0:
+                self.print_success(f"Added {total_spice} bonus spice to unoccupied maker spaces")
+            else:
+                self.print_info("No maker spaces to update")
+
+        time.sleep(1)
+
+    def run_recall_phase(self):
+        """Run the recall phase."""
+        phase_manager = self.managers["phase_manager"]
+        deck_manager = self.managers["deck_manager"]
+
+        self.print_header(f"Round {self.game.current_round} - Recall Phase")
+
+        # Recall agents and draw cards
+        for player in self.game.players:
+            # Reset agents
+            player.agents_available = player.total_available_agents
+            player.has_revealed_this_round = False
+
+            # Draw cards
+            deck_manager.draw_cards(player.player_id, 5)
+
+            if player == self.human_player:
+                self.print_success(f"Your agents recalled, drew 5 cards")
+            else:
+                self.print_bot_action(f"{player.name} recalls agents and draws cards")
+
+        # Clean up board
+        for space in self.game.board.spaces:
+            if hasattr(space, 'occupied_by'):
+                space.occupied_by = None
+
+        time.sleep(1)
+
+    def check_game_end(self) -> bool:
+        """Check if game has ended."""
+        # Game ends when someone reaches 10 VP
+        for player in self.game.players:
+            if player.victory_points >= 10:
+                return True
+
+        # Or after 10 rounds
+        if self.game.current_round >= 10:
+            return True
+
+        return False
+
+    def display_final_scores(self):
+        """Display final scores and winner."""
+        self.print_header("GAME OVER")
+
+        self.print_section("Final Scores")
+
+        # Sort players by VP
+        sorted_players = sorted(self.game.players, key=lambda p: p.victory_points, reverse=True)
+
+        for i, player in enumerate(sorted_players, 1):
+            prefix = "🏆" if i == 1 else f"{i}."
+            print(f"  {prefix} {player.name:20s} {player.victory_points} VP")
+
+        winner = sorted_players[0]
+        print(f"\n{Colors.BOLD}{Colors.GREEN}{'=' * 80}{Colors.END}")
+        print(f"{Colors.BOLD}{Colors.GREEN}{winner.name} WINS!{Colors.END}".center(88))
+        print(f"{Colors.BOLD}{Colors.GREEN}{'=' * 80}{Colors.END}\n")
+
     def display_full_state(self):
         """Display complete game state."""
         self.clear_screen()
@@ -328,14 +653,29 @@ class SimpleCLI:
         """Run the game loop."""
         self.setup_game()
 
-        # For now, just show the initial state and let player take one turn
-        self.clear_screen()
-        self.print_header("Game Started!")
+        # Main game loop
+        while not self.check_game_end():
 
-        self.take_turn_human(self.human_player)
+            # Agent Phase
+            self.run_agent_phase()
 
-        print("\n\nGame demo complete!")
-        print("Full game loop with bot AI coming soon...")
+            # Reveal Phase
+            self.run_reveal_phase()
+
+            # Combat Phase
+            self.run_combat_phase()
+            
+            # MAKERS Phase
+            self.run_makers_phase()
+
+            # Recall Phase
+            self.run_recall_phase()
+
+            # Next round
+            self.game.current_round += 1
+
+        # Game ended
+        self.display_final_scores()
 
 
 def main():
