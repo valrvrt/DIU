@@ -1,0 +1,88 @@
+{
+  "id": 9,
+  "name": "Staban Tuek",
+  "starting_deck_modification": {
+    "remove": [
+      "diplomacy"
+    ],
+    "description": "You don't start with a Diplomacy card in your starting deck"
+  },
+  "signet": [
+    {
+      "type": "play_spy",
+      "description": "Play a spy anywhere"
+    },
+    {
+      "type": "conditional_multi",
+      "options": [
+        {
+          "id": "green_space_bonus",
+          "check": [
+            {
+              "type": "agent_placed_on",
+              "space_type": "green"
+            }
+          ],
+          "cost": [
+            {
+              "type": "resource",
+              "resource": "spice",
+              "amount": 1
+            }
+          ],
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "solari",
+              "amount": 3
+            }
+          ],
+          "description": "If placed on green space: Pay 1 spice to get 3 solari"
+        },
+        {
+          "id": "faction_space_bonus",
+          "check": [
+            {
+              "type": "agent_placed_on",
+              "space_type": "faction"
+            }
+          ],
+          "cost": [
+            {
+              "type": "resource",
+              "resource": "solari",
+              "amount": 2
+            }
+          ],
+          "reward": [
+            {
+              "type": "draw",
+              "deck": "intrigue",
+              "amount": 1
+            }
+          ],
+          "description": "If placed on any faction space: Pay 2 solari to draw 1 intrigue"
+        }
+      ]
+    }
+  ],
+  "passive": {
+    "name": "Smuggler's Trade",
+    "phase": "agent",
+    "trigger": "on_any_player_agent_placement",
+    "check": [
+      {
+        "type": "any_player_placed_on",
+        "space_type": "maker"
+      }
+    ],
+    "reward": [
+      {
+        "type": "resource",
+        "resource": "spice",
+        "amount": 1
+      }
+    ],
+    "description": "Whenever any player goes to a Maker spot, you get 1 spice."
+  }
+}

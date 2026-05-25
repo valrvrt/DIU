@@ -325,7 +325,13 @@ class ActionExecutor:
         # Collect location effects (for normal placement)
         location_results_for_original = None
         if action.placement_type != "spy_infiltrate":
-            if hasattr(action.location, 'effects') and action.location.effects:
+            # Check for new format (reward list)
+            if hasattr(action.location, 'reward') and action.location.reward:
+                for effect in action.location.reward:
+                    all_effects.append(effect)
+                    effect_sources.append(f"location:{action.location.name}")
+            # Check for old format (effects list)
+            elif hasattr(action.location, 'effects') and action.location.effects:
                 if not isinstance(action.location.effects, list):
                     return {
                         "success": False,
@@ -336,18 +342,24 @@ class ActionExecutor:
                     effect_sources.append(f"location:{action.location.name}")
         else:
             # Spy infiltration: Both players get location effects separately
-            if hasattr(action.location, 'effects') and action.location.effects:
+            # Get location effects (prioritize new format)
+            location_effects = []
+            if hasattr(action.location, 'reward') and action.location.reward:
+                location_effects = action.location.reward
+            elif hasattr(action.location, 'effects') and action.location.effects:
                 if not isinstance(action.location.effects, list):
                     return {
                         "success": False,
                         "error": f"Location {action.location.name} has invalid effects format (expected list)"
                     }
+                location_effects = action.location.effects
 
+            if location_effects:
                 # Original occupant gets effects (with their preferred order)
                 original_occupant_id = action.location.occupied_by
                 original_ordered_effects = self._order_effects_for_resolution(
                     original_occupant_id,
-                    action.location.effects,
+                    location_effects,
                     context={"phase": "agent", "location": action.location.name, "infiltrated": True}
                 )
                 location_results_for_original = self.effect_resolver.resolve_effects(
@@ -358,7 +370,7 @@ class ActionExecutor:
                 # Note: Don't fail if original occupant's effects fail
 
                 # Infiltrating spy gets location effects added to their pool
-                for effect in action.location.effects:
+                for effect in location_effects:
                     all_effects.append(effect)
                     effect_sources.append(f"location:{action.location.name}")
 

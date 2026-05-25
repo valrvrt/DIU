@@ -1,0 +1,44 @@
+{
+  "id": 4,
+  "name": "Lady Jessica",
+  "signet": [
+    {
+      "type": "conditional",
+      "cost": [{ "type": "resource", "resource": "spice", "amount": 1 }],
+      "reward": [
+        {
+          "type": "draw",
+          "deck": "intrigue",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "type": "resource",
+      "resource": "memory",
+      "amount": 1
+    }
+  ],
+  "passive": {
+    "name": "Other Memories",
+    "phase": "agent",
+    "check": [
+      {
+        "type": "sent_an_agent_on",
+        "target": ["Espionnage", "Secrets"]
+      }
+    ],
+    "reward": [
+      {
+        "type": "draw",
+        "deck": "deck",
+        "amount": "memory_count"
+      },
+      {
+        "type": "transform_leader",
+        "target": "reverend_mother"
+      }
+    ],
+    "description": "When you send an Agent to a Bene Gesserit board space, you may return all your memories to your supply, drawing a card for each one. Then flip this Leader over to Reverend Mother."
+  }
+}

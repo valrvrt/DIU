@@ -1,0 +1,72 @@
+{
+  "id": 8,
+  "name": "Shaddam Corrino IV",
+  "signet": [
+    {
+      "type": "restrict",
+      "restriction": "no_troop_deployment_this_turn"
+    },
+    {
+      "type": "choice",
+      "required": true,
+      "options": [
+        {
+          "id": "troop_and_solari",
+          "reward": [
+            {
+              "type": "resource",
+              "resource": "troop",
+              "amount": 1
+            },
+            {
+              "type": "resource",
+              "resource": "solari",
+              "amount": 1
+            }
+          ]
+        },
+        {
+          "id": "pay_for_influence",
+          "cost": [
+            {
+              "type": "resource",
+              "resource": "solari",
+              "amount": 3
+            }
+          ],
+          "reward": [
+            {
+              "type": "influence",
+              "target": "any",
+              "amount": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "passive": {
+    "name": "Sardaukar Reserves",
+    "phase": "setup",
+    "trigger": "game_start",
+    "effect": "set_aside_sardaukar_contracts",
+    "contract_access": {
+      "type": "exclusive",
+      "contracts": [
+        "sardaukar_1",
+        "sardaukar_2"
+      ],
+      "description": "The two Sardaukar contracts are set aside and only you can accept them"
+    },
+    "reward": [
+      {
+        "type": "contract_choice_expansion",
+        "sources": [
+          "board",
+          "sardaukar_reserve"
+        ]
+      }
+    ],
+    "description": "The two Sardaukar contracts are set aside and only you can get them. Whenever you accept a contract, you can choose one of the 2 contracts available on board or one of the Sardaukar contracts."
+  }
+}

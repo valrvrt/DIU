@@ -56,6 +56,9 @@ class GodMode:
         # Give god mode resources
         self._activate_god_mode()
 
+        # Fill hand with all cards
+        self._fill_hand_with_all_cards()
+
         print(f"\n✓ Game initialized!")
         print(f"✓ You are {self.player.name} ({self.player.color})")
         print(f"✓ Leader: {self.player.leader.name}")
@@ -98,6 +101,35 @@ class GodMode:
         # Initialize temp resources
         self.player.temp_persuasion = 0
         self.player.temp_swords = 0
+
+    def _fill_hand_with_all_cards(self):
+        """Fill player's hand with one copy of every card in the game."""
+        from src.models.card import CardType
+
+        # Clear current hand
+        self.player.hand.cards.clear()
+
+        # Add one copy of each imperium card
+        for card_name, card_data in self.all_imperium_cards.items():
+            card = ImperiumCard(
+                name=card_data['name'],
+                type="Imperium",
+                card_type=CardType.IMPERIUM,
+                id=card_data['id'],
+                cost=card_data.get('cost', 0)
+            )
+            # Add effects
+            card.reveal_effects = card_data.get('reveal_effects', [])
+            card.agent_effects = card_data.get('agent_effects', [])
+            card.on_acquire_effects = card_data.get('on_acquire_effects', [])
+
+            # Add agent icon (keep as list if it's a list, otherwise make it a list)
+            agent_icons = card_data.get('agent_icon', ['agent'])
+            card.agent_icon = agent_icons if isinstance(agent_icons, list) else [agent_icons]
+
+            self.player.hand.add_card(card)
+
+        print(f"✓ Filled hand with all {len(self.all_imperium_cards)} imperium cards!")
 
     def show_status(self):
         """Display current game state."""
@@ -827,8 +859,12 @@ class GodMode:
         self.player.spies_placed = []
         self._activate_god_mode()  # Reset agents
 
+        # Refill hand with all cards
+        self._fill_hand_with_all_cards()
+
         print("✓ Board cleared - all spaces now available")
         print("✓ Agents restored to your pool")
+        print("✓ Hand refilled with all cards")
 
     def show_help(self):
         """Display help message."""
@@ -845,6 +881,7 @@ class GodMode:
 
         print("\n🃏 Card Actions:")
         print("  /spawn <card name>     - Spawn a card into your hand")
+        print("  /refill                - Refill hand with all cards in game")
         print("  /play <number>         - Play single card from hand (by number)")
         print("  /reveal                - Reveal entire hand (resolve all reveal effects)")
 
@@ -974,6 +1011,10 @@ class GodMode:
                     else:
                         card_name = " ".join(parts[1:])
                         self.spawn_card(card_name)
+
+                # Refill hand with all cards
+                elif cmd in ['/refill']:
+                    self._fill_hand_with_all_cards()
 
                 # Play card - Agent placement Step 1
                 elif cmd in ['/play']:

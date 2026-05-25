@@ -1,0 +1,30 @@
+{
+  "id": 6,
+  "name": "Muad'Dib",
+  "signet": [
+    {
+      "reward": [
+        {
+          "type": "draw",
+          "deck": "deck",
+          "amount": 1
+        }
+      ]
+    }
+  ],
+  "passive": {
+    "check": [
+      {
+        "type": "sandworm_in_conflict",
+        "value": true
+      }
+    ],
+    "reward": [
+      {
+        "type": "draw",
+        "deck": "intrigue",
+        "amount": 1
+      }
+    ]
+  }
+}

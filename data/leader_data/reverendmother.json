@@ -1,0 +1,47 @@
+{
+  "id": 4,
+  "name": "Reverend Mother",
+  "signet": {
+    "type": "conditional",
+    "cost": [
+      {
+        "type": "resource",
+        "resource": "spice",
+        "amount": 1
+      }
+    ],
+    "reward": [
+      {
+        "type": "resource",
+        "resource": "water",
+        "amount": 1
+      }
+    ]
+  },
+  "passive": {
+    "name": "Prescience",
+    "phase": "agent",
+    "check": [
+      {
+        "type": "agent_placed_on",
+        "faction": [
+          "fremen",
+          "bene_gesserit"
+        ]
+      }
+    ],
+    "cost": [
+      {
+        "type": "resource",
+        "resource": "water",
+        "amount": 1
+      }
+    ],
+    "reward": [
+      {
+        "type": "retrigger_board_space"
+      }
+    ],
+    "description": "When you send a spy to a Fremen or Bene Gesserit board space, you can pay 1 water to retrigger the board space effect."
+  }
+}
