@@ -1,0 +1,31 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Game logs
+game_logs/*.json
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
