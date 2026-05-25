@@ -135,8 +135,16 @@ class TestAllImperiumCards:
         return TestHelper.load_card_data("imperium.JSON")
 
     def test_all_imperium_cards_load(self, imperium_cards):
-        """Verify all imperium cards load correctly (60 market + 1 Signet Ring starter = 61 total)."""
-        assert len(imperium_cards) == 61, f"Expected 61 imperium cards (60 market + Signet Ring starter), found {len(imperium_cards)}"
+        """Verify all imperium cards load correctly.
+
+        Breakdown:
+          - 54 market cards (non-starter, non-reserve)
+          - 7 starter cards (Reconnaissance x1, Convincing Argument x2, Dagger x2,
+            Diplomacy x2, Dune the Desert Planet x1, Seek Allies x1, Signet Ring x1)
+          - 2 reserve card definitions (Prepare the Way, The Spice Must Flow)
+          Total: 63 entries in imperium.JSON
+        """
+        assert len(imperium_cards) == 63, f"Expected 63 imperium card entries, found {len(imperium_cards)}"
 
     def test_all_reveal_effects(self, imperium_cards):
         """

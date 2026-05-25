@@ -468,14 +468,25 @@ class ActionGenerator:
         prepare_cost = 2  # Standard cost for Prepare the Way
         spice_cost = 8    # Standard cost for Spice Must Flow
 
+        reserve_prepare = self.game.board.reserve_prepare_the_way
+        reserve_spice = self.game.board.reserve_spice_must_flow
+
+        # Combined list for bots (deduplicated by taking one card per pile)
+        reserve_cards = []
+        if reserve_prepare:
+            reserve_cards.append(reserve_prepare[0])   # top of pile
+        if reserve_spice:
+            reserve_cards.append(reserve_spice[0])     # top of pile
+
         return {
             "total_persuasion": persuasion,
             "imperium_row": self.game.board.imperium_row,
             "affordable_from_row": affordable_from_row,
-            "reserve_prepare": self.game.board.reserve_prepare_the_way,
-            "reserve_spice": self.game.board.reserve_spice_must_flow,
-            "can_afford_prepare": persuasion >= prepare_cost and len(self.game.board.reserve_prepare_the_way) > 0,
-            "can_afford_spice": persuasion >= spice_cost and len(self.game.board.reserve_spice_must_flow) > 0
+            "reserve_prepare": reserve_prepare,
+            "reserve_spice": reserve_spice,
+            "reserve_cards": reserve_cards,             # ← bot-friendly combined view
+            "can_afford_prepare": persuasion >= prepare_cost and len(reserve_prepare) > 0,
+            "can_afford_spice": persuasion >= spice_cost and len(reserve_spice) > 0
         }
 
     def _calculate_persuasion(self, player: Player) -> int:

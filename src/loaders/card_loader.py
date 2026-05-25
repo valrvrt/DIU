@@ -52,7 +52,7 @@ def load_starter_deck() -> List[ImperiumCard]:
 
 
 def load_imperium_cards() -> List[ImperiumCard]:
-    """Load all Imperium cards for the market (excluding starter cards)."""
+    """Load all Imperium cards for the market (excluding starter cards and reserve cards)."""
     file_path = _get_data_path("imperium.JSON")
 
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -62,6 +62,9 @@ def load_imperium_cards() -> List[ImperiumCard]:
     for card_data in data:
         # Skip starter deck cards
         if card_data.get('starting_deck', False):
+            continue
+        # Skip reserve pile cards (loaded separately via get_reserve_cards)
+        if card_data.get('reserve', False):
             continue
 
         # Get the quantity (how many copies of this card in the market deck)
@@ -238,23 +241,48 @@ def get_leader_by_id(leader_id: str) -> Optional[LeaderCard]:
 
 def get_reserve_cards() -> dict[str, List[ImperiumCard]]:
     """
-    Separate Reserve cards from regular Imperium cards.
+    Load reserve pile cards from JSON.
+
+    Reserve cards are marked with "reserve": true and "reserve_pile": "<pile_name>".
+    Multiple copies per card are created based on "quantity".
 
     Returns:
         Dict with 'prepare_the_way' and 'spice_must_flow' lists
     """
-    imperium_cards = load_imperium_cards()
+    file_path = _get_data_path("imperium.JSON")
 
-    reserve = {
+    with open(file_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    reserve: dict[str, List[ImperiumCard]] = {
         'prepare_the_way': [],
         'spice_must_flow': []
     }
 
-    for card in imperium_cards:
-        if 'prepare' in card.id.lower():
-            reserve['prepare_the_way'].append(card)
-        elif 'spice_must_flow' in card.id.lower():
-            reserve['spice_must_flow'].append(card)
+    for card_data in data:
+        if not card_data.get('reserve', False):
+            continue
+
+        pile = card_data.get('reserve_pile', '')
+        if pile not in reserve:
+            continue
+
+        quantity = card_data.get('quantity', 1)
+        for _ in range(quantity):
+            card = ImperiumCard(
+                id=str(card_data['id']),
+                name=card_data['name'],
+                card_type=CardType.IMPERIUM,
+                type="Reserve",
+                factions=card_data.get('faction', []),
+                starting_hand=False,
+                cost=card_data.get('cost', 0),
+                on_acquire_effects=card_data.get('on_acquire_effects', []),
+                agent_icons=card_data.get('agent_icon', []),
+                agent_effects=card_data.get('agent_effects', []),
+                reveal_effects=card_data.get('reveal_effects', [])
+            )
+            reserve[pile].append(card)
 
     return reserve
 

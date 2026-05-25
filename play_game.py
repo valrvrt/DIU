@@ -1153,21 +1153,45 @@ class GameLoop:
         total_persuasion = options.get("total_persuasion", 0)
 
         print(f"\n💎 PERSUASION: {total_persuasion}")
-        print(f"\n🛒 AVAILABLE CARDS:")
+        print(f"\n🛒 IMPERIUM ROW:")
 
-        affordable_cards = []
+        # Build numbered list: imperium row items
+        choices = []  # [(card, source_str)]
         imperium_row = options.get("imperium_row", [])
 
-        for i, card in enumerate(imperium_row):
+        for card in imperium_row:
             affordable = card.cost <= total_persuasion
             marker = "✓" if affordable else "✗"
-            print(f"  [{i+1}] {marker} {card.name} (Cost: {card.cost})")
-            if affordable:
-                affordable_cards.append((i, card, "imperium_row"))
+            idx = len(choices) + 1
+            print(f"  [{idx}] {marker} {card.name} (Cost: {card.cost})")
+            choices.append((card, "row"))
+
+        # Reserve piles
+        reserve_prepare = options.get("reserve_prepare", [])
+        reserve_spice = options.get("reserve_spice", [])
+
+        if reserve_prepare or reserve_spice:
+            print(f"\n🔮 RESERVE PILES:")
+            if reserve_prepare:
+                card = reserve_prepare[0]
+                affordable = card.cost <= total_persuasion
+                marker = "✓" if affordable else "✗"
+                idx = len(choices) + 1
+                print(f"  [{idx}] {marker} {card.name} ×{len(reserve_prepare)} (Cost: {card.cost})")
+                choices.append((card, "reserve"))
+            if reserve_spice:
+                card = reserve_spice[0]
+                affordable = card.cost <= total_persuasion
+                marker = "✓" if affordable else "✗"
+                idx = len(choices) + 1
+                print(f"  [{idx}] {marker} {card.name} ×{len(reserve_spice)} (Cost: {card.cost})")
+                choices.append((card, "reserve"))
+
+        has_affordable = any(card.cost <= total_persuasion for card, _ in choices)
 
         print("\nOptions:")
-        if affordable_cards:
-            print("  [1-6] - Buy card number")
+        if has_affordable:
+            print(f"  [1-{len(choices)}] - Buy that card")
         print("  [pass] - Pass (done buying)")
         print("  [skip] - Let bot decide")
 
@@ -1183,8 +1207,8 @@ class GameLoop:
 
         try:
             idx = int(choice) - 1
-            if 0 <= idx < len(imperium_row):
-                card = imperium_row[idx]
+            if 0 <= idx < len(choices):
+                card, source = choices[idx]
                 if card.cost > total_persuasion:
                     print(f"\n✗ Cannot afford {card.name} (need {card.cost}, have {total_persuasion})")
                     self._human_acquisition_phase(player_id, player, action_gen, action_exec)
@@ -1193,7 +1217,7 @@ class GameLoop:
                 action = AcquireCardAction(
                     player_id=player_id,
                     card=card,
-                    source="row"
+                    source=source
                 )
                 result = action_exec.execute_acquire_card(action)
 
