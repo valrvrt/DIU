@@ -1101,9 +1101,8 @@ class ActionExecutor:
             return effects
 
         # Check if this is a human player
-        # TODO: Add player.is_human or player.player_type check
-        # For now, always use heuristic
-        is_human = False  # Will be set from player object in future
+        player = self.game.get_player(player_id)
+        is_human = player.is_human if player else False
 
         # Use effect ordering manager
         try:

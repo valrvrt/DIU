@@ -107,7 +107,9 @@ class GameSetup:
                 fremen_influence=0,
                 bene_gesserit_influence=0,
                 spacing_guild_influence=0,
-                emperor_influence=0
+                emperor_influence=0,
+                # Player type
+                is_human=(i == 0)  # First player is always the human
             )
 
             # Draw starting hand (5 cards)

@@ -542,8 +542,18 @@ class EffectResolver:
                     "error": "No available observation posts"
                 }
 
-            # Auto-select first available post (for bot/testing)
-            # TODO: For human players, return choice_required instead
+            # Human players must pick; bots auto-select first available post
+            if player.is_human:
+                return {
+                    "success": True,
+                    "choice_required": True,
+                    "choice_data": {
+                        "type": "spy_post",
+                        "available_posts": available_posts,
+                        "amount": amount
+                    }
+                }
+
             selected_post = available_posts[0]
             post_id = selected_post["post_id"]
             post_name = selected_post["post_name"]
@@ -1088,8 +1098,19 @@ class EffectResolver:
             # Player must choose faction from available options
             factions = target if isinstance(target, list) else ["fremen", "bene_gesserit", "spacing_guild", "emperor"]
 
-            # For testing/bots: auto-select first faction
-            # TODO: For human players, return choice_required
+            # Human players must pick; bots auto-select first faction
+            if player.is_human:
+                return {
+                    "success": True,
+                    "choice_required": True,
+                    "choice_data": {
+                        "type": "influence_faction",
+                        "factions": factions,
+                        "amount": total_influence,
+                        "original_effect": effect
+                    }
+                }
+
             selected_faction = factions[0]
             target = selected_faction
             # Continue to apply influence below
@@ -2596,6 +2617,116 @@ class EffectResolver:
                 }
             }
 
+        elif choice_type == "spy_post":
+            # Execute spy placement on chosen observation post
+            post_id = selected_option_id
+            player = self.state.get_player_by_id(player_id)
+            amount = choice_data.get("amount", 1)
+
+            if player.spies_available < amount:
+                return {"success": False, "error": "No spies available"}
+
+            if post_id in player.spies_placed:
+                return {"success": False, "error": "Already have spy at that post"}
+
+            # Find post name for display
+            post_name = post_id
+            for post_info in choice_data.get("available_posts", []):
+                if str(post_info["post_id"]) == str(post_id):
+                    post_name = post_info.get("post_name", post_id)
+                    break
+
+            player.spies_available -= amount
+            player.spies_placed.append(str(post_id))
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "play",
+                    "unit": "spy",
+                    "amount": amount,
+                    "post_id": post_id,
+                    "post_name": post_name
+                }
+            }
+
+        elif choice_type == "influence_faction":
+            # Apply influence to the chosen faction
+            faction = selected_option_id  # e.g. "fremen", "bene_gesserit", etc.
+            player = self.state.get_player_by_id(player_id)
+            total_influence = choice_data.get("amount", 1)
+
+            valid_factions = choice_data.get("factions", ["fremen", "bene_gesserit", "spacing_guild", "emperor"])
+            if faction not in valid_factions:
+                return {"success": False, "error": f"Invalid faction choice: {faction}"}
+
+            if self.influence_manager:
+                result = self.influence_manager.add_influence(player_id, faction, total_influence)
+                if not result.get("success"):
+                    return result
+                return {
+                    "success": True,
+                    "applied": {
+                        "type": "influence",
+                        "target": faction,
+                        "amount": total_influence,
+                        "vp_gained": result.get("vp_gained", 0),
+                        "alliance_gained": result.get("alliance_gained", False)
+                    }
+                }
+            else:
+                if faction == "fremen":
+                    player.fremen_influence += total_influence
+                elif faction == "bene_gesserit":
+                    player.bene_gesserit_influence += total_influence
+                elif faction == "spacing_guild":
+                    player.spacing_guild_influence += total_influence
+                elif faction == "emperor":
+                    player.emperor_influence += total_influence
+                else:
+                    return {"success": False, "error": f"Unknown faction: {faction}"}
+
+                return {
+                    "success": True,
+                    "applied": {
+                        "type": "influence",
+                        "target": faction,
+                        "amount": total_influence
+                    }
+                }
+
+        elif choice_type == "trash_to_acquire":
+            # Trash chosen card from hand and unlock reserve acquisition
+            card_id = selected_option_id
+            player = self.state.get_player_by_id(player_id)
+
+            card_to_trash = None
+            for c in player.hand.cards[:]:
+                if str(c.id) == str(card_id):
+                    card_to_trash = c
+                    break
+
+            if not card_to_trash:
+                return {"success": False, "error": f"Card {card_id} not found in hand"}
+
+            player.hand.cards.remove(card_to_trash)
+
+            if not hasattr(player, 'trashed_cards'):
+                player.trashed_cards = []
+            player.trashed_cards.append(card_to_trash.name if hasattr(card_to_trash, 'name') else str(card_to_trash))
+
+            if not hasattr(player, 'can_acquire_from_reserves'):
+                player.can_acquire_from_reserves = False
+            player.can_acquire_from_reserves = True
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "trash_to_acquire",
+                    "card_trashed": card_to_trash.name if hasattr(card_to_trash, 'name') else str(card_to_trash)
+                }
+            }
+
         else:
             return {
                 "success": False,
@@ -3514,9 +3645,21 @@ class EffectResolver:
                 "error": "No cards in hand to trash"
             }
 
-        # For AI/bot: trash first card
-        # For human: would prompt for choice
-        # TODO: Implement choice system for human players
+        # Human players must pick; bots auto-select first card
+        if player.is_human:
+            available_cards = [
+                {"card_id": c.id, "card_name": c.name if hasattr(c, 'name') else str(c)}
+                for c in player.hand.cards
+            ]
+            return {
+                "success": True,
+                "choice_required": True,
+                "choice_data": {
+                    "type": "trash_to_acquire",
+                    "available_cards": available_cards
+                }
+            }
+
         card_to_trash = player.hand.cards[0]
         player.hand.cards.remove(card_to_trash)
 

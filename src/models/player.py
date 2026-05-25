@@ -69,6 +69,9 @@ class Player:
     recalled_spy_this_turn: bool = False  # Whether a spy was recalled this turn
     placed_on_maker_this_turn: bool = False  # Whether agent was placed on Maker space
 
+    # Player type
+    is_human: bool = False  # True for the human player, False for bots
+
     # Council
     has_high_council_sit = False
 

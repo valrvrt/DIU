@@ -427,7 +427,7 @@ class GameLoop:
                 # Resolve combat manually (not in phase_manager._initialize_phase)
                 combat_mgr = self.managers.get("combat_manager")
                 if combat_mgr:
-                    result = combat_mgr.resolve_conflict()
+                    result = combat_mgr.resolve_conflict(intrigue_round_complete=True)
 
                     # Show results
                     if result.get("success"):
@@ -863,16 +863,135 @@ class GameLoop:
             elif choice_type == "choice":
                 # Handle generic choice effects (like Spice Refinery options)
                 options = choice_data.get("options", [])
+                available = [o for o in options if o.get("available", True)]
+
                 print(f"\n🔀 Choose an option:")
                 for i, opt in enumerate(options, 1):
-                    print(f"  [{i}] {opt.get('description', opt.get('id', '?'))}")
+                    avail_marker = "✓" if opt.get("available", True) else "✗"
+                    reason = f" — {opt['unavailable_reason']}" if not opt.get("available", True) and opt.get("unavailable_reason") else ""
+                    reward_desc = ", ".join(
+                        f"{r.get('resource', r.get('type', '?'))} +{r.get('amount', 1)}"
+                        for r in opt.get("rewards", [])
+                    )
+                    print(f"  [{i}] {avail_marker} {opt.get('id', f'Option {i}')}: {reward_desc}{reason}")
 
                 try:
                     choice_input = input("\nYour choice: ").strip()
                     choice_idx = int(choice_input) - 1
                     if 0 <= choice_idx < len(options):
-                        # This would need to be resolved by action_exec
-                        print(f"  Choice effects not yet fully implemented")
+                        selected = options[choice_idx]
+                        if not selected.get("available", True):
+                            print(f"  ✗ That option is not available: {selected.get('unavailable_reason', '')}")
+                        else:
+                            result = action_exec.effect_resolver.execute_choice(
+                                player_id, choice_data, selected["id"]
+                            )
+                            if result.get("success"):
+                                print(f"  ✓ Chose option: {selected.get('id', choice_idx + 1)}")
+                            else:
+                                print(f"  ✗ {result.get('error', 'Choice failed')}")
+                    else:
+                        print("  Invalid choice")
+                except ValueError:
+                    print("  Invalid input")
+
+            elif choice_type == "influence_faction":
+                # Choose which faction to gain influence with
+                factions = choice_data.get("factions", ["fremen", "bene_gesserit", "spacing_guild", "emperor"])
+                amount = choice_data.get("amount", 1)
+                faction_display = {
+                    "fremen": "Fremen",
+                    "bene_gesserit": "Bene Gesserit",
+                    "spacing_guild": "Spacing Guild",
+                    "emperor": "Emperor"
+                }
+
+                print(f"\n🤝 Choose a faction to gain {amount} influence:")
+                for i, faction in enumerate(factions, 1):
+                    print(f"  [{i}] {faction_display.get(faction, faction.title())}")
+
+                try:
+                    choice_input = input("\nYour choice: ").strip()
+                    choice_idx = int(choice_input) - 1
+                    if 0 <= choice_idx < len(factions):
+                        chosen_faction = factions[choice_idx]
+                        result = action_exec.effect_resolver.execute_choice(
+                            player_id, choice_data, chosen_faction
+                        )
+                        if result.get("success"):
+                            display = faction_display.get(chosen_faction, chosen_faction)
+                            print(f"  ✓ Gained {amount} {display} influence")
+                            vp = result.get("applied", {}).get("vp_gained", 0)
+                            if vp:
+                                print(f"  🏆 +{vp} VP (reached influence threshold)")
+                        else:
+                            print(f"  ✗ {result.get('error', 'Failed')}")
+                    else:
+                        print("  Invalid choice — defaulting to first faction")
+                        action_exec.effect_resolver.execute_choice(player_id, choice_data, factions[0])
+                except ValueError:
+                    print("  Invalid input — defaulting to first faction")
+                    action_exec.effect_resolver.execute_choice(player_id, choice_data, factions[0])
+
+            elif choice_type == "spy_post":
+                # Choose which observation post to place a spy
+                available_posts = choice_data.get("available_posts", [])
+                amount = choice_data.get("amount", 1)
+
+                print(f"\n🕵️  Place {'a spy' if amount == 1 else f'{amount} spies'} on an observation post:")
+                for i, post in enumerate(available_posts, 1):
+                    shared_note = " (shared)" if post.get("shared") else ""
+                    locs = ", ".join(post.get("connected_locations", []))
+                    print(f"  [{i}] {post['post_name']}{shared_note} — covers: {locs}")
+
+                try:
+                    choice_input = input("\nYour choice: ").strip()
+                    choice_idx = int(choice_input) - 1
+                    if 0 <= choice_idx < len(available_posts):
+                        chosen_post = available_posts[choice_idx]
+                        result = action_exec.effect_resolver.execute_choice(
+                            player_id, choice_data, str(chosen_post["post_id"])
+                        )
+                        if result.get("success"):
+                            print(f"  ✓ Spy placed on {chosen_post['post_name']}")
+                        else:
+                            print(f"  ✗ {result.get('error', 'Failed')}")
+                    else:
+                        print("  Invalid choice — placing on first available post")
+                        if available_posts:
+                            action_exec.effect_resolver.execute_choice(
+                                player_id, choice_data, str(available_posts[0]["post_id"])
+                            )
+                except ValueError:
+                    print("  Invalid input — placing on first available post")
+                    if available_posts:
+                        action_exec.effect_resolver.execute_choice(
+                            player_id, choice_data, str(available_posts[0]["post_id"])
+                        )
+
+            elif choice_type == "trash_to_acquire":
+                # Choose which card from hand to trash in exchange for reserve acquisition
+                available_cards = choice_data.get("available_cards", [])
+
+                print(f"\n🗑️  Trash a card from hand to acquire from reserves:")
+                for i, card_info in enumerate(available_cards, 1):
+                    print(f"  [{i}] {card_info['card_name']}")
+                print("  [0] Skip")
+
+                try:
+                    choice_input = input("\nYour choice: ").strip()
+                    choice_idx = int(choice_input)
+                    if choice_idx == 0:
+                        print("  Skipped")
+                    elif 1 <= choice_idx <= len(available_cards):
+                        chosen_card = available_cards[choice_idx - 1]
+                        result = action_exec.effect_resolver.execute_choice(
+                            player_id, choice_data, chosen_card["card_id"]
+                        )
+                        if result.get("success"):
+                            print(f"  ✓ Trashed {chosen_card['card_name']} — you may now acquire from reserves")
+                        else:
+                            print(f"  ✗ {result.get('error', 'Failed')}")
                     else:
                         print("  Invalid choice")
                 except ValueError:
