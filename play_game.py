@@ -16,7 +16,7 @@ from src.engine.managers.deck_manager import DeckManager
 from src.engine.managers.combat_manager import CombatManager
 from src.engine.managers.makers_manager import MakersManager
 from src.engine.actions.action_generator import ActionGenerator
-from src.engine.actions.action_executor import ActionExecutor, PlaceAgentAction, RevealAction, AcquireCardAction
+from src.engine.actions.action_executor import ActionExecutor, PlaceAgentAction, RevealAction, AcquireCardAction, PlayIntrigueAction
 from src.engine.managers.influence_manager import InfluenceManager
 from src.engine.managers.victory_point_manager import VictoryPointManager
 from src.engine.effects.effect_resolver import EffectResolver
@@ -421,12 +421,18 @@ class GameLoop:
                 self._handle_player_turns()
             elif self.game.current_phase == GamePhase.COMBAT:
                 # Show combat, then resolve it
-                print(f"⚙️  Resolving combat...")
-                time.sleep(1)
+                print(f"\n⚔️  COMBAT PHASE")
+                time.sleep(0.5)
 
-                # Resolve combat manually (not in phase_manager._initialize_phase)
                 combat_mgr = self.managers.get("combat_manager")
+                action_exec_combat = self.managers.get("action_executor")
                 if combat_mgr:
+                    # === Intrigue Round ===
+                    self._handle_combat_intrigue_round(combat_mgr, action_exec_combat)
+
+                    # Resolve combat
+                    print(f"\n⚙️  Resolving combat...")
+                    time.sleep(0.5)
                     result = combat_mgr.resolve_conflict(intrigue_round_complete=True)
 
                     # Show results
@@ -669,15 +675,30 @@ class GameLoop:
 
         print(f"\n📊 REVEAL PREVIEW: {total_persuasion} persuasion, {total_swords} swords")
 
+        # Count plot-phase intrigues
+        plot_intrigues = [
+            card for card in player.intrigue_cards
+            if any(e.get("phase") == "plot" for e in getattr(card, 'effects', []))
+        ]
+        if plot_intrigues:
+            print(f"\n🃏 INTRIGUE CARDS: {len(plot_intrigues)} plot intrigue(s) available to play")
+
         print("\nOptions:")
         print("  [1-5] - Play card number")
         print("  [R]   - Reveal hand and end agent phase")
+        if plot_intrigues:
+            print("  [I]   - View and play intrigue cards")
         print("  [skip] - Let bot play this turn")
 
         choice = input("\nYour choice: ").strip().lower()
 
         if choice == "skip":
             result = self.bot.take_turn(player_id, self.game)
+            return
+
+        if choice == "i" and plot_intrigues:
+            self._human_plot_intrigue(player_id, player, action_exec, plot_intrigues)
+            self._human_agent_phase(player_id, player, action_gen, action_exec)
             return
 
         if choice == "r":
@@ -818,6 +839,135 @@ class GameLoop:
         except ValueError:
             print("\n✗ Invalid input")
             self._human_agent_phase(player_id, player, action_gen, action_exec)
+
+    def _handle_combat_intrigue_round(self, combat_mgr, action_exec):
+        """
+        Run the combat intrigue round: each player with combat intrigues
+        can play them (human gets a menu; bots decide randomly).
+        """
+        intrigue_info = combat_mgr.conduct_intrigue_round()
+        players_with_intrigues = intrigue_info.get("players_with_intrigues", [])
+
+        if not players_with_intrigues:
+            return  # Nobody has combat intrigues, skip silently
+
+        print(f"\n🃏 INTRIGUE ROUND — players may play combat intrigue cards")
+
+        for entry in players_with_intrigues:
+            pid = entry["player_id"]
+            pname = entry["player_name"]
+            player = self.game.get_player(pid)
+
+            if player is None:
+                continue
+
+            if player.is_human:
+                # Human player gets an interactive prompt
+                self._human_combat_intrigue(pid, player, action_exec)
+            else:
+                # Bot: 40% chance to play each combat intrigue (random)
+                combat_intrigues = [
+                    card for card in player.intrigue_cards
+                    if any(e.get("phase") == "combat" for e in getattr(card, 'effects', []))
+                ]
+                played_any = False
+                for card in list(combat_intrigues):  # iterate copy; list mutates
+                    if random.random() < 0.4:
+                        intrigue_action = PlayIntrigueAction(player_id=pid, intrigue_card=card)
+                        result = action_exec.execute_play_intrigue(intrigue_action)
+                        if result.get("success"):
+                            print(f"  🤖 {pname} played {card.name}")
+                            played_any = True
+                if not played_any:
+                    print(f"  🤖 {pname} passed on intrigues")
+
+    def _human_combat_intrigue(self, player_id: str, player, action_exec):
+        """Interactive prompt for human player to play combat intrigues."""
+        combat_intrigues = [
+            card for card in player.intrigue_cards
+            if any(e.get("phase") == "combat" for e in getattr(card, 'effects', []))
+        ]
+
+        if not combat_intrigues:
+            return
+
+        while True:
+            print(f"\n🃏 Your combat intrigue cards ({len(combat_intrigues)} available):")
+            for i, card in enumerate(combat_intrigues, 1):
+                effects_desc = ", ".join(
+                    f"{e.get('resource', e.get('type', '?'))} +{e.get('amount', 1)}"
+                    for e in card.effects
+                    if e.get("phase") == "combat" and e.get("type") in ("resource", "sword", "spice", "solari", "water", "troop")
+                ) or "special effect"
+                print(f"  [{i}] {card.name} — {effects_desc}")
+            print("  [0] Pass (don't play any)")
+
+            try:
+                choice = input("\nPlay intrigue? ").strip()
+                if choice == "0" or choice.lower() == "pass":
+                    print("  Passed on combat intrigues")
+                    break
+                idx = int(choice) - 1
+                if 0 <= idx < len(combat_intrigues):
+                    card = combat_intrigues[idx]
+                    intrigue_action = PlayIntrigueAction(player_id=player_id, intrigue_card=card)
+                    result = action_exec.execute_play_intrigue(intrigue_action)
+                    if result.get("success"):
+                        print(f"  ✓ Played {card.name}!")
+                        # Handle any choices required
+                        choices_req = result.get("choices_required", [])
+                        if choices_req:
+                            self._handle_choices(player_id, player, choices_req, action_exec)
+                        combat_intrigues.remove(card)
+                        if not combat_intrigues:
+                            print("  No more combat intrigues to play")
+                            break
+                    else:
+                        print(f"  ✗ {result.get('error', 'Could not play card')}")
+                else:
+                    print("  Invalid choice")
+            except ValueError:
+                print("  Invalid input")
+
+    def _human_plot_intrigue(self, player_id: str, player, action_exec, plot_intrigues: list):
+        """Interactive prompt for human player to play plot-phase intrigue cards."""
+        available = list(plot_intrigues)
+
+        while True:
+            print(f"\n🃏 Plot intrigue cards ({len(available)} available):")
+            for i, card in enumerate(available, 1):
+                effects_desc = ", ".join(
+                    f"{e.get('resource', e.get('type', '?'))} +{e.get('amount', 1)}"
+                    for e in card.effects
+                    if e.get("phase") == "plot" and e.get("type") in ("resource", "sword", "spice", "solari", "water", "troop")
+                ) or "special effect"
+                print(f"  [{i}] {card.name} — {effects_desc}")
+            print("  [0] Done (back to main menu)")
+
+            try:
+                choice = input("\nPlay intrigue card? ").strip()
+                if choice == "0" or choice.lower() in ("done", "back"):
+                    break
+                idx = int(choice) - 1
+                if 0 <= idx < len(available):
+                    card = available[idx]
+                    intrigue_action = PlayIntrigueAction(player_id=player_id, intrigue_card=card)
+                    result = action_exec.execute_play_intrigue(intrigue_action)
+                    if result.get("success"):
+                        print(f"  ✓ Played {card.name}!")
+                        choices_req = result.get("choices_required", [])
+                        if choices_req:
+                            self._handle_choices(player_id, player, choices_req, action_exec)
+                        available.remove(card)
+                        if not available:
+                            print("  No more plot intrigues to play")
+                            break
+                    else:
+                        print(f"  ✗ {result.get('error', 'Could not play card')}")
+                else:
+                    print("  Invalid choice")
+            except ValueError:
+                print("  Invalid input")
 
     def _handle_choices(self, player_id: str, player, choices_required: list, action_exec):
         """Handle choice prompts (trash, choice effects, etc.)."""
