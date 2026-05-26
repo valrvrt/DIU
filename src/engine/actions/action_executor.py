@@ -268,9 +268,11 @@ class ActionExecutor:
                 player.agents_placed.remove(action.location.id)
                 return {"success": False, "error": f"No spy at {action.location.name} to infiltrate with"}
 
-            # Remove the spy (it is consumed by the infiltration)
-            player.spies_placed.remove(action.location.id if action.location.id in player.spies_placed
-                                        else int(action.location.id))
+            # Remove the spy (it is consumed by the infiltration) — normalize stored type
+            loc_id_str_inf = str(action.location.id)
+            spy_to_remove_inf = next((s for s in player.spies_placed if str(s) == loc_id_str_inf), None)
+            if spy_to_remove_inf is not None:
+                player.spies_placed.remove(spy_to_remove_inf)
             player.spies_available += 1  # spy returns to pool after use
 
             # Mark location as infiltrated (both players can use it)
@@ -448,11 +450,10 @@ class ActionExecutor:
         loc_id_str = str(action.location.id)
         placed_ids = [str(s) for s in player.spies_placed]
         if action.placement_type != "spy_infiltrate" and loc_id_str in placed_ids:
-            # Remove the spy (recall it)
-            try:
-                player.spies_placed.remove(action.location.id)
-            except ValueError:
-                player.spies_placed.remove(int(action.location.id))
+            # Remove the spy (recall it) — normalize to matching stored type
+            spy_to_remove = next((s for s in player.spies_placed if str(s) == loc_id_str), None)
+            if spy_to_remove is not None:
+                player.spies_placed.remove(spy_to_remove)
             player.spies_available += 1
             # Draw 1 intrigue card as the intel reward
             if self.game.board.intrigue_deck:
