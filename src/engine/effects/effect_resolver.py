@@ -145,6 +145,9 @@ class EffectResolver:
 
             # Staban Tuek: conditional bonuses based on where agent was placed
             "conditional_multi": self._handle_conditional_multi,
+
+            # Shaddam Corrino IV: restrict player actions this turn
+            "restrict": self._handle_restrict,
         }
 
     # ==================== MAIN RESOLUTION ENTRY POINT ====================
@@ -1148,7 +1151,10 @@ class EffectResolver:
             if not result.get("success"):
                 return result
 
-            return {
+            # Check influence_reached passives for the player whose influence changed
+            passive_choices = self._check_influence_reached_passives(player_id, target)
+
+            ret = {
                 "success": True,
                 "applied": {
                     "type": "influence",
@@ -1158,6 +1164,10 @@ class EffectResolver:
                     "alliance_gained": result.get("alliance_gained", False)
                 }
             }
+            if passive_choices:
+                ret["choice_required"] = True
+                ret["choice_data"] = passive_choices[0]
+            return ret
         else:
             # Fallback: direct influence addition (backward compatibility)
             if target == "fremen":
@@ -1174,7 +1184,9 @@ class EffectResolver:
                     "error": f"Unknown faction target: {target}"
                 }
 
-            return {
+            # Check influence_reached passives (fallback path)
+            passive_choices = self._check_influence_reached_passives(player_id, target)
+            ret = {
                 "success": True,
                 "applied": {
                     "type": "influence",
@@ -1182,6 +1194,10 @@ class EffectResolver:
                     "amount": total_influence
                 }
             }
+            if passive_choices:
+                ret["choice_required"] = True
+                ret["choice_data"] = passive_choices[0]
+            return ret
 
     def _handle_acquire(
         self,
@@ -3376,6 +3392,155 @@ class EffectResolver:
                         return False
             # Unknown check type — pass through
         return True
+
+    # ==================== LEADER PASSIVE / RESTRICTION HANDLERS ====================
+
+    def _handle_restrict(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Shaddam Corrino IV signet — restrict player actions this turn.
+
+        {"type": "restrict", "restriction": "no_troop_deployment_this_turn"}
+
+        Sets a flag on the player consumed by execute_place_agent / combat phase.
+        The restriction is cleared during the Recall phase.
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": "Player not found"}
+
+        restriction = effect.get("restriction", "")
+        restrictions = getattr(player, "turn_restrictions", [])
+        if restriction and restriction not in restrictions:
+            restrictions.append(restriction)
+        player.turn_restrictions = restrictions
+
+        return {
+            "success": True,
+            "applied": [f"Restricted: {restriction}"],
+        }
+
+    def _check_influence_reached_passives(
+        self, player_id: str, faction: str
+    ) -> list:
+        """
+        Called after any influence gain. Checks if the player's leader has an
+        influence_reached passive that just triggered (i.e., the relevant faction
+        influence exactly hit the threshold this gain).
+
+        Returns a list of choice_data dicts if rewards need resolving, else [].
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return []
+
+        leader = getattr(player, "leader", None)
+        if not leader:
+            return []
+
+        # Read passive from leader model (passive_ability = raw JSON dict)
+        passive_data = getattr(leader, "passive_ability", None)
+        if not passive_data:
+            return []
+
+        checks = passive_data.get("check", [])
+        reward = passive_data.get("reward", [])
+        if not checks or not reward:
+            return []
+
+        # Look for influence_reached check matching the faction that just changed
+        for check in checks:
+            if check.get("type") != "influence_reached":
+                continue
+            target = check.get("target", "")
+            amount = check.get("amount", 0)
+            if target != faction and target != "any":
+                continue
+
+            # Check if influence just reached or crossed the threshold.
+            # We check if current >= amount (already applied) and that we haven't
+            # previously fired (track with a set on the player).
+            attr = f"{faction}_influence"
+            current = getattr(player, attr, 0)
+            fired_key = f"_passive_fired_{leader.name}_{faction}_{amount}"
+            already_fired = getattr(player, fired_key, False)
+            if current >= amount and not already_fired:
+                setattr(player, fired_key, True)
+                self.resolve_effects(player_id, reward, {"phase": "passive", "source": "passive_influence_reached"})
+        return []
+
+    def check_and_apply_reveal_passive(self, player_id: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Called after a player reveals their hand. Checks leader passives that fire
+        at the reveal phase:
+        - Feyd-Rautha: may recall a spy → +2 swords
+        - Gurney Halleck: if combat strength ≥ 6 → +1 persuasion
+        Returns a result dict with effects_applied and choices_required.
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": "Player not found"}
+
+        leader = getattr(player, "leader", None)
+        if not leader:
+            return {"success": True, "effects_applied": [], "choices_required": []}
+
+        name = getattr(leader, "name", "")
+        applied = []
+        choices = []
+
+        if name == "Feyd Rautha Harkonnen":
+            # Passive "Devious Strength": may recall a spy → +2 swords
+            if player.spies_placed:
+                choices.append({
+                    "type": "reveal_passive_choice",
+                    "leader": name,
+                    "description": "Recall a spy to gain +2 swords?",
+                    "options": [
+                        {"id": "yes", "description": "+2 swords (recall 1 spy)"},
+                        {"id": "no",  "description": "Skip"},
+                    ],
+                })
+
+        elif name == "Gurney Halleck":
+            # Passive "Always Smiling": combat strength ≥ 6 → +1 persuasion
+            strength = player.combat_strength if hasattr(player, "combat_strength") else 0
+            if strength >= 6:
+                player.temp_persuasion = getattr(player, "temp_persuasion", 0) + 1
+                applied.append("Gurney Halleck passive: +1 persuasion (strength ≥ 6)")
+
+        elif name == "Muad'Dib":
+            # Passive: sandworm in conflict → draw 1 intrigue (checked in combat)
+            pass
+
+        return {"success": True, "effects_applied": applied, "choices_required": choices}
+
+    def check_and_apply_combat_passive(self, player_id: str) -> Dict[str, Any]:
+        """
+        Called when combat strength is tallied. Checks leader passives that fire
+        during combat:
+        - Muad'Dib: sandworm(s) in conflict → draw 1 intrigue (once per combat)
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": "Player not found"}
+
+        leader = getattr(player, "leader", None)
+        name = getattr(leader, "name", "") if leader else ""
+        applied = []
+
+        if name == "Muad'Dib":
+            if getattr(player, "sandworms_in_conflict", 0) > 0:
+                if self.game.board.intrigue_deck:
+                    card = self.game.board.intrigue_deck.pop(0)
+                    player.intrigue_cards.append(card)
+                    applied.append(f"Muad'Dib passive: +1 intrigue ({card.name})")
+
+        return {"success": True, "effects_applied": applied}
 
     # ==================== CONDITIONAL REWARD TRIGGER SYSTEM ====================
 

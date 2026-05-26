@@ -763,6 +763,28 @@ class SimpleCLI:
                     self.print_info(f"  {player.name} acquires {chosen.name} (free)")
                 effect_resolver.execute_choice(player.player_id, choice_data, chosen.id)
 
+            elif ctype == "reveal_passive_choice":
+                # Feyd-Rautha: may recall spy → +2 swords
+                options = choice_data.get("options", [])
+                if is_human:
+                    desc = choice_data.get("description", "Use passive?")
+                    print(f"\n  ⚡ Leader passive — {desc}")
+                    for i, opt in enumerate(options, 1):
+                        print(f"    [{i}] {opt.get('description','?')}")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(options)+1)])
+                    chosen_id = options[int(sel)-1].get("id")
+                else:
+                    # Bot takes the bonus if it has a spy to spare
+                    chosen_id = "yes" if player.spies_placed else "no"
+                    if chosen_id == "yes":
+                        self.print_bot_action(f"  {player.name} (Feyd) recalls spy → +2 swords")
+                if chosen_id == "yes":
+                    # Recall any one spy
+                    if player.spies_placed:
+                        player.spies_placed.pop(0)
+                        player.spies_available += 1
+                    player.temp_swords = getattr(player, "temp_swords", 0) + 2
+
             elif ctype == "conditional_multi_choice":
                 # Staban Tuek's optional signet bonuses — pick one or none
                 options = choice_data.get("options", [])
@@ -1064,6 +1086,18 @@ class SimpleCLI:
             self.print_success(f"Revealed {revealed} card(s) → {persuasion} persuasion, {swords} swords")
         else:
             self.print_bot_action(f"{player.name} reveals {revealed} card(s) → {persuasion} persuasion, {swords} swords")
+
+        # Leader reveal-phase passives (Feyd-Rautha, Gurney Halleck)
+        effect_resolver = self.managers["effect_resolver"]
+        passive_result = effect_resolver.check_and_apply_reveal_passive(
+            player.player_id, {"phase": "reveal"}
+        )
+        for msg in passive_result.get("effects_applied", []):
+            if player == self.human_player:
+                self.print_info(f"  ⚡ {msg}")
+            else:
+                self.print_bot_action(f"  ⚡ {msg}")
+        self._resolve_choices(player, passive_result.get("choices_required", []))
         time.sleep(1)
 
     def take_turn_bot(self, player: Player):
@@ -1362,6 +1396,21 @@ class SimpleCLI:
                 player.troops_in_garrison -= troops
                 self.print_bot_action(f"{player.name} deploys {troops} troops")
 
+        # Leader combat passives (Muad'Dib: sandworm in conflict → draw 1 intrigue)
+        effect_resolver = self.managers["effect_resolver"]
+        for player in self.game.players:
+            res = effect_resolver.check_and_apply_combat_passive(player.player_id)
+            for msg in res.get("effects_applied", []):
+                if player == self.human_player:
+                    self.print_success(f"⚡ {msg}")
+                else:
+                    self.print_bot_action(f"⚡ {msg}")
+
+        # Shaddam restriction: clear no_troop_deployment flag after deployment phase
+        for player in self.game.players:
+            if "no_troop_deployment_this_turn" in getattr(player, "turn_restrictions", []):
+                player.turn_restrictions.remove("no_troop_deployment_this_turn")
+
         # Show troop summary
         print()
         participating = [(p, p.troops_in_conflict + getattr(p, 'sandworms_in_conflict', 0))
@@ -1488,9 +1537,10 @@ class SimpleCLI:
 
         # Recall agents and draw cards
         for player in self.game.players:
-            # Reset agents
+            # Reset agents and turn-scoped restrictions
             player.agents_available = player.total_available_agents
             player.has_revealed_this_round = False
+            player.turn_restrictions = []  # Clear Shaddam restrict and any other turn restrictions
 
             # Draw cards
             deck_manager.draw_cards(player.player_id, 5)
