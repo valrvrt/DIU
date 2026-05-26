@@ -252,25 +252,29 @@ class ActionExecutor:
 
         # Step 5: Occupy location or infiltrate
         if action.placement_type == "spy_infiltrate":
-            # Spy infiltration: occupy WITH the existing agent
-            # Both players get location effects
+            # Spy infiltration: access a space occupied by another player
+            # by removing a spy already placed there (spy was pre-positioned)
             if action.location.occupied_by is None:
-                # Can't infiltrate an unoccupied location (should use normal placement)
+                # Can't infiltrate an unoccupied location (use normal placement instead)
                 player.agents_available += 1
                 player.agents_placed.remove(action.location.id)
                 return {"success": False, "error": "Cannot infiltrate unoccupied location"}
 
-            # Mark location as infiltrated
-            action.location.infiltrated_by = action.player_id
-
-            # Use spy instead of agent
-            if player.spies_available <= 0:
+            # Validate: player must have a spy already at this location
+            loc_id = str(action.location.id)
+            spy_ids = [str(s) for s in player.spies_placed]
+            if loc_id not in spy_ids:
                 player.agents_available += 1
                 player.agents_placed.remove(action.location.id)
-                return {"success": False, "error": "No spies available"}
+                return {"success": False, "error": f"No spy at {action.location.name} to infiltrate with"}
 
-            player.spies_available -= 1
-            player.spies_placed.append(action.location.id)
+            # Remove the spy (it is consumed by the infiltration)
+            player.spies_placed.remove(action.location.id if action.location.id in player.spies_placed
+                                        else int(action.location.id))
+            player.spies_available += 1  # spy returns to pool after use
+
+            # Mark location as infiltrated (both players can use it)
+            action.location.infiltrated_by = action.player_id
         else:
             # Normal placement
             if action.location.occupied_by is not None:
@@ -437,6 +441,24 @@ class ActionExecutor:
             action.location.id
         )
 
+        # Step 13b: Gather Intel bonus — if player had a spy at this location,
+        # the spy is recalled and they draw 1 intrigue card (rules).
+        # This applies to both normal placement AND spy_infiltrate.
+        gather_intel_card = None
+        loc_id_str = str(action.location.id)
+        placed_ids = [str(s) for s in player.spies_placed]
+        if action.placement_type != "spy_infiltrate" and loc_id_str in placed_ids:
+            # Remove the spy (recall it)
+            try:
+                player.spies_placed.remove(action.location.id)
+            except ValueError:
+                player.spies_placed.remove(int(action.location.id))
+            player.spies_available += 1
+            # Draw 1 intrigue card as the intel reward
+            if self.game.board.intrigue_deck:
+                gather_intel_card = self.game.board.intrigue_deck.pop(0)
+                player.intrigue_cards.append(gather_intel_card)
+
         # Step 14: Notify PhaseManager (if present)
         if self.phase_manager:
             self.phase_manager.mark_player_action_complete(
@@ -457,6 +479,7 @@ class ActionExecutor:
             "location_effects": location_results,
             "contracts_completed": contract_results.get("completed_contracts", []),
             "agents_remaining": player.agents_available,
+            "gather_intel_card": gather_intel_card.name if gather_intel_card else None,
             "choices_required": (card_agent_results.get("choices_required", []) if card_agent_results else []) +
                                (location_results.get("choices_required", []) if location_results else [])
         }

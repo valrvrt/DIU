@@ -29,7 +29,7 @@ from src.engine.managers.influence_manager import InfluenceManager
 from src.engine.managers.victory_point_manager import VictoryPointManager
 from src.engine.managers.contract_manager import ContractManager
 from src.engine.actions.action_generator import ActionGenerator
-from src.engine.actions.action_executor import ActionExecutor, PlaceAgentAction, RevealAction, AcquireCardAction, PlayIntrigueAction, GatherInformationAction
+from src.engine.actions.action_executor import ActionExecutor, PlaceAgentAction, RevealAction, AcquireCardAction, PlayIntrigueAction
 from src.engine.effects.effect_resolver import EffectResolver
 from src.models.game import Game, GamePhase
 from src.models.player import Player
@@ -379,26 +379,16 @@ class SimpleCLI:
         self.print_section("Your Hand")
         self.display_hand(player)
 
-        # Build action menu dynamically
-        spies_placed = getattr(player, 'spies_placed', [])
-        menu = [
-            ("1", "Place agent (play card + use board space)"),
-            ("2", "Reveal hand (end agent phase)"),
-            ("3", "View board spaces"),
-            ("4", "View imperium row"),
-            ("5", "View all players"),
-        ]
-        if spies_placed:
-            menu.append(("6", f"Recall spy for intrigue card ({len(spies_placed)} spy posted)"))
-        menu.append((str(len(menu) + 1), "Quit game"))
-
         # Get action choice
         print("\nWhat would you like to do?")
-        for key, label in menu:
-            print(f"  {key}. {label}")
+        print("  1. Place agent (play card + use board space)")
+        print("  2. Reveal hand (end agent phase)")
+        print("  3. View board spaces")
+        print("  4. View imperium row")
+        print("  5. View all players")
+        print("  6. Quit game")
 
-        valid_keys = [k for k, _ in menu]
-        choice = self.get_input("\nChoice:", valid_keys)
+        choice = self.get_input("\nChoice:", ["1", "2", "3", "4", "5", "6"])
 
         if choice == "1":
             self.action_place_agent(player)
@@ -416,9 +406,7 @@ class SimpleCLI:
             self.display_full_state()
             input("\nPress Enter to continue...")
             self.take_turn_human(player)
-        elif choice == "6" and spies_placed:
-            self.action_recall_spy(player)
-        else:
+        elif choice == "6":
             print("\nThanks for playing!")
             sys.exit(0)
 
@@ -548,9 +536,16 @@ class SimpleCLI:
         result = action_exec.execute_place_agent(action)
 
         if result.get("success"):
-            self.print_success(f"Placed agent on {location.name}!")
+            if result.get("placement_type") == "spy_infiltrate":
+                self.print_success(f"Infiltrated {location.name}! (spy recalled)")
+            else:
+                self.print_success(f"Placed agent on {location.name}!")
             if troops_to_deploy > 0:
                 self.print_info(f"  Deployed {troops_to_deploy} troops to conflict")
+
+            # Gather intel bonus — spy was at this location
+            if result.get("gather_intel_card"):
+                self.print_success(f"  🔍 Gather intel: drew intrigue card '{result['gather_intel_card']}'")
 
             # Check if signet ring was played
             if card.name == "Signet Ring" and player.leader:
@@ -672,48 +667,6 @@ class SimpleCLI:
 
         time.sleep(1)
 
-    def action_recall_spy(self, player: Player):
-        """Let player recall a spy from an observation post to draw an intrigue card."""
-        action_exec = self.managers["action_executor"]
-        spies_placed = getattr(player, 'spies_placed', [])
-
-        if not spies_placed:
-            self.print_error("No spies posted anywhere.")
-            self.take_turn_human(player)
-            return
-
-        print("\nYour posted spies:")
-        for i, post_id in enumerate(spies_placed, 1):
-            # Try to get location name from board
-            loc_name = str(post_id)
-            for space in self.game.board.spaces:
-                if str(space.id) == str(post_id):
-                    loc_name = space.name
-                    break
-            print(f"  [{i}] Recall from {loc_name} → draw 1 intrigue card")
-        print("  [0] Cancel")
-
-        choice = self.get_input("Choice:", [str(i) for i in range(len(spies_placed) + 1)])
-        if choice == "0":
-            self.take_turn_human(player)
-            return
-
-        post_id = spies_placed[int(choice) - 1]
-        result = action_exec.execute_gather_information(
-            GatherInformationAction(player_id=player.player_id, observation_post_id=post_id)
-        )
-        if result.get("success"):
-            card = result.get("intrigue_drawn")
-            if card:
-                self.print_success(f"Spy recalled! Drew intrigue card: {card.name}")
-            else:
-                self.print_success("Spy recalled! (Intrigue deck empty)")
-        else:
-            self.print_error(f"Recall failed: {result.get('error','')}")
-
-        time.sleep(1)
-        self.take_turn_human(player)
-
     def action_reveal(self, player: Player):
         """Handle reveal action."""
         action_exec = self.managers["action_executor"]
@@ -733,24 +686,11 @@ class SimpleCLI:
 
     def take_turn_bot(self, player: Player):
         """Handle bot player's turn."""
-        import random as _random
         bot = self.bots[player.player_id]
         action_exec = self.managers["action_executor"]
 
         self.print_bot_action(f"{player.name} is thinking...")
         time.sleep(0.5)
-
-        # Bot may recall a spy before acting (~25% chance if spies are posted)
-        spies_placed = getattr(player, 'spies_placed', [])
-        if spies_placed and _random.random() < 0.25:
-            post_id = _random.choice(spies_placed)
-            result = action_exec.execute_gather_information(
-                GatherInformationAction(player_id=player.player_id, observation_post_id=post_id)
-            )
-            if result.get("success"):
-                card = result.get("intrigue_drawn")
-                card_name = card.name if card else "(empty deck)"
-                self.print_bot_action(f"{player.name} recalls spy, draws intrigue: {card_name}")
 
         # Bot decides action
         action = bot.decide_agent_action()
