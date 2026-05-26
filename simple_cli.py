@@ -1396,17 +1396,8 @@ class SimpleCLI:
                 player.troops_in_garrison -= troops
                 self.print_bot_action(f"{player.name} deploys {troops} troops")
 
-        # Leader combat passives (Muad'Dib: sandworm in conflict → draw 1 intrigue)
-        effect_resolver = self.managers["effect_resolver"]
-        for player in self.game.players:
-            res = effect_resolver.check_and_apply_combat_passive(player.player_id)
-            for msg in res.get("effects_applied", []):
-                if player == self.human_player:
-                    self.print_success(f"⚡ {msg}")
-                else:
-                    self.print_bot_action(f"⚡ {msg}")
-
         # Shaddam restriction: clear no_troop_deployment flag after deployment phase
+        # (Muad'Dib's sandworm passive fires automatically on worm gain via effect_resolver)
         for player in self.game.players:
             if "no_troop_deployment_this_turn" in getattr(player, "turn_restrictions", []):
                 player.turn_restrictions.remove("no_troop_deployment_this_turn")

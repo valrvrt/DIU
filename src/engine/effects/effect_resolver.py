@@ -330,6 +330,8 @@ class EffectResolver:
             if not hasattr(player, "sandworms_available"):
                 player.sandworms_available = 0
             player.sandworms_available += total_amount
+            # Muad'Dib passive: gaining a sandworm triggers an intrigue draw
+            self._trigger_muaddib_sandworm_passive(player_id, total_amount)
         elif resource == "intrigue":
             # Draw intrigue cards (delegate to draw handler)
             return self._handle_draw(
@@ -3519,28 +3521,25 @@ class EffectResolver:
 
         return {"success": True, "effects_applied": applied, "choices_required": choices}
 
-    def check_and_apply_combat_passive(self, player_id: str) -> Dict[str, Any]:
+    def _trigger_muaddib_sandworm_passive(self, player_id: str, worms_gained: int) -> None:
         """
-        Called when combat strength is tallied. Checks leader passives that fire
-        during combat:
-        - Muad'Dib: sandworm(s) in conflict → draw 1 intrigue (once per combat)
+        Muad'Dib's passive: whenever he recruits/gains a sandworm (worm resource
+        effect fires), he draws 1 intrigue card per worm gained.
+        Called from within _handle_resource for worm/sandworm gains.
         """
+        if worms_gained <= 0:
+            return
         player = self.state.get_player_by_id(player_id)
         if not player:
-            return {"success": False, "error": "Player not found"}
-
+            return
         leader = getattr(player, "leader", None)
-        name = getattr(leader, "name", "") if leader else ""
-        applied = []
-
-        if name == "Muad'Dib":
-            if getattr(player, "sandworms_in_conflict", 0) > 0:
-                if self.game.board.intrigue_deck:
-                    card = self.game.board.intrigue_deck.pop(0)
-                    player.intrigue_cards.append(card)
-                    applied.append(f"Muad'Dib passive: +1 intrigue ({card.name})")
-
-        return {"success": True, "effects_applied": applied}
+        if not leader or getattr(leader, "name", "") != "Muad'Dib":
+            return
+        for _ in range(worms_gained):
+            if not self.game.board.intrigue_deck:
+                break
+            card = self.game.board.intrigue_deck.pop(0)
+            player.intrigue_cards.append(card)
 
     # ==================== CONDITIONAL REWARD TRIGGER SYSTEM ====================
 
