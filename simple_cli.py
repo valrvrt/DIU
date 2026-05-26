@@ -1532,6 +1532,7 @@ class SimpleCLI:
             player.agents_available = player.total_available_agents
             player.has_revealed_this_round = False
             player.turn_restrictions = []  # Clear Shaddam restrict and any other turn restrictions
+            player._muaddib_passive_fired_this_round = False  # Reset Muad'Dib once-per-round passive
 
             # Draw cards
             deck_manager.draw_cards(player.player_id, 5)

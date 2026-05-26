@@ -3535,9 +3535,11 @@ class EffectResolver:
         leader = getattr(player, "leader", None)
         if not leader or getattr(leader, "name", "") != "Muad'Dib":
             return
-        for _ in range(worms_gained):
-            if not self.game.board.intrigue_deck:
-                break
+        # Once-per-round limit: only fire once regardless of how many worms are gained
+        if getattr(player, "_muaddib_passive_fired_this_round", False):
+            return
+        player._muaddib_passive_fired_this_round = True
+        if self.game.board.intrigue_deck:
             card = self.game.board.intrigue_deck.pop(0)
             player.intrigue_cards.append(card)
 
