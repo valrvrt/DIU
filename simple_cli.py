@@ -726,6 +726,23 @@ class SimpleCLI:
                 self.print_info(f"  {player.name} acquires reserve: {pile_id} (free)")
                 effect_resolver.execute_choice(player.player_id, choice_data, pile_id)
 
+            elif ctype == "play_spy_on_space":
+                # Lady Margot Fenring's signet — pick board space to plant a spy
+                spaces = choice_data.get("eligible_spaces", [])
+                if not spaces:
+                    continue
+                target = choice_data.get("target", "")
+                if is_human:
+                    print(f"\n  Plant a spy on which {target} space?")
+                    for i, s in enumerate(spaces, 1):
+                        print(f"    [{i}] {s['space_name']}")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(spaces)+1)])
+                    chosen = spaces[int(sel)-1]
+                else:
+                    chosen = _random.choice(spaces)
+                    self.print_info(f"  {player.name} plants a spy on {chosen['space_name']}")
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen["space_id"])
+
             elif ctype == "acquire_card":
                 # Free acquisition from imperium row
                 target_name = choice_data.get("card")
@@ -968,22 +985,41 @@ class SimpleCLI:
 
         time.sleep(1)
 
-    def action_reveal(self, player: Player):
-        """Handle reveal action."""
+    def action_reveal(self, player: Player, automatic: bool = False):
+        """
+        Execute the reveal action for a player.
+
+        Reveals all remaining cards in hand, accumulates persuasion/swords from
+        reveal_effects, and marks the player done placing agents for this round.
+
+        Args:
+            player: Player revealing
+            automatic: If True, this is a forced reveal (out of agents) — show a
+                       slightly different message but still resolve effects fully
+        """
         action_exec = self.managers["action_executor"]
 
-        self.print_section("Revealing Hand")
+        if automatic:
+            self.print_info(f"  {player.name} has no agents left — auto-revealing")
+        elif player == self.human_player:
+            self.print_section("Revealing Hand")
 
-        action = RevealAction(player_id=player.player_id)
-        result = action_exec.execute_reveal(action)
+        result = action_exec.execute_reveal(RevealAction(player_id=player.player_id))
 
-        if result.get("success"):
-            self.print_success("Hand revealed!")
-            print(f"  Cards revealed: {result.get('cards_revealed', 0)}")
-            time.sleep(2)
+        if not result.get("success"):
+            self.print_error(f"  Reveal failed: {result.get('error', 'unknown')}")
+            time.sleep(1)
+            return
+
+        revealed = result.get("cards_revealed", 0)
+        persuasion = result.get("total_persuasion", getattr(player, 'temp_persuasion', 0))
+        swords = result.get("temp_swords", getattr(player, 'temp_swords', 0))
+
+        if player == self.human_player:
+            self.print_success(f"Revealed {revealed} card(s) → {persuasion} persuasion, {swords} swords")
         else:
-            self.print_error(f"Failed: {result.get('error', 'Unknown error')}")
-            time.sleep(2)
+            self.print_bot_action(f"{player.name} reveals {revealed} card(s) → {persuasion} persuasion, {swords} swords")
+        time.sleep(1)
 
     def take_turn_bot(self, player: Player):
         """Handle bot player's turn."""
@@ -1012,12 +1048,8 @@ class SimpleCLI:
         action = bot.decide_agent_action()
 
         if action is None:
-            # Bot wants to reveal
-            self.print_bot_action(f"{player.name} reveals their hand")
-            reveal_action = RevealAction(player_id=player.player_id)
-            result = action_exec.execute_reveal(reveal_action)
-            if result.get("success"):
-                self.print_info(f"  Revealed {result.get('cards_revealed', 0)} cards")
+            # Bot chooses to reveal — go through the shared path
+            self.action_reveal(player)
         else:
             # Bot places agent
             self.print_bot_action(f"{player.name} plays {action.card.name} on {action.location.name}")
@@ -1025,7 +1057,6 @@ class SimpleCLI:
             if result.get("success"):
                 if action.troops_to_deploy > 0:
                     self.print_info(f"  Deployed {action.troops_to_deploy} troops")
-                # Resolve any pending choices (bots auto-pick)
                 self._resolve_choices(player, result.get("choices_required", []))
             else:
                 self.print_error(f"  Bot action failed: {result.get('error')}")
@@ -1033,22 +1064,23 @@ class SimpleCLI:
         time.sleep(1)
 
     def run_agent_phase(self):
-        """Run the agent placement phase for all players."""
+        """
+        Player turns: each player takes turns either placing an agent or revealing.
+        Loops until every player has revealed their hand.
+        """
         self.print_header(f"Round {self.game.current_round} - Agent Phase")
 
-        # Reset revealed status for all players
         for player in self.game.players:
             player.has_revealed_this_round = False
 
-        # Keep going until all players have revealed
         while not all(p.has_revealed_this_round for p in self.game.players):
             for player in self.game.players:
                 if player.has_revealed_this_round:
                     continue
 
-                # Check if player still has agents
+                # No agents left → auto-reveal (still resolves reveal_effects)
                 if player.agents_available <= 0:
-                    player.has_revealed_this_round = True
+                    self.action_reveal(player, automatic=True)
                     continue
 
                 if player == self.human_player:
@@ -1056,26 +1088,21 @@ class SimpleCLI:
                 else:
                     self.take_turn_bot(player)
 
-    def run_reveal_phase(self):
-        """Run the reveal phase: all players buy cards with accumulated persuasion."""
+    def run_acquisition_phase(self):
+        """
+        After all players have revealed, each spends accumulated persuasion to
+        acquire cards from the imperium row, reserve piles, and (free) contracts.
+        """
         self.print_header(f"Round {self.game.current_round} - Acquisition Phase")
 
         action_gen = self.managers["action_generator"]
         action_exec = self.managers["action_executor"]
 
         for player in self.game.players:
-            if not player.has_revealed_this_round:
-                continue
-
             if player == self.human_player:
                 self._human_acquisition(player, action_gen, action_exec)
             else:
-                # Bot: buy a random affordable card or pass
-                bot = self.bots.get(player.player_id)
-                if bot and hasattr(bot, 'decide_acquisition'):
-                    bot.decide_acquisition(player)
-                else:
-                    self._bot_acquisition(player, action_gen, action_exec)
+                self._bot_acquisition(player, action_gen, action_exec)
 
         self.print_success("Acquisition phase complete")
         time.sleep(1)
@@ -1557,8 +1584,8 @@ class SimpleCLI:
             # Agent Phase
             self.run_agent_phase()
 
-            # Reveal Phase
-            self.run_reveal_phase()
+            # Acquisition Phase (everyone spends their accumulated persuasion)
+            self.run_acquisition_phase()
 
             # Combat Phase
             self.run_combat_phase()

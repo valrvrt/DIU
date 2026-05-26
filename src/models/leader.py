@@ -78,8 +78,17 @@ class Leader:
             )
 
             if not has_progression_ids:
-                # Flat list — fire all entries together
-                return sp
+                # Flat list — fire all entries together.
+                # Unwrap {"reward": [...]} wrappers (some leaders nest effects this way).
+                flat = []
+                for entry in sp:
+                    if (isinstance(entry, dict)
+                            and 'reward' in entry
+                            and 'type' not in entry):
+                        flat.extend(entry['reward'])
+                    else:
+                        flat.append(entry)
+                return flat
 
             # Progressive — pick highest unlocked level
             available_levels = [

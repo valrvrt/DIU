@@ -2881,6 +2881,41 @@ class EffectResolver:
                 }
             }
 
+        elif choice_type == "play_spy_on_space":
+            # Lady Margot Fenring's signet — place a spy directly on a board space
+            space_id = selected_option_id
+            player = self.state.get_player_by_id(player_id)
+            amount = choice_data.get("amount", 1)
+
+            # Validate the space is eligible (avoid double-placement)
+            eligible_ids = [str(e["space_id"]) for e in choice_data.get("eligible_spaces", [])]
+            if str(space_id) not in eligible_ids:
+                return {"success": False, "error": f"Space {space_id} not eligible for spy placement"}
+
+            if player.spies_available < amount:
+                return {"success": False, "error": "No spies available"}
+
+            player.spies_available -= amount
+            player.spies_placed.append(str(space_id))
+
+            # Find space name for the log
+            space_name = space_id
+            for e in choice_data.get("eligible_spaces", []):
+                if str(e["space_id"]) == str(space_id):
+                    space_name = e["space_name"]
+                    break
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "ply",
+                    "agent": "spy",
+                    "amount": amount,
+                    "space_id": space_id,
+                    "space_name": space_name
+                }
+            }
+
         elif choice_type == "acquire_card":
             # Free acquisition from imperium row — selected_option_id is the card id
             card_id = selected_option_id
@@ -4308,15 +4343,18 @@ class EffectResolver:
 
     def _handle_ply(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Handle ply effect (Lady Margot Fenring - play spy on blue space).
+        Handle ply effect (Lady Margot Fenring - play spy on any space matching agent_icon).
 
         Format:
         {
             "type": "ply",
             "agent": "spy",
             "amount": 1,
-            "target": "blue"
+            "target": "blue"       # icon name, e.g. "blue" matches both "blue" and "bene_gesserit"
         }
+
+        Raises a play_spy_on_space choice with all eligible board spaces so
+        the player can pick one. The chosen space's id is added to spies_placed.
         """
         player = self.state.get_player_by_id(player_id)
         if not player:
@@ -4324,27 +4362,63 @@ class EffectResolver:
 
         agent_type = effect.get('agent', 'spy')
         amount = effect.get('amount', 1)
-        target = effect.get('target')  # "blue" for Bene Gesserit spaces
+        target = effect.get('target')
 
-        if agent_type == 'spy':
-            if player.spies_available < amount:
-                return {"success": False, "error": f"Not enough spies available"}
+        if agent_type != 'spy':
+            return {"success": False, "error": f"Unknown agent type: {agent_type}"}
 
-            # Set flag for restricted spy placement
-            if not hasattr(player, 'restricted_spy_placement'):
-                player.restricted_spy_placement = None
+        if player.spies_available < amount:
+            return {"success": False, "error": "Not enough spies available"}
 
-            player.restricted_spy_placement = target
-            player.can_place_spy_from_signet = True
+        def _icon_matches(space_icon, target_icon):
+            """A space matches 'blue' if its icon is 'blue' or 'bene_gesserit', etc."""
+            if not space_icon:
+                return False
+            icons = space_icon if isinstance(space_icon, list) else [space_icon]
+            # Direct match
+            if target_icon in icons:
+                return True
+            # Color-to-faction aliasing
+            color_aliases = {
+                "blue": ["bene_gesserit"],
+                "yellow": ["fremen"],
+                "green": ["spacing_guild"],
+                "red": ["emperor"],
+            }
+            for alias in color_aliases.get(target_icon, []):
+                if alias in icons:
+                    return True
+            return False
 
+        # Build list of eligible spaces (not already spied by this player)
+        eligible = []
+        for space in self.game.board.spaces:
+            if not _icon_matches(getattr(space, 'agent_icon', None), target):
+                continue
+            if str(space.id) in [str(s) for s in player.spies_placed]:
+                continue
+            eligible.append({
+                "space_id": str(space.id),
+                "space_name": space.name
+            })
+
+        if not eligible:
             return {
                 "success": True,
-                "effects_applied": [f"Can place {amount} {agent_type} on {target} space"],
-                "requires_action": "place_spy",
-                "restriction": target
+                "applied": {"type": "ply", "agent": agent_type, "amount": 0,
+                            "reason": "no eligible spaces"}
             }
 
-        return {"success": False, "error": f"Unknown agent type: {agent_type}"}
+        return {
+            "success": True,
+            "choice_required": True,
+            "choice_data": {
+                "type": "play_spy_on_space",
+                "amount": amount,
+                "target": target,
+                "eligible_spaces": eligible
+            }
+        }
 
     def _handle_transform_leader(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
