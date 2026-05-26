@@ -42,35 +42,69 @@ class Leader:
         """
         Get the current signet ability effects based on training track position.
 
+        The signet field in JSON can take 3 shapes:
+        1. A dict — single effect (Gurney bare reward, Princess Irulan choice)
+        2. A list of dicts WITH `id` fields — progressive signet (Feyd-Rautha)
+        3. A list of dicts WITHOUT `id` fields — flat list, all entries fire together
+           (Lady Jessica, Lady Amber Metulli, Mu'ad'Dib, Shaddam, Staban Tuek,
+           Lady Margot Fenring)
+
         Returns:
             List of effects for current signet level
         """
-        # Old format (simple signet_ability)
-        if self.signet_ability and 'effects' in self.signet_ability:
+        # Old format (simple signet_ability with 'effects' field)
+        if self.signet_ability and isinstance(self.signet_ability, dict) and 'effects' in self.signet_ability:
             return self.signet_ability['effects']
 
-        # New format (progressive signet)
-        if self.signet_progression:
-            # Find the highest unlocked level based on training track position
+        # Use signet_progression if set, otherwise fall back to signet_ability
+        # (some custom leader subclasses store the JSON dict in signet_ability)
+        sp = self.signet_progression if self.signet_progression else self.signet_ability
+        if not sp:
+            return []
+
+        # Shape 1: dict
+        if isinstance(sp, dict):
+            # If it's a bare reward wrapper (Gurney: {"reward": [...]}), return rewards
+            if 'reward' in sp and 'type' not in sp:
+                return sp['reward']
+            # Otherwise the dict itself is the effect (Princess Irulan's choice)
+            return [sp]
+
+        # Shape 2/3: list
+        if isinstance(sp, list):
+            has_progression_ids = any(
+                isinstance(e, dict) and 'id' in e and not isinstance(e.get('id'), str)
+                for e in sp
+            )
+
+            if not has_progression_ids:
+                # Flat list — fire all entries together.
+                # Unwrap {"reward": [...]} wrappers (some leaders nest effects this way).
+                flat = []
+                for entry in sp:
+                    if (isinstance(entry, dict)
+                            and 'reward' in entry
+                            and 'type' not in entry):
+                        flat.extend(entry['reward'])
+                    else:
+                        flat.append(entry)
+                return flat
+
+            # Progressive — pick highest unlocked level
             available_levels = [
-                level for level in self.signet_progression
-                if level.get('id', 0) <= self.training_track_position + 1  # +1 because track starts at 0 but levels start at 1
+                level for level in sp
+                if level.get('id', 0) <= self.training_track_position + 1
             ]
 
             if available_levels:
-                # Use the highest available level
                 current_level = max(available_levels, key=lambda x: x.get('id', 0))
 
-                # If it's a choice, return the choice structure
                 if current_level.get('type') == 'choice':
                     return [current_level]
 
-                # If it has a reward field, use that
                 if 'reward' in current_level:
                     return current_level['reward']
 
-                # Otherwise, the level itself IS the effect (like level 2: {"id": 2, "type": "trash", ...})
-                # Return it as a single-element list
                 return [current_level]
 
         return []

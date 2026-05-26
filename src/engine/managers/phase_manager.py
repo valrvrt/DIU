@@ -505,10 +505,17 @@ class PhaseManager:
                 "final_scores": List[{player, vp, spice}]
             }
         """
-        # Sort by VP (desc), then spice (desc)
+        # Sort by VP (desc), then tiebreaker order per rules line 305:
+        # Spice → Solari → Water → Garrison Troops
         sorted_players = sorted(
             self.game.players,
-            key=lambda p: (p.victory_points, p.spice),
+            key=lambda p: (
+                p.victory_points,
+                p.spice,
+                p.solari,
+                p.water,
+                p.troops_in_garrison
+            ),
             reverse=True
         )
 
@@ -516,9 +523,13 @@ class PhaseManager:
         is_tie = False
         tied_players = [winner]
 
-        # Check for tie (same VP and spice)
+        # Check for tie (all tiebreakers equal)
         for player in sorted_players[1:]:
-            if player.victory_points == winner.victory_points and player.spice == winner.spice:
+            if (player.victory_points == winner.victory_points
+                    and player.spice == winner.spice
+                    and player.solari == winner.solari
+                    and player.water == winner.water
+                    and player.troops_in_garrison == winner.troops_in_garrison):
                 is_tie = True
                 tied_players.append(player)
             else:
@@ -532,7 +543,10 @@ class PhaseManager:
                 {
                     "player": p,
                     "vp": p.victory_points,
-                    "spice": p.spice
+                    "spice": p.spice,
+                    "solari": p.solari,
+                    "water": p.water,
+                    "garrison": p.troops_in_garrison
                 }
                 for p in sorted_players
             ]

@@ -187,6 +187,51 @@ class ContractManager:
             "total_completed": len(completed)
         }
 
+    def check_acquire_card_contracts(
+        self,
+        player_id: str,
+        card_name: str
+    ) -> Dict[str, Any]:
+        """
+        Check if player completes any "acquire card" contracts by buying a card.
+
+        Called after a player acquires a card from the imperium row or reserve.
+
+        Args:
+            player_id: Player who acquired the card
+            card_name: Name of the card that was acquired
+
+        Returns:
+            Dict with completed contracts
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"completed_contracts": []}
+
+        completed = []
+
+        for contract in player.contracts_active[:]:
+            if contract.completion_type == "acquire_card":
+                target = contract.completion_target or ""
+                # Match by card name (case-insensitive)
+                if target.lower() == card_name.lower():
+                    player.contracts_active.remove(contract)
+                    player.contracts_completed.append(contract)
+
+                    reward_results = self._apply_contract_rewards(player, contract)
+
+                    completed.append({
+                        "contract": contract.name,
+                        "type": "acquire_card",
+                        "card": card_name,
+                        "rewards": reward_results
+                    })
+
+        return {
+            "completed_contracts": completed,
+            "total_completed": len(completed)
+        }
+
     def update_spice_harvest(self, player_id: str, spice_amount: int):
         """
         Update player's total spice harvested counter.
@@ -235,34 +280,56 @@ class ContractManager:
         """
         results = {"rewards_applied": []}
 
-        for reward_type, value in contract.rewards.items():
-            if reward_type == "solari":
-                player.solari += value
-            elif reward_type == "spice":
-                player.spice += value
-            elif reward_type == "water":
-                player.water += value
-            elif reward_type == "victory_points":
-                player.victory_points += value
-            elif reward_type == "troops":
-                troops_to_add = min(value, player.troops_in_reserve)
-                player.troops_in_reserve -= troops_to_add
-                player.troops_in_garrison += troops_to_add
-            elif reward_type == "draw":
-                for _ in range(value):
-                    card = player.deck.draw(player.discard_pile)
-                    if card:
-                        player.hand.add_card(card)
-            elif reward_type == "intrigue":
-                for _ in range(value):
-                    intrigue = self.game.board.intrigue_deck.pop(0) if self.game.board.intrigue_deck else None
-                    if intrigue:
-                        player.intrigue_cards.append(intrigue)
+        # Rewards are a list of effect dicts:
+        # [{"type": "resource", "resource": "solari", "amount": 3}, ...]
+        reward_list = contract.rewards if isinstance(contract.rewards, list) else []
 
-            results["rewards_applied"].append({
-                "reward": reward_type,
-                "amount": value
-            })
+        for reward in reward_list:
+            rtype = reward.get("type", "")
+            amount = reward.get("amount", 1)
+
+            if rtype == "resource":
+                resource = reward.get("resource", "")
+                if resource == "solari":
+                    player.solari += amount
+                elif resource == "spice":
+                    player.spice += amount
+                elif resource == "water":
+                    player.water += amount
+                elif resource == "victory_point":
+                    player.victory_points += amount
+                elif resource == "troop":
+                    troops_to_add = min(amount, player.troops_in_reserve)
+                    player.troops_in_reserve -= troops_to_add
+                    player.troops_in_garrison += troops_to_add
+                results["rewards_applied"].append({"reward": resource, "amount": amount})
+
+            elif rtype == "influence":
+                target = reward.get("target", "")
+                attr = f"{target}_influence"
+                if hasattr(player, attr):
+                    setattr(player, attr, getattr(player, attr) + amount)
+                results["rewards_applied"].append({"reward": f"{target}_influence", "amount": amount})
+
+            elif rtype == "draw":
+                deck_name = reward.get("deck", "imperium")
+                drawn = 0
+                for _ in range(amount):
+                    if deck_name == "intrigue":
+                        card = self.game.board.intrigue_deck.pop(0) if self.game.board.intrigue_deck else None
+                        if card:
+                            player.intrigue_cards.append(card)
+                            drawn += 1
+                    else:
+                        card = player.deck.draw(player.discard_pile)
+                        if card:
+                            player.hand.add_card(card)
+                            drawn += 1
+                results["rewards_applied"].append({"reward": f"draw_{deck_name}", "amount": drawn})
+
+            elif rtype == "victory_point":
+                player.victory_points += amount
+                results["rewards_applied"].append({"reward": "victory_point", "amount": amount})
 
         return results
 

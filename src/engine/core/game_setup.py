@@ -135,7 +135,8 @@ class GameSetup:
                 water=1,
                 solari=0,
                 spice=0,
-                victory_points=0,
+                # In 4-player games, each player starts with 1 VP (rules line 66)
+                victory_points=1 if player_count == 4 else 0,
                 # Troops
                 troops_in_garrison=3,
                 troops_in_reserve=9,
@@ -196,10 +197,10 @@ class GameSetup:
             if 'prepare' not in card.id.lower() and 'spice_must_flow' not in card.id.lower()
         ]
 
-        # Shuffle and setup imperium row (first 6 cards visible)
+        # Shuffle and setup imperium row (first 5 cards visible, per rules)
         random.shuffle(imperium_deck)
-        board.imperium_row = imperium_deck[:6]
-        board.imperium_deck = imperium_deck[6:]
+        board.imperium_row = imperium_deck[:5]
+        board.imperium_deck = imperium_deck[5:]
 
         # 6. Setup conflict deck (by level)
         all_conflicts = load_conflict_cards()
@@ -277,7 +278,7 @@ class GameSetup:
 
         # Check board
         checks["has_board_spaces"] = len(game.board.spaces) > 0
-        checks["has_imperium_row"] = len(game.board.imperium_row) == 6
+        checks["has_imperium_row"] = len(game.board.imperium_row) == 5
         checks["has_conflict_deck"] = len(game.board.conflict_deck) == 10  # 1+5+4
         checks["has_intrigue_deck"] = len(game.board.intrigue_deck) > 0
         checks["has_contract_row"] = len(game.board.contract_row) == 2

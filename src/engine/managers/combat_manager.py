@@ -404,10 +404,23 @@ class CombatManager:
                 for player_id in player_ids:
                     player = self.state.get_player_by_id(player_id)
                     if player:
+                        # Rule (lines 287-289): if player has sandworms in conflict,
+                        # double all rewards received
+                        has_sandworms = getattr(player, 'sandworms_in_conflict', 0) > 0
+                        effects_to_apply = reward_effects
+
+                        if has_sandworms:
+                            # Deep-copy and double every numeric 'amount' field
+                            import copy
+                            effects_to_apply = copy.deepcopy(reward_effects)
+                            for effect in effects_to_apply:
+                                if isinstance(effect, dict) and 'amount' in effect:
+                                    effect['amount'] = effect['amount'] * 2
+
                         # Use EffectResolver to apply rewards
                         result = self.effect_resolver.resolve_effects(
                             player_id,
-                            reward_effects,
+                            effects_to_apply,
                             context={"phase": "combat", "conflict": conflict.name, "rank": rank}
                         )
 
@@ -416,7 +429,8 @@ class CombatManager:
                             "rank": rank,
                             "rewards": result.get("effects_applied", []),
                             "success": result["success"],
-                            "choices_required": result.get("choices_required", [])
+                            "choices_required": result.get("choices_required", []),
+                            "sandworm_doubled": has_sandworms
                         })
 
         return results
