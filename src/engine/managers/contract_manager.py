@@ -187,6 +187,51 @@ class ContractManager:
             "total_completed": len(completed)
         }
 
+    def check_acquire_card_contracts(
+        self,
+        player_id: str,
+        card_name: str
+    ) -> Dict[str, Any]:
+        """
+        Check if player completes any "acquire card" contracts by buying a card.
+
+        Called after a player acquires a card from the imperium row or reserve.
+
+        Args:
+            player_id: Player who acquired the card
+            card_name: Name of the card that was acquired
+
+        Returns:
+            Dict with completed contracts
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"completed_contracts": []}
+
+        completed = []
+
+        for contract in player.contracts_active[:]:
+            if contract.completion_type == "acquire_card":
+                target = contract.completion_target or ""
+                # Match by card name (case-insensitive)
+                if target.lower() == card_name.lower():
+                    player.contracts_active.remove(contract)
+                    player.contracts_completed.append(contract)
+
+                    reward_results = self._apply_contract_rewards(player, contract)
+
+                    completed.append({
+                        "contract": contract.name,
+                        "type": "acquire_card",
+                        "card": card_name,
+                        "rewards": reward_results
+                    })
+
+        return {
+            "completed_contracts": completed,
+            "total_completed": len(completed)
+        }
+
     def update_spice_harvest(self, player_id: str, spice_amount: int):
         """
         Update player's total spice harvested counter.

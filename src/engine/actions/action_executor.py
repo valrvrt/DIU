@@ -746,6 +746,12 @@ class ActionExecutor:
             if not acquire_results["success"]:
                 return acquire_results
 
+        # Step 6: Check acquire-card contracts
+        contract_results = self.contract_manager.check_acquire_card_contracts(
+            action.player_id,
+            action.card.name
+        )
+
         return {
             "success": True,
             "action_type": "acquire_card",
@@ -755,7 +761,8 @@ class ActionExecutor:
             "source": action.source,
             "remaining_persuasion": player.temp_persuasion,
             "acquire_effects": acquire_results,
-            "choices_required": acquire_results.get("choices_required", []) if acquire_results else []
+            "choices_required": acquire_results.get("choices_required", []) if acquire_results else [],
+            "contract_completions": contract_results
         }
 
     # ==================== INTRIGUE ACTIONS ====================

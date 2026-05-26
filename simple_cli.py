@@ -29,7 +29,7 @@ from src.engine.managers.influence_manager import InfluenceManager
 from src.engine.managers.victory_point_manager import VictoryPointManager
 from src.engine.managers.contract_manager import ContractManager
 from src.engine.actions.action_generator import ActionGenerator
-from src.engine.actions.action_executor import ActionExecutor, PlaceAgentAction, RevealAction, AcquireCardAction, PlayIntrigueAction
+from src.engine.actions.action_executor import ActionExecutor, PlaceAgentAction, RevealAction, AcquireCardAction, PlayIntrigueAction, GatherInformationAction
 from src.engine.effects.effect_resolver import EffectResolver
 from src.models.game import Game, GamePhase
 from src.models.player import Player
@@ -379,16 +379,26 @@ class SimpleCLI:
         self.print_section("Your Hand")
         self.display_hand(player)
 
+        # Build action menu dynamically
+        spies_placed = getattr(player, 'spies_placed', [])
+        menu = [
+            ("1", "Place agent (play card + use board space)"),
+            ("2", "Reveal hand (end agent phase)"),
+            ("3", "View board spaces"),
+            ("4", "View imperium row"),
+            ("5", "View all players"),
+        ]
+        if spies_placed:
+            menu.append(("6", f"Recall spy for intrigue card ({len(spies_placed)} spy posted)"))
+        menu.append((str(len(menu) + 1), "Quit game"))
+
         # Get action choice
         print("\nWhat would you like to do?")
-        print("  1. Place agent (play card + use board space)")
-        print("  2. Reveal hand (end agent phase)")
-        print("  3. View board spaces")
-        print("  4. View imperium row")
-        print("  5. View all players")
-        print("  6. Quit game")
+        for key, label in menu:
+            print(f"  {key}. {label}")
 
-        choice = self.get_input("\nChoice:", ["1", "2", "3", "4", "5", "6"])
+        valid_keys = [k for k, _ in menu]
+        choice = self.get_input("\nChoice:", valid_keys)
 
         if choice == "1":
             self.action_place_agent(player)
@@ -406,7 +416,9 @@ class SimpleCLI:
             self.display_full_state()
             input("\nPress Enter to continue...")
             self.take_turn_human(player)
-        elif choice == "6":
+        elif choice == "6" and spies_placed:
+            self.action_recall_spy(player)
+        else:
             print("\nThanks for playing!")
             sys.exit(0)
 
@@ -660,6 +672,48 @@ class SimpleCLI:
 
         time.sleep(1)
 
+    def action_recall_spy(self, player: Player):
+        """Let player recall a spy from an observation post to draw an intrigue card."""
+        action_exec = self.managers["action_executor"]
+        spies_placed = getattr(player, 'spies_placed', [])
+
+        if not spies_placed:
+            self.print_error("No spies posted anywhere.")
+            self.take_turn_human(player)
+            return
+
+        print("\nYour posted spies:")
+        for i, post_id in enumerate(spies_placed, 1):
+            # Try to get location name from board
+            loc_name = str(post_id)
+            for space in self.game.board.spaces:
+                if str(space.id) == str(post_id):
+                    loc_name = space.name
+                    break
+            print(f"  [{i}] Recall from {loc_name} → draw 1 intrigue card")
+        print("  [0] Cancel")
+
+        choice = self.get_input("Choice:", [str(i) for i in range(len(spies_placed) + 1)])
+        if choice == "0":
+            self.take_turn_human(player)
+            return
+
+        post_id = spies_placed[int(choice) - 1]
+        result = action_exec.execute_gather_information(
+            GatherInformationAction(player_id=player.player_id, observation_post_id=post_id)
+        )
+        if result.get("success"):
+            card = result.get("intrigue_drawn")
+            if card:
+                self.print_success(f"Spy recalled! Drew intrigue card: {card.name}")
+            else:
+                self.print_success("Spy recalled! (Intrigue deck empty)")
+        else:
+            self.print_error(f"Recall failed: {result.get('error','')}")
+
+        time.sleep(1)
+        self.take_turn_human(player)
+
     def action_reveal(self, player: Player):
         """Handle reveal action."""
         action_exec = self.managers["action_executor"]
@@ -679,11 +733,24 @@ class SimpleCLI:
 
     def take_turn_bot(self, player: Player):
         """Handle bot player's turn."""
+        import random as _random
         bot = self.bots[player.player_id]
         action_exec = self.managers["action_executor"]
 
         self.print_bot_action(f"{player.name} is thinking...")
         time.sleep(0.5)
+
+        # Bot may recall a spy before acting (~25% chance if spies are posted)
+        spies_placed = getattr(player, 'spies_placed', [])
+        if spies_placed and _random.random() < 0.25:
+            post_id = _random.choice(spies_placed)
+            result = action_exec.execute_gather_information(
+                GatherInformationAction(player_id=player.player_id, observation_post_id=post_id)
+            )
+            if result.get("success"):
+                card = result.get("intrigue_drawn")
+                card_name = card.name if card else "(empty deck)"
+                self.print_bot_action(f"{player.name} recalls spy, draws intrigue: {card_name}")
 
         # Bot decides action
         action = bot.decide_agent_action()
@@ -835,7 +902,8 @@ class SimpleCLI:
                         rewards = result.get("rewards", {})
                         applied = rewards.get("rewards_applied", [])
                         if applied:
-                            print(f"  Rewards: {', '.join(f'+{r[\"amount\"]} {r[\"reward\"]}' for r in applied)}")
+                            reward_parts = [f'+{r["amount"]} {r["reward"]}' for r in applied]
+                            print(f"  Rewards: {', '.join(reward_parts)}")
                     else:
                         self.print_success(f"Contract '{item.name}' accepted!")
                         ctype = result.get("completion_type", "")
@@ -855,6 +923,9 @@ class SimpleCLI:
             )
             if result.get("success"):
                 self.print_success(f"Acquired {item.name}!")
+                # Notify on any acquire-card contract completions
+                for completed in result.get("contract_completions", {}).get("completed_contracts", []):
+                    self.print_success(f"🎉 Contract completed: {completed['contract']}!")
                 # Deduct cost from temp_persuasion
                 player.temp_persuasion = getattr(player, 'temp_persuasion', persuasion_left) - item.cost
                 if player.temp_persuasion <= 0:
@@ -894,31 +965,58 @@ class SimpleCLI:
                 if result.get("success"):
                     self.print_bot_action(f"{player.name} accepts contract '{contract.name}'")
 
+    def _format_conflict_rewards(self, rewards: dict) -> str:
+        """Format conflict rewards dict into readable string."""
+        if not rewards:
+            return "none"
+        parts = []
+        for rank in ["1", "2", "3"]:
+            if rank in rewards:
+                effects = rewards[rank]
+                effect_strs = []
+                for e in effects:
+                    if e.get("type") == "resource":
+                        effect_strs.append(f"+{e.get('amount',1)} {e.get('resource','?')}")
+                    elif e.get("type") == "influence":
+                        effect_strs.append(f"+{e.get('amount',1)} {e.get('target','?')} influence")
+                    elif e.get("type") == "victory_point":
+                        effect_strs.append(f"+{e.get('amount',1)} VP")
+                    elif e.get("type") == "draw":
+                        effect_strs.append(f"draw {e.get('amount',1)} intrigue")
+                    else:
+                        effect_strs.append(e.get("type","?"))
+                parts.append(f"  {rank}st: {', '.join(effect_strs)}")
+        return "\n".join(parts) if parts else "no rewards"
+
     def run_combat_phase(self):
         """Run the combat phase."""
         combat_manager = self.managers["combat_manager"]
+        action_exec = self.managers["action_executor"]
 
         self.print_header(f"Round {self.game.current_round} - Combat Phase")
 
-        # Show current conflict
-        if hasattr(self.game, 'current_conflict') and self.game.current_conflict:
-            conflict = self.game.current_conflict
-            self.print_section(f"Conflict: {conflict.name}")
-            print(f"  Rewards: {conflict.rewards}")
+        # Advance game phase to COMBAT so intrigue effects resolve correctly
+        self.game.current_phase = GamePhase.COMBAT
 
-        # Ask human player about troop deployment
+        # Show current conflict and its rewards
+        conflict = getattr(self.game.board, 'current_conflict', None)
+        if conflict:
+            self.print_section(f"⚔️  Conflict: {conflict.name}")
+            reward_str = self._format_conflict_rewards(getattr(conflict, 'rewards', {}))
+            if reward_str:
+                print(f"  Rewards:\n{reward_str}")
+
+        # --- Troop Deployment ---
         if self.human_player.troops_in_garrison > 0:
             print(f"\nYou have {self.human_player.troops_in_garrison} troops available.")
-            print("How many troops to deploy to conflict?")
             max_troops = min(8, self.human_player.troops_in_garrison)
-            choice = self.get_input(f"Troops (0-{max_troops}):", [str(i) for i in range(max_troops + 1)])
+            choice = self.get_input(f"How many troops to deploy to conflict? (0-{max_troops}):", [str(i) for i in range(max_troops + 1)])
             troops = int(choice)
             if troops > 0:
                 self.human_player.troops_in_conflict += troops
                 self.human_player.troops_in_garrison -= troops
                 self.print_success(f"Deployed {troops} troops to conflict")
 
-        # Bots deploy troops
         for player in self.game.players[1:]:
             bot = self.bots[player.player_id]
             troops = bot.decide_troops_to_deploy(player.troops_in_garrison)
@@ -927,17 +1025,101 @@ class SimpleCLI:
                 player.troops_in_garrison -= troops
                 self.print_bot_action(f"{player.name} deploys {troops} troops")
 
-        # Resolve combat
+        # Show troop summary
+        print()
+        participating = [(p, p.troops_in_conflict + getattr(p, 'sandworms_in_conflict', 0))
+                         for p in self.game.players if p.troops_in_conflict > 0 or getattr(p, 'sandworms_in_conflict', 0) > 0]
+        if participating:
+            self.print_section("Combat Participants")
+            for p, units in participating:
+                swords = getattr(p, 'temp_swords', 0)
+                strength = (p.troops_in_conflict * 2) + (getattr(p, 'sandworms_in_conflict', 0) * 3) + swords
+                print(f"  {p.name}: {p.troops_in_conflict} troops + {swords} ⚔  = {strength} strength")
+        else:
+            self.print_info("No troops in conflict — skipping combat resolution.")
+            self.game.current_phase = GamePhase.PLAYER_TURNS
+            time.sleep(1)
+            return
+
+        # --- Intrigue Round ---
+        intrigue_info = combat_manager.conduct_intrigue_round()
+        players_with_intrigues = intrigue_info.get("players_with_intrigues", [])
+
+        if players_with_intrigues:
+            self.print_section("Combat Intrigue Round")
+            print("  Players may play combat intrigue cards before strength is calculated.\n")
+
+            # Human intrigue
+            human_combat_intrigues = [
+                card for card in self.human_player.intrigue_cards
+                if hasattr(card, 'phases') and any(
+                    phase.value == 'Combat' for phase in card.phases
+                )
+            ]
+            if human_combat_intrigues:
+                while True:
+                    print(f"\n  Your combat intrigue cards:")
+                    for i, card in enumerate(human_combat_intrigues, 1):
+                        print(f"    [{i}] {card.name}")
+                    choice = self.get_input("  Play [1-N] or [0] pass:", [str(i) for i in range(len(human_combat_intrigues) + 1)])
+                    if choice == "0":
+                        break
+                    card = human_combat_intrigues[int(choice) - 1]
+                    result = action_exec.execute_play_intrigue(PlayIntrigueAction(
+                        player_id=self.human_player.player_id,
+                        intrigue_card=card
+                    ))
+                    if result.get("success"):
+                        self.print_success(f"Played {card.name}!")
+                        human_combat_intrigues = [c for c in self.human_player.intrigue_cards
+                                                   if hasattr(c, 'phases') and any(p.value == 'Combat' for p in c.phases)]
+                        if not human_combat_intrigues:
+                            break
+                    else:
+                        self.print_error(f"Cannot play: {result.get('error','')}")
+                        break
+
+            # Bot intrigues
+            for player in self.game.players[1:]:
+                bot = self.bots[player.player_id]
+                bot_combat_intrigues = [
+                    card for card in player.intrigue_cards
+                    if hasattr(card, 'phases') and any(p.value == 'Combat' for p in card.phases)
+                ]
+                chosen = bot.decide_intrigue_to_play(bot_combat_intrigues)
+                if chosen:
+                    result = action_exec.execute_play_intrigue(PlayIntrigueAction(
+                        player_id=player.player_id,
+                        intrigue_card=chosen
+                    ))
+                    if result.get("success"):
+                        self.print_bot_action(f"{player.name} plays intrigue: {chosen.name}")
+
+        # --- Resolve Combat ---
         self.print_info("\nResolving combat...")
-        result = combat_manager.resolve_combat()
+        result = combat_manager.resolve_conflict(intrigue_round_complete=True)
+
+        def _pid_to_name(pid):
+            p = next((x for x in self.game.players if x.player_id == pid), None)
+            return p.name if p else pid
 
         if result.get("success"):
             self.print_success("Combat resolved!")
-            if "winners" in result:
-                for winner_id in result["winners"]:
-                    winner = self.game.get_player_by_id(winner_id)
-                    self.print_success(f"  {winner.name} wins combat!")
+            rankings = result.get("rankings", {})
+            for rank, player_ids in sorted(rankings.items()):
+                ordinal = {1: "1st", 2: "2nd", 3: "3rd"}.get(rank, f"{rank}th")
+                names = [_pid_to_name(pid) for pid in player_ids]
+                if names:
+                    print(f"  {ordinal}: {', '.join(names)}")
+            for winner_id in result.get("winners", []):
+                winner = next((p for p in self.game.players if p.player_id == winner_id), None)
+                if winner:
+                    self.print_success(f"  🏆 {winner.name} wins the conflict card!")
+        else:
+            self.print_info(result.get("error", "Combat skipped"))
 
+        # Restore phase
+        self.game.current_phase = GamePhase.PLAYER_TURNS
         time.sleep(2)
 
     def run_makers_phase(self):
@@ -961,6 +1143,7 @@ class SimpleCLI:
         """Run the recall phase."""
         phase_manager = self.managers["phase_manager"]
         deck_manager = self.managers["deck_manager"]
+        contract_manager = self.managers.get("contract_manager")
 
         self.print_header(f"Round {self.game.current_round} - Recall Phase")
 
@@ -977,6 +1160,16 @@ class SimpleCLI:
                 self.print_success(f"Your agents recalled, drew 5 cards")
             else:
                 self.print_bot_action(f"{player.name} recalls agents and draws cards")
+
+            # Check harvest contracts at end of each round
+            if contract_manager:
+                harvest_result = contract_manager.check_harvest_contracts(player.player_id)
+                for completed in harvest_result.get("completed_contracts", []):
+                    name = completed["contract"]
+                    if player == self.human_player:
+                        self.print_success(f"🎉 Harvest contract completed: {name}!")
+                    else:
+                        self.print_bot_action(f"{player.name} completed harvest contract: {name}")
 
         # Clean up board
         for space in self.game.board.spaces:
@@ -1002,18 +1195,51 @@ class SimpleCLI:
         """Display final scores and winner."""
         self.print_header("GAME OVER")
 
+        # Sort by full tiebreaker order (matches phase_manager logic)
+        sorted_players = sorted(
+            self.game.players,
+            key=lambda p: (p.victory_points, p.spice, p.solari, p.water, p.troops_in_garrison),
+            reverse=True
+        )
+
         self.print_section("Final Scores")
-
-        # Sort players by VP
-        sorted_players = sorted(self.game.players, key=lambda p: p.victory_points, reverse=True)
-
+        print(f"  {'Player':<20} {'VP':>4}  {'Spice':>5}  {'Solari':>6}  {'Water':>5}  {'Garrison':>8}  Influence")
+        print(f"  {'-'*20} {'-'*4}  {'-'*5}  {'-'*6}  {'-'*5}  {'-'*8}  {'-'*20}")
         for i, player in enumerate(sorted_players, 1):
-            prefix = "🏆" if i == 1 else f"{i}."
-            print(f"  {prefix} {player.name:20s} {player.victory_points} VP")
+            prefix = "🏆" if i == 1 else f"{i:2d}."
+            fremen_inf = player.fremen_influence
+            bg_inf = player.bene_gesserit_influence
+            sg_inf = player.spacing_guild_influence
+            emp_inf = player.emperor_influence
+            influence_str = f"Fr:{fremen_inf} BG:{bg_inf} SG:{sg_inf} Em:{emp_inf}"
+            print(f"  {prefix} {player.name:<18} {player.victory_points:>4}  {player.spice:>5}  {player.solari:>6}  {player.water:>5}  {player.troops_in_garrison:>8}  {influence_str}")
+
+            # Completed contracts
+            completed = getattr(player, 'contracts_completed', [])
+            if completed:
+                print(f"       ✅ Completed contracts: {', '.join(c.name for c in completed)}")
+
+            # Active (incomplete) contracts
+            active = getattr(player, 'contracts_active', [])
+            if active:
+                print(f"       📋 Unfinished contracts: {', '.join(c.name for c in active)}")
 
         winner = sorted_players[0]
+
+        # Check if there's an actual tie
+        runner_up = sorted_players[1] if len(sorted_players) > 1 else None
+        is_tied = (runner_up and
+                   winner.victory_points == runner_up.victory_points and
+                   winner.spice == runner_up.spice and
+                   winner.solari == runner_up.solari and
+                   winner.water == runner_up.water and
+                   winner.troops_in_garrison == runner_up.troops_in_garrison)
+
         print(f"\n{Colors.BOLD}{Colors.GREEN}{'=' * 80}{Colors.END}")
-        print(f"{Colors.BOLD}{Colors.GREEN}{winner.name} WINS!{Colors.END}".center(88))
+        if is_tied:
+            print(f"{Colors.BOLD}{Colors.YELLOW}IT'S A TIE — SHARED VICTORY!{Colors.END}".center(88))
+        else:
+            print(f"{Colors.BOLD}{Colors.GREEN}{winner.name} WINS!{Colors.END}".center(88))
         print(f"{Colors.BOLD}{Colors.GREEN}{'=' * 80}{Colors.END}\n")
 
     def display_full_state(self):

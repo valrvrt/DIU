@@ -291,6 +291,10 @@ class EffectResolver:
             player.solari += total_amount
         elif resource == "spice":
             player.spice += total_amount
+            # Track lifetime spice harvested (for harvest contracts)
+            if not hasattr(player, 'total_spice_harvested'):
+                player.total_spice_harvested = 0
+            player.total_spice_harvested += total_amount
         elif resource == "water":
             player.water += total_amount
         elif resource == "troop" or resource == "troops":  # Handle both singular and plural
