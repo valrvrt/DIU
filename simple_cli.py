@@ -1185,8 +1185,12 @@ class SimpleCLI:
             if player.victory_points >= 10:
                 return True
 
-        # Or after 10 rounds
-        if self.game.current_round >= 10:
+        # Or when the conflict deck runs out (rules: game ends after last conflict resolves)
+        if not self.game.board.conflict_deck and not self.game.board.current_conflict:
+            return True
+
+        # Safety cap: 10 rounds maximum
+        if self.game.current_round > 10:
             return True
 
         return False
@@ -1260,6 +1264,15 @@ class SimpleCLI:
         # Main game loop
         while not self.check_game_end():
 
+            # Draw next conflict card at the start of every round after the first
+            # (Round 1 conflict is drawn during setup)
+            if self.game.current_round > 1:
+                if self.game.board.conflict_deck:
+                    self.game.board.current_conflict = self.game.board.conflict_deck.pop(0)
+                    self.print_info(f"New conflict: {self.game.board.current_conflict.name}")
+                else:
+                    self.game.board.current_conflict = None
+
             # Agent Phase
             self.run_agent_phase()
 
@@ -1268,7 +1281,7 @@ class SimpleCLI:
 
             # Combat Phase
             self.run_combat_phase()
-            
+
             # MAKERS Phase
             self.run_makers_phase()
 

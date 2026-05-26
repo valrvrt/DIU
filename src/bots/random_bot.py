@@ -58,8 +58,9 @@ class RandomBot(BaseBot):
                 location, placement_type = random.choice(locations)
 
                 # Determine troops to deploy (if applicable)
+                # All placement types except spy_infiltrate allow troop deployment
                 troops_to_deploy = 0
-                if placement_type == "normal" and self.player.troops_in_garrison > 0:
+                if placement_type != "spy_infiltrate" and self.player.troops_in_garrison > 0:
                     # Randomly deploy 0-2 troops if available
                     max_deploy = min(2, self.player.troops_in_garrison)
                     troops_to_deploy = random.randint(0, max_deploy)
