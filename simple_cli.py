@@ -447,6 +447,8 @@ class SimpleCLI:
             effects = result.get("effects", {}).get("effects_applied", [])
             for eff in effects:
                 self.print_info(f"  • {eff}")
+            # Resolve any choices the intrigue raised
+            self._resolve_choices(player, result.get("choices_required", []))
         else:
             self.print_error(f"Cannot play: {result.get('error','')}")
 
@@ -526,6 +528,132 @@ class SimpleCLI:
                 else:
                     chosen_id = "accept" if _random.random() < 0.5 else "decline"
                 effect_resolver.execute_choice(player.player_id, choice_data, chosen_id)
+
+            elif ctype == "trash_card":
+                # Pick a card from hand/played/intrigue/discard to trash
+                cards = choice_data.get("available_cards", [])
+                if not cards:
+                    continue
+                if is_human:
+                    print(f"\n  Trash which card?")
+                    for i, ci in enumerate(cards, 1):
+                        print(f"    [{i}] {ci['card'].name} (from {ci['source']})")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(cards)+1)])
+                    chosen = cards[int(sel)-1]
+                else:
+                    chosen = _random.choice(cards)
+                    self.print_info(f"  {player.name} trashes {chosen['card'].name}")
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen["card"].id)
+
+            elif ctype == "trash_to_acquire":
+                cards = choice_data.get("available_cards", [])
+                if not cards:
+                    continue
+                if is_human:
+                    print(f"\n  Trash which card from hand (to unlock acquisition)?")
+                    for i, c in enumerate(cards, 1):
+                        # cards here might be card objects directly, not {card, source}
+                        name = c.name if hasattr(c, 'name') else c.get('card', c).name
+                        print(f"    [{i}] {name}")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(cards)+1)])
+                    chosen = cards[int(sel)-1]
+                else:
+                    chosen = _random.choice(cards)
+                    name = chosen.name if hasattr(chosen, 'name') else chosen.get('card', chosen).name
+                    self.print_info(f"  {player.name} trashes {name}")
+                cid = chosen.id if hasattr(chosen, 'id') else chosen.get('card', chosen).id
+                effect_resolver.execute_choice(player.player_id, choice_data, cid)
+
+            elif ctype == "steal_intrigue":
+                targets = choice_data.get("valid_targets", [])
+                if not targets:
+                    continue
+                if is_human:
+                    print(f"\n  Steal intrigue from which opponent?")
+                    for i, t in enumerate(targets, 1):
+                        print(f"    [{i}] {t['player_name']} ({t['intrigue_count']} intrigue cards)")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(targets)+1)])
+                    chosen = targets[int(sel)-1]
+                else:
+                    chosen = _random.choice(targets)
+                    self.print_info(f"  {player.name} steals from {chosen['player_name']}")
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen["player_id"])
+
+            elif ctype == "recall_agent":
+                locations = choice_data.get("placed_locations", [])
+                if not locations:
+                    continue
+                # Resolve location IDs to names for display
+                def _loc_name(lid):
+                    for s in self.game.board.spaces:
+                        if str(s.id) == str(lid):
+                            return s.name
+                    return str(lid)
+                if is_human:
+                    print(f"\n  Recall agent from which location?")
+                    for i, lid in enumerate(locations, 1):
+                        print(f"    [{i}] {_loc_name(lid)}")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(locations)+1)])
+                    chosen = locations[int(sel)-1]
+                else:
+                    chosen = _random.choice(locations)
+                    self.print_info(f"  {player.name} recalls agent from {_loc_name(chosen)}")
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen)
+
+            elif ctype == "recall_spy":
+                posts = choice_data.get("placed_posts", [])
+                if not posts:
+                    continue
+                def _post_name(pid):
+                    for p in getattr(self.game.board, 'observation_posts', []):
+                        if str(p.id) == str(pid):
+                            return p.name
+                    return str(pid)
+                if is_human:
+                    print(f"\n  Recall spy from which observation post?")
+                    for i, pid in enumerate(posts, 1):
+                        print(f"    [{i}] {_post_name(pid)}")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(posts)+1)])
+                    chosen = posts[int(sel)-1]
+                else:
+                    chosen = _random.choice(posts)
+                    self.print_info(f"  {player.name} recalls spy from {_post_name(chosen)}")
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen)
+
+            elif ctype == "accept_contract":
+                contracts = choice_data.get("available_contracts", [])
+                if not contracts:
+                    continue
+                if is_human:
+                    print(f"\n  Accept which contract?")
+                    for i, c in enumerate(contracts, 1):
+                        rewards_str = _format_contract_rewards(getattr(c, 'rewards', []))
+                        print(f"    [{i}] {c.name} → {rewards_str}")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(contracts)+1)])
+                    chosen = contracts[int(sel)-1]
+                else:
+                    chosen = _random.choice(contracts)
+                    self.print_info(f"  {player.name} accepts contract {chosen.name}")
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen.id)
+
+            elif ctype == "play_spy":
+                # Same shape as spy_post — pick an observation post
+                posts = choice_data.get("available_posts", choice_data.get("placed_posts", []))
+                if not posts:
+                    continue
+                if is_human:
+                    print(f"\n  Play spy on which observation post?")
+                    for i, p in enumerate(posts, 1):
+                        if isinstance(p, dict):
+                            print(f"    [{i}] {p.get('post_name', p.get('post_id'))}")
+                        else:
+                            print(f"    [{i}] {p}")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(posts)+1)])
+                    chosen = posts[int(sel)-1]
+                else:
+                    chosen = _random.choice(posts)
+                pid = chosen.get("post_id") if isinstance(chosen, dict) else chosen
+                effect_resolver.execute_choice(player.player_id, choice_data, pid)
 
             else:
                 # Other choice types (trash_card, recall_agent, etc.)
@@ -845,6 +973,7 @@ class SimpleCLI:
             ))
             if result.get("success"):
                 self.print_bot_action(f"{player.name} plays plot intrigue: {chosen.name}")
+                self._resolve_choices(player, result.get("choices_required", []))
 
         # Bot decides action
         action = bot.decide_agent_action()
@@ -1169,6 +1298,7 @@ class SimpleCLI:
                     ))
                     if result.get("success"):
                         self.print_success(f"Played {card.name}!")
+                        self._resolve_choices(self.human_player, result.get("choices_required", []))
                         human_combat_intrigues = [c for c in self.human_player.intrigue_cards
                                                    if hasattr(c, 'phases') and any(p.value == 'Combat' for p in c.phases)]
                         if not human_combat_intrigues:
@@ -1192,6 +1322,7 @@ class SimpleCLI:
                     ))
                     if result.get("success"):
                         self.print_bot_action(f"{player.name} plays intrigue: {chosen.name}")
+                        self._resolve_choices(player, result.get("choices_required", []))
 
         # --- Resolve Combat ---
         self.print_info("\nResolving combat...")
@@ -1314,6 +1445,7 @@ class SimpleCLI:
                     ))
                     if result.get("success"):
                         self.print_info(f"  {player.name} resolves end-game intrigue: {card.name}")
+                        self._resolve_choices(player, result.get("choices_required", []))
 
         # Sort by full tiebreaker order (matches phase_manager logic)
         sorted_players = sorted(
