@@ -655,10 +655,86 @@ class SimpleCLI:
                 pid = chosen.get("post_id") if isinstance(chosen, dict) else chosen
                 effect_resolver.execute_choice(player.player_id, choice_data, pid)
 
+            elif ctype == "discard_card":
+                cards = choice_data.get("available_cards", [])
+                if not cards:
+                    continue
+                if is_human:
+                    print(f"\n  Discard which card?")
+                    for i, ci in enumerate(cards, 1):
+                        print(f"    [{i}] {ci['card'].name} (from {ci['source']})")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(cards)+1)])
+                    chosen = cards[int(sel)-1]
+                else:
+                    chosen = _random.choice(cards)
+                    self.print_info(f"  {player.name} discards {chosen['card'].name}")
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen["card"].id)
+
+            elif ctype == "choose_opponent_discard":
+                targets = choice_data.get("valid_targets", [])
+                if not targets:
+                    continue
+                if is_human:
+                    print(f"\n  Force which opponent to discard?")
+                    for i, t in enumerate(targets, 1):
+                        print(f"    [{i}] {t['player_name']} ({t['hand_size']} cards in hand)")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(targets)+1)])
+                    chosen = targets[int(sel)-1]
+                else:
+                    chosen = _random.choice(targets)
+                    self.print_info(f"  {player.name} forces {chosen['player_name']} to discard")
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen["player_id"])
+
+            elif ctype == "choose_reserve_card":
+                # Pick reserve pile to acquire from (free)
+                board = self.game.board
+                piles = []
+                if board.reserve_prepare_the_way:
+                    piles.append(("prepare_the_way", "Prepare the Way", board.reserve_prepare_the_way[0]))
+                if board.reserve_spice_must_flow:
+                    piles.append(("spice_must_flow", "The Spice Must Flow", board.reserve_spice_must_flow[0]))
+                if not piles:
+                    continue
+                if is_human:
+                    print(f"\n  Acquire which reserve card (free)?")
+                    for i, (pid, name, card) in enumerate(piles, 1):
+                        print(f"    [{i}] {name}")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(piles)+1)])
+                    pile_id = piles[int(sel)-1][0]
+                else:
+                    pile_id = _random.choice(piles)[0]
+                    self.print_info(f"  {player.name} acquires reserve: {pile_id}")
+                effect_resolver.execute_choice(player.player_id, choice_data, pile_id)
+
+            elif ctype == "acquire_reserve_card":
+                # Free acquisition of specific reserve type — no real choice, just execute
+                pile_id = choice_data.get("card", "")
+                self.print_info(f"  {player.name} acquires reserve: {pile_id} (free)")
+                effect_resolver.execute_choice(player.player_id, choice_data, pile_id)
+
+            elif ctype == "acquire_card":
+                # Free acquisition from imperium row
+                target_name = choice_data.get("card")
+                row = list(self.game.board.imperium_row)
+                # If a specific card was named, filter to matching ones
+                if target_name:
+                    row = [c for c in row if c.name == target_name]
+                if not row:
+                    continue
+                if is_human:
+                    print(f"\n  Acquire which card from imperium row (free)?")
+                    for i, c in enumerate(row, 1):
+                        print(f"    [{i}] {c.name} (cost {c.cost})")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(row)+1)])
+                    chosen = row[int(sel)-1]
+                else:
+                    chosen = _random.choice(row)
+                    self.print_info(f"  {player.name} acquires {chosen.name} (free)")
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen.id)
+
             else:
-                # Other choice types (trash_card, recall_agent, etc.)
-                # Not yet wired into CLI — skip silently to avoid breaking flow
-                self.print_info(f"  (Choice type '{ctype}' skipped — not yet supported in CLI)")
+                # Truly unknown choice type — print warning
+                self.print_info(f"  (Choice type '{ctype}' not recognized — skipped)")
 
     def action_place_agent(self, player: Player):
         """Handle placing an agent action."""

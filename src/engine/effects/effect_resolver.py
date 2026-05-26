@@ -2750,6 +2750,172 @@ class EffectResolver:
                 }
             }
 
+        elif choice_type == "discard_card":
+            # Move selected card from its source pile to the discard pile
+            card_id = selected_option_id
+            player = self.state.get_player_by_id(player_id)
+
+            available = choice_data.get("available_cards", [])
+            selected = None
+            for ci in available:
+                if str(ci["card"].id) == str(card_id):
+                    selected = ci
+                    break
+
+            if not selected:
+                return {"success": False, "error": f"Card {card_id} not available to discard"}
+
+            card = selected["card"]
+            source = selected["source"]
+            if source == "hand":
+                player.hand.cards.remove(card)
+            elif source == "played":
+                player.played_cards_this_turn.remove(card)
+            else:
+                return {"success": False, "error": f"Unsupported discard source: {source}"}
+
+            player.discard_pile.add_card(card)
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "discard",
+                    "card_discarded": card.name,
+                    "from_source": source
+                }
+            }
+
+        elif choice_type == "choose_opponent_discard":
+            # Selected option is the target opponent's player_id.
+            # Force the target to discard `amount` cards (random pick from hand).
+            target_id = selected_option_id
+            amount = choice_data.get("amount", 1)
+
+            target = self.state.get_player_by_id(target_id)
+            if not target:
+                return {"success": False, "error": "Target player not found"}
+
+            n = min(amount, len(target.hand.cards))
+            discarded = []
+            for _ in range(n):
+                if not target.hand.cards:
+                    break
+                card = random.choice(target.hand.cards)
+                target.hand.cards.remove(card)
+                target.discard_pile.add_card(card)
+                discarded.append(card.name)
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "opponent_discard",
+                    "target": getattr(target, 'name', target_id),
+                    "amount": len(discarded),
+                    "cards_discarded": discarded
+                }
+            }
+
+        elif choice_type == "choose_reserve_card":
+            # Player picks which reserve pile to acquire from (free, no persuasion cost)
+            pile_id = selected_option_id  # "prepare_the_way" or "spice_must_flow"
+            player = self.state.get_player_by_id(player_id)
+            amount = choice_data.get("amount", 1)
+
+            if pile_id == "prepare_the_way":
+                pile = self.game.board.reserve_prepare_the_way
+            elif pile_id == "spice_must_flow":
+                pile = self.game.board.reserve_spice_must_flow
+            else:
+                return {"success": False, "error": f"Unknown reserve pile: {pile_id}"}
+
+            if not pile:
+                return {"success": False, "error": f"Reserve pile {pile_id} is empty"}
+
+            acquired = []
+            for _ in range(min(amount, len(pile))):
+                if not pile:
+                    break
+                card = pile.pop(0)
+                player.discard_pile.add_card(card)
+                acquired.append(card.name)
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "acquire",
+                    "source": pile_id,
+                    "cards_acquired": acquired
+                }
+            }
+
+        elif choice_type == "acquire_reserve_card":
+            # Free acquisition from a specific reserve pile
+            pile_id = choice_data.get("card", "")  # set at choice creation
+            player = self.state.get_player_by_id(player_id)
+            amount = choice_data.get("amount", 1)
+
+            if pile_id == "prepare_the_way":
+                pile = self.game.board.reserve_prepare_the_way
+            elif pile_id == "spice_must_flow":
+                pile = self.game.board.reserve_spice_must_flow
+            else:
+                return {"success": False, "error": f"Unknown reserve pile: {pile_id}"}
+
+            if not pile:
+                return {"success": False, "error": f"Reserve pile {pile_id} is empty"}
+
+            acquired = []
+            for _ in range(min(amount, len(pile))):
+                if not pile:
+                    break
+                card = pile.pop(0)
+                player.discard_pile.add_card(card)
+                acquired.append(card.name)
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "acquire",
+                    "source": pile_id,
+                    "cards_acquired": acquired
+                }
+            }
+
+        elif choice_type == "acquire_card":
+            # Free acquisition from imperium row — selected_option_id is the card id
+            card_id = selected_option_id
+            player = self.state.get_player_by_id(player_id)
+
+            target_card = None
+            for c in self.game.board.imperium_row:
+                if str(c.id) == str(card_id):
+                    target_card = c
+                    break
+
+            if not target_card:
+                return {"success": False, "error": f"Card {card_id} not in imperium row"}
+
+            self.game.board.imperium_row.remove(target_card)
+            player.discard_pile.add_card(target_card)
+
+            # Refill row
+            if hasattr(self.game.board, 'refill_imperium_row'):
+                self.game.board.refill_imperium_row()
+
+            # Track acquisition (for contracts that check acquisitions this turn)
+            if not hasattr(player, 'acquired_cards_this_turn'):
+                player.acquired_cards_this_turn = []
+            player.acquired_cards_this_turn.append(target_card)
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "acquire",
+                    "source": "imperium_row",
+                    "card_acquired": target_card.name
+                }
+            }
+
         else:
             return {
                 "success": False,
