@@ -460,6 +460,16 @@ class ActionExecutor:
                 gather_intel_card = self.game.board.intrigue_deck.pop(0)
                 player.intrigue_cards.append(gather_intel_card)
 
+        # Step 13c: Passive ability trigger — Staban Tuek "Smuggler's Trade"
+        # Whenever ANY player places an agent on a Maker space, Staban gains 1 spice.
+        if getattr(action.location, "is_maker_space", False):
+            for other_player in self.game.players:
+                if other_player.player_id == action.player_id:
+                    continue
+                leader = getattr(other_player, "leader", None)
+                if leader and getattr(leader, "name", "") == "Staban Tuek":
+                    other_player.spice += 1
+
         # Step 14: Notify PhaseManager (if present)
         if self.phase_manager:
             self.phase_manager.mark_player_action_complete(

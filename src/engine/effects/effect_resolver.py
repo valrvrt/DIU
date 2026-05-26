@@ -142,6 +142,9 @@ class EffectResolver:
             "transform_leader": self._handle_transform_leader,
             "retrigger_board_space": self._handle_retrigger_board_space,
             "contract_choice_expansion": self._handle_contract_choice_expansion,
+
+            # Staban Tuek: conditional bonuses based on where agent was placed
+            "conditional_multi": self._handle_conditional_multi,
         }
 
     # ==================== MAIN RESOLUTION ENTRY POINT ====================
@@ -3207,38 +3210,172 @@ class EffectResolver:
         """
         Handle end game condition effect (VP bonuses at game end).
 
-        Format:
-        {
-            "type": "endgame_condition",
-            "condition": {
-                "type": "contracts_completed" | "influence" | etc.,
-                "target": specific requirement,
-                "amount": threshold
-            },
-            "reward": [VP rewards]
-        }
-
-        Example: Gain 3 VP if you have 4+ completed contracts
-
-        Note: This should be evaluated during end game scoring phase
+        Evaluated immediately when called — call at game end for each player.
+        Condition types:
+          - contracts_completed: len(player.contracts_completed) >= amount
+          - spice_must_flow_tokens: count of "The Spice Must Flow" cards in
+            the player's entire deck (deck + hand + discard + played)
+          - influence: any single faction influence >= amount
         """
         player = self.state.get_player_by_id(player_id)
         if not player:
             return {"success": False, "error": "Player not found"}
 
         condition = effect.get("condition", {})
+        ctype = condition.get("type", "")
+        amount = condition.get("amount", 1)
+        target = condition.get("target", "")
 
-        # TODO: Evaluate condition and apply reward if met
-        # For now, just register it for end-game evaluation
+        condition_met = False
+
+        if ctype == "contracts_completed":
+            completed = len(getattr(player, "contracts_completed", []))
+            condition_met = completed >= amount
+
+        elif ctype == "spice_must_flow_tokens":
+            # Count all "The Spice Must Flow" cards across the player's full deck
+            smf_count = 0
+            all_piles = [
+                getattr(player.deck, "cards", []),
+                getattr(player.hand, "cards", []),
+                getattr(player.discard_pile, "cards", []),
+                getattr(player, "played_cards_this_turn", []),
+                getattr(player, "acquired_cards_this_turn", []),
+            ]
+            for pile in all_piles:
+                for card in pile:
+                    if getattr(card, "name", "") == "The Spice Must Flow":
+                        smf_count += 1
+            condition_met = smf_count >= amount
+
+        elif ctype == "influence":
+            if target == "any":
+                # Any faction at the required level
+                condition_met = any(
+                    getattr(player, f"{faction}_influence", 0) >= amount
+                    for faction in ["fremen", "bene_gesserit", "spacing_guild", "emperor"]
+                )
+            else:
+                condition_met = getattr(player, f"{target}_influence", 0) >= amount
+
+        if not condition_met:
+            return {
+                "success": True,
+                "effect_type": "endgame_condition",
+                "applied": [],
+                "condition_met": False,
+            }
+
+        # Condition met — apply the reward
+        reward = effect.get("reward", [])
+        reward_result = self.resolve_effects(player_id, reward, context)
+        applied = reward_result.get("effects_applied", [f"endgame reward: {reward}"])
 
         return {
             "success": True,
             "effect_type": "endgame_condition",
-            "applied": ["End game condition registered"],
-            "condition": condition,
-            "reward": effect.get("reward", []),
-            "note": "End game evaluation not yet implemented"
+            "condition_met": True,
+            "applied": applied,
         }
+
+    def _handle_conditional_multi(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Staban Tuek's signet: offer conditional optional bonuses based on where
+        the agent was placed.
+
+        Format:
+        {
+            "type": "conditional_multi",
+            "options": [
+                {
+                    "id": "green_space_bonus",
+                    "check": [{"type": "agent_placed_on", "space_type": "green"}],
+                    "cost": [...],
+                    "reward": [...],
+                    "description": "..."
+                },
+                ...
+            ]
+        }
+
+        Each option is only available if its check passes for the current
+        placement location (passed in context["placement_location"]).
+        Returns a `choice` with only the eligible options so the player can
+        decide whether to take any of them.
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": "Player not found"}
+
+        placement_location = context.get("placement_location")
+        options = effect.get("options", [])
+
+        # Filter to options whose checks pass
+        eligible = []
+        for opt in options:
+            checks = opt.get("check", [])
+            if self._evaluate_conditional_multi_checks(checks, placement_location):
+                eligible.append(opt)
+
+        if not eligible:
+            return {
+                "success": True,
+                "effect_type": "conditional_multi",
+                "applied": ["No conditional bonuses available for this space"],
+            }
+
+        # Build a choice so the player picks which (if any) bonus to take
+        choice_options = []
+        for opt in eligible:
+            choice_options.append({
+                "id": opt.get("id", "option"),
+                "description": opt.get("description", ""),
+                "cost": opt.get("cost", []),
+                "reward": opt.get("reward", []),
+            })
+        # Add a "none" option so it's optional
+        choice_options.append({"id": "none", "description": "No bonus"})
+
+        return {
+            "success": True,
+            "effect_type": "conditional_multi",
+            "applied": [],
+            "choice_required": True,
+            "choice_data": {
+                "type": "conditional_multi_choice",
+                "options": choice_options,
+                "player_id": player_id,
+            },
+        }
+
+    def _evaluate_conditional_multi_checks(
+        self, checks: list, placement_location
+    ) -> bool:
+        """Check if a conditional_multi option's checks pass for this placement."""
+        if not checks:
+            return True
+        for check in checks:
+            ctype = check.get("type")
+            if ctype == "agent_placed_on":
+                space_type = check.get("space_type", "")
+                if placement_location is None:
+                    return False
+                if space_type == "green":
+                    # Green = neutral spaces (no faction affiliation)
+                    faction = getattr(placement_location, "faction", None)
+                    if faction:
+                        return False
+                elif space_type == "faction":
+                    faction = getattr(placement_location, "faction", None)
+                    if not faction:
+                        return False
+            # Unknown check type — pass through
+        return True
 
     # ==================== CONDITIONAL REWARD TRIGGER SYSTEM ====================
 

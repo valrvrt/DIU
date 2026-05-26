@@ -113,6 +113,10 @@ def load_intrigue_cards() -> List[IntrigueCard]:
                 elif phase_str in ["endgame", "end_game"]:
                     phases_set.add(IntriguePhase.END_GAME)
 
+                # endgame_condition effect type → End Game phase (no phase field in JSON)
+                if obj.get('type') == 'endgame_condition':
+                    phases_set.add(IntriguePhase.END_GAME)
+
                 # Check in options for choice effects
                 for value in obj.values():
                     extract_phases(value)

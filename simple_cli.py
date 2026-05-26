@@ -763,6 +763,46 @@ class SimpleCLI:
                     self.print_info(f"  {player.name} acquires {chosen.name} (free)")
                 effect_resolver.execute_choice(player.player_id, choice_data, chosen.id)
 
+            elif ctype == "conditional_multi_choice":
+                # Staban Tuek's optional signet bonuses — pick one or none
+                options = choice_data.get("options", [])
+                eligible = [o for o in options if o.get("id") != "none"]
+                if not eligible:
+                    continue
+                if is_human:
+                    print(f"\n  Optional signet bonus (Staban Tuek):")
+                    for i, opt in enumerate(options, 1):
+                        desc = opt.get("description", opt.get("id", "?"))
+                        cost = opt.get("cost", [])
+                        cost_str = ", ".join(
+                            f"{e.get('amount',1)} {e.get('resource','?')}"
+                            for e in cost if isinstance(e, dict)
+                        ) if cost else "free"
+                        print(f"    [{i}] {desc}  (cost: {cost_str})")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(options)+1)])
+                    chosen = options[int(sel)-1]
+                else:
+                    # Bot: take first eligible bonus if it can afford it
+                    chosen = next(
+                        (o for o in eligible
+                         if all(getattr(player, f"{e.get('resource','')}", 0) >= e.get("amount", 0)
+                                for e in o.get("cost", []) if isinstance(e, dict))),
+                        options[-1]  # "none" option
+                    )
+                    self.print_info(f"  {player.name} takes bonus: {chosen.get('description','')}")
+                opt_id = chosen.get("id", "none")
+                if opt_id != "none":
+                    effect_resolver = self.managers["effect_resolver"]
+                    cost_effects = chosen.get("cost", [])
+                    reward_effects = chosen.get("reward", [])
+                    # Pay cost
+                    if cost_effects:
+                        effect_resolver.resolve_effects(player.player_id, cost_effects, {"phase": "signet", "invert": True})
+                    # Apply reward
+                    if reward_effects:
+                        res = effect_resolver.resolve_effects(player.player_id, reward_effects, {"phase": "signet"})
+                        self._resolve_choices(player, res.get("choices_required", []))
+
             else:
                 # Truly unknown choice type — print warning
                 self.print_info(f"  (Choice type '{ctype}' not recognized — skipped)")
@@ -973,7 +1013,12 @@ class SimpleCLI:
         result = effect_resolver.resolve_effects(
             player.player_id,
             signet_effects,
-            context={"phase": "signet", "source": "signet_ring", "leader": leader.name}
+            context={
+                "phase": "signet",
+                "source": "signet_ring",
+                "leader": leader.name,
+                "placement_location": location,  # used by Staban Tuek's conditional_multi
+            }
         )
 
         # Show what was applied
