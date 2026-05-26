@@ -167,8 +167,19 @@ class EffectOrderingManager:
         Returns:
             Ordered list of effects
         """
+        # Flatten any nested lists before sorting
+        flat_effects = []
+        for e in effects:
+            if isinstance(e, list):
+                flat_effects.extend(e)
+            else:
+                flat_effects.append(e)
+        effects = flat_effects
+
         def effect_priority(effect):
             """Return priority score (lower = resolve first)"""
+            if not isinstance(effect, dict):
+                return 10
             effect_type = effect.get("type", "")
 
             # Resource gains first

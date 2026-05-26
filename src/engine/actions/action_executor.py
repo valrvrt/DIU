@@ -268,9 +268,11 @@ class ActionExecutor:
                 player.agents_placed.remove(action.location.id)
                 return {"success": False, "error": f"No spy at {action.location.name} to infiltrate with"}
 
-            # Remove the spy (it is consumed by the infiltration)
-            player.spies_placed.remove(action.location.id if action.location.id in player.spies_placed
-                                        else int(action.location.id))
+            # Remove the spy (it is consumed by the infiltration) — normalize stored type
+            loc_id_str_inf = str(action.location.id)
+            spy_to_remove_inf = next((s for s in player.spies_placed if str(s) == loc_id_str_inf), None)
+            if spy_to_remove_inf is not None:
+                player.spies_placed.remove(spy_to_remove_inf)
             player.spies_available += 1  # spy returns to pool after use
 
             # Mark location as infiltrated (both players can use it)
@@ -448,16 +450,25 @@ class ActionExecutor:
         loc_id_str = str(action.location.id)
         placed_ids = [str(s) for s in player.spies_placed]
         if action.placement_type != "spy_infiltrate" and loc_id_str in placed_ids:
-            # Remove the spy (recall it)
-            try:
-                player.spies_placed.remove(action.location.id)
-            except ValueError:
-                player.spies_placed.remove(int(action.location.id))
+            # Remove the spy (recall it) — normalize to matching stored type
+            spy_to_remove = next((s for s in player.spies_placed if str(s) == loc_id_str), None)
+            if spy_to_remove is not None:
+                player.spies_placed.remove(spy_to_remove)
             player.spies_available += 1
             # Draw 1 intrigue card as the intel reward
             if self.game.board.intrigue_deck:
                 gather_intel_card = self.game.board.intrigue_deck.pop(0)
                 player.intrigue_cards.append(gather_intel_card)
+
+        # Step 13c: Passive ability trigger — Staban Tuek "Smuggler's Trade"
+        # Whenever ANY player places an agent on a Maker space, Staban gains 1 spice.
+        if getattr(action.location, "is_maker_space", False):
+            for other_player in self.game.players:
+                if other_player.player_id == action.player_id:
+                    continue
+                leader = getattr(other_player, "leader", None)
+                if leader and getattr(leader, "name", "") == "Staban Tuek":
+                    other_player.spice += 1
 
         # Step 14: Notify PhaseManager (if present)
         if self.phase_manager:

@@ -142,6 +142,12 @@ class EffectResolver:
             "transform_leader": self._handle_transform_leader,
             "retrigger_board_space": self._handle_retrigger_board_space,
             "contract_choice_expansion": self._handle_contract_choice_expansion,
+
+            # Staban Tuek: conditional bonuses based on where agent was placed
+            "conditional_multi": self._handle_conditional_multi,
+
+            # Shaddam Corrino IV: restrict player actions this turn
+            "restrict": self._handle_restrict,
         }
 
     # ==================== MAIN RESOLUTION ENTRY POINT ====================
@@ -324,6 +330,8 @@ class EffectResolver:
             if not hasattr(player, "sandworms_available"):
                 player.sandworms_available = 0
             player.sandworms_available += total_amount
+            # Muad'Dib passive: gaining a sandworm triggers an intrigue draw
+            self._trigger_muaddib_sandworm_passive(player_id, total_amount)
         elif resource == "intrigue":
             # Draw intrigue cards (delegate to draw handler)
             return self._handle_draw(
@@ -1145,7 +1153,10 @@ class EffectResolver:
             if not result.get("success"):
                 return result
 
-            return {
+            # Check influence_reached passives for the player whose influence changed
+            passive_choices = self._check_influence_reached_passives(player_id, target)
+
+            ret = {
                 "success": True,
                 "applied": {
                     "type": "influence",
@@ -1155,6 +1166,10 @@ class EffectResolver:
                     "alliance_gained": result.get("alliance_gained", False)
                 }
             }
+            if passive_choices:
+                ret["choice_required"] = True
+                ret["choice_data"] = passive_choices[0]
+            return ret
         else:
             # Fallback: direct influence addition (backward compatibility)
             if target == "fremen":
@@ -1171,7 +1186,9 @@ class EffectResolver:
                     "error": f"Unknown faction target: {target}"
                 }
 
-            return {
+            # Check influence_reached passives (fallback path)
+            passive_choices = self._check_influence_reached_passives(player_id, target)
+            ret = {
                 "success": True,
                 "applied": {
                     "type": "influence",
@@ -1179,6 +1196,10 @@ class EffectResolver:
                     "amount": total_influence
                 }
             }
+            if passive_choices:
+                ret["choice_required"] = True
+                ret["choice_data"] = passive_choices[0]
+            return ret
 
     def _handle_acquire(
         self,
@@ -3207,38 +3228,320 @@ class EffectResolver:
         """
         Handle end game condition effect (VP bonuses at game end).
 
-        Format:
-        {
-            "type": "endgame_condition",
-            "condition": {
-                "type": "contracts_completed" | "influence" | etc.,
-                "target": specific requirement,
-                "amount": threshold
-            },
-            "reward": [VP rewards]
-        }
-
-        Example: Gain 3 VP if you have 4+ completed contracts
-
-        Note: This should be evaluated during end game scoring phase
+        Evaluated immediately when called — call at game end for each player.
+        Condition types:
+          - contracts_completed: len(player.contracts_completed) >= amount
+          - spice_must_flow_tokens: count of "The Spice Must Flow" cards in
+            the player's entire deck (deck + hand + discard + played)
+          - influence: any single faction influence >= amount
         """
         player = self.state.get_player_by_id(player_id)
         if not player:
             return {"success": False, "error": "Player not found"}
 
         condition = effect.get("condition", {})
+        ctype = condition.get("type", "")
+        amount = condition.get("amount", 1)
+        target = condition.get("target", "")
 
-        # TODO: Evaluate condition and apply reward if met
-        # For now, just register it for end-game evaluation
+        condition_met = False
+
+        if ctype == "contracts_completed":
+            completed = len(getattr(player, "contracts_completed", []))
+            condition_met = completed >= amount
+
+        elif ctype == "spice_must_flow_tokens":
+            # Count all "The Spice Must Flow" cards across the player's full deck
+            smf_count = 0
+            all_piles = [
+                getattr(player.deck, "cards", []),
+                getattr(player.hand, "cards", []),
+                getattr(player.discard_pile, "cards", []),
+                getattr(player, "played_cards_this_turn", []),
+                getattr(player, "acquired_cards_this_turn", []),
+            ]
+            for pile in all_piles:
+                for card in pile:
+                    if getattr(card, "name", "") == "The Spice Must Flow":
+                        smf_count += 1
+            condition_met = smf_count >= amount
+
+        elif ctype == "influence":
+            if target == "any":
+                # Any faction at the required level
+                condition_met = any(
+                    getattr(player, f"{faction}_influence", 0) >= amount
+                    for faction in ["fremen", "bene_gesserit", "spacing_guild", "emperor"]
+                )
+            else:
+                condition_met = getattr(player, f"{target}_influence", 0) >= amount
+
+        if not condition_met:
+            return {
+                "success": True,
+                "effect_type": "endgame_condition",
+                "applied": [],
+                "condition_met": False,
+            }
+
+        # Condition met — apply the reward
+        reward = effect.get("reward", [])
+        reward_result = self.resolve_effects(player_id, reward, context)
+        applied = reward_result.get("effects_applied", [f"endgame reward: {reward}"])
 
         return {
             "success": True,
             "effect_type": "endgame_condition",
-            "applied": ["End game condition registered"],
-            "condition": condition,
-            "reward": effect.get("reward", []),
-            "note": "End game evaluation not yet implemented"
+            "condition_met": True,
+            "applied": applied,
         }
+
+    def _handle_conditional_multi(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Staban Tuek's signet: offer conditional optional bonuses based on where
+        the agent was placed.
+
+        Format:
+        {
+            "type": "conditional_multi",
+            "options": [
+                {
+                    "id": "green_space_bonus",
+                    "check": [{"type": "agent_placed_on", "space_type": "green"}],
+                    "cost": [...],
+                    "reward": [...],
+                    "description": "..."
+                },
+                ...
+            ]
+        }
+
+        Each option is only available if its check passes for the current
+        placement location (passed in context["placement_location"]).
+        Returns a `choice` with only the eligible options so the player can
+        decide whether to take any of them.
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": "Player not found"}
+
+        placement_location = context.get("placement_location")
+        options = effect.get("options", [])
+
+        # Filter to options whose checks pass
+        eligible = []
+        for opt in options:
+            checks = opt.get("check", [])
+            if self._evaluate_conditional_multi_checks(checks, placement_location):
+                eligible.append(opt)
+
+        if not eligible:
+            return {
+                "success": True,
+                "effect_type": "conditional_multi",
+                "applied": ["No conditional bonuses available for this space"],
+            }
+
+        # Build a choice so the player picks which (if any) bonus to take
+        choice_options = []
+        for opt in eligible:
+            choice_options.append({
+                "id": opt.get("id", "option"),
+                "description": opt.get("description", ""),
+                "cost": opt.get("cost", []),
+                "reward": opt.get("reward", []),
+            })
+        # Add a "none" option so it's optional
+        choice_options.append({"id": "none", "description": "No bonus"})
+
+        return {
+            "success": True,
+            "effect_type": "conditional_multi",
+            "applied": [],
+            "choice_required": True,
+            "choice_data": {
+                "type": "conditional_multi_choice",
+                "options": choice_options,
+                "player_id": player_id,
+            },
+        }
+
+    def _evaluate_conditional_multi_checks(
+        self, checks: list, placement_location
+    ) -> bool:
+        """Check if a conditional_multi option's checks pass for this placement."""
+        if not checks:
+            return True
+        for check in checks:
+            ctype = check.get("type")
+            if ctype == "agent_placed_on":
+                space_type = check.get("space_type", "")
+                if placement_location is None:
+                    return False
+                if space_type == "green":
+                    # Green = neutral spaces (no faction affiliation)
+                    faction = getattr(placement_location, "faction", None)
+                    if faction:
+                        return False
+                elif space_type == "faction":
+                    faction = getattr(placement_location, "faction", None)
+                    if not faction:
+                        return False
+            # Unknown check type — pass through
+        return True
+
+    # ==================== LEADER PASSIVE / RESTRICTION HANDLERS ====================
+
+    def _handle_restrict(
+        self,
+        player_id: str,
+        effect: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Shaddam Corrino IV signet — restrict player actions this turn.
+
+        {"type": "restrict", "restriction": "no_troop_deployment_this_turn"}
+
+        Sets a flag on the player consumed by execute_place_agent / combat phase.
+        The restriction is cleared during the Recall phase.
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": "Player not found"}
+
+        restriction = effect.get("restriction", "")
+        restrictions = getattr(player, "turn_restrictions", [])
+        if restriction and restriction not in restrictions:
+            restrictions.append(restriction)
+        player.turn_restrictions = restrictions
+
+        return {
+            "success": True,
+            "applied": [f"Restricted: {restriction}"],
+        }
+
+    def _check_influence_reached_passives(
+        self, player_id: str, faction: str
+    ) -> list:
+        """
+        Called after any influence gain. Checks if the player's leader has an
+        influence_reached passive that just triggered (i.e., the relevant faction
+        influence exactly hit the threshold this gain).
+
+        Returns a list of choice_data dicts if rewards need resolving, else [].
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return []
+
+        leader = getattr(player, "leader", None)
+        if not leader:
+            return []
+
+        # Read passive from leader model (passive_ability = raw JSON dict)
+        passive_data = getattr(leader, "passive_ability", None)
+        if not passive_data:
+            return []
+
+        checks = passive_data.get("check", [])
+        reward = passive_data.get("reward", [])
+        if not checks or not reward:
+            return []
+
+        # Look for influence_reached check matching the faction that just changed
+        for check in checks:
+            if check.get("type") != "influence_reached":
+                continue
+            target = check.get("target", "")
+            amount = check.get("amount", 0)
+            if target != faction and target != "any":
+                continue
+
+            # Check if influence just reached or crossed the threshold.
+            # We check if current >= amount (already applied) and that we haven't
+            # previously fired (track with a set on the player).
+            attr = f"{faction}_influence"
+            current = getattr(player, attr, 0)
+            fired_key = f"_passive_fired_{leader.name}_{faction}_{amount}"
+            already_fired = getattr(player, fired_key, False)
+            if current >= amount and not already_fired:
+                setattr(player, fired_key, True)
+                self.resolve_effects(player_id, reward, {"phase": "passive", "source": "passive_influence_reached"})
+        return []
+
+    def check_and_apply_reveal_passive(self, player_id: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Called after a player reveals their hand. Checks leader passives that fire
+        at the reveal phase:
+        - Feyd-Rautha: may recall a spy → +2 swords
+        - Gurney Halleck: if combat strength ≥ 6 → +1 persuasion
+        Returns a result dict with effects_applied and choices_required.
+        """
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return {"success": False, "error": "Player not found"}
+
+        leader = getattr(player, "leader", None)
+        if not leader:
+            return {"success": True, "effects_applied": [], "choices_required": []}
+
+        name = getattr(leader, "name", "")
+        applied = []
+        choices = []
+
+        if name == "Feyd Rautha Harkonnen":
+            # Passive "Devious Strength": may recall a spy → +2 swords
+            if player.spies_placed:
+                choices.append({
+                    "type": "reveal_passive_choice",
+                    "leader": name,
+                    "description": "Recall a spy to gain +2 swords?",
+                    "options": [
+                        {"id": "yes", "description": "+2 swords (recall 1 spy)"},
+                        {"id": "no",  "description": "Skip"},
+                    ],
+                })
+
+        elif name == "Gurney Halleck":
+            # Passive "Always Smiling": combat strength ≥ 6 → +1 persuasion
+            strength = player.combat_strength if hasattr(player, "combat_strength") else 0
+            if strength >= 6:
+                player.temp_persuasion = getattr(player, "temp_persuasion", 0) + 1
+                applied.append("Gurney Halleck passive: +1 persuasion (strength ≥ 6)")
+
+        elif name == "Muad'Dib":
+            # Passive: sandworm in conflict → draw 1 intrigue (checked in combat)
+            pass
+
+        return {"success": True, "effects_applied": applied, "choices_required": choices}
+
+    def _trigger_muaddib_sandworm_passive(self, player_id: str, worms_gained: int) -> None:
+        """
+        Muad'Dib's passive: whenever he recruits/gains a sandworm (worm resource
+        effect fires), he draws 1 intrigue card per worm gained.
+        Called from within _handle_resource for worm/sandworm gains.
+        """
+        if worms_gained <= 0:
+            return
+        player = self.state.get_player_by_id(player_id)
+        if not player:
+            return
+        leader = getattr(player, "leader", None)
+        if not leader or getattr(leader, "name", "") != "Muad'Dib":
+            return
+        # Once-per-round limit: only fire once regardless of how many worms are gained
+        if getattr(player, "_muaddib_passive_fired_this_round", False):
+            return
+        player._muaddib_passive_fired_this_round = True
+        if self.game.board.intrigue_deck:
+            card = self.game.board.intrigue_deck.pop(0)
+            player.intrigue_cards.append(card)
 
     # ==================== CONDITIONAL REWARD TRIGGER SYSTEM ====================
 

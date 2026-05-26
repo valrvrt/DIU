@@ -75,6 +75,9 @@ class Player:
     # Council
     has_high_council_sit = False
 
+    # Turn-scoped restrictions (e.g. Shaddam "no_troop_deployment_this_turn")
+    turn_restrictions: List = field(default_factory=list)
+
     # Victory Points tracking
     tag_pair_vp: int = 0  # VP from conflict/objective tag pairs (tracked separately)
     objectives: List = field(default_factory=list)  # Objective cards distributed at setup

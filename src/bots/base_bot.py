@@ -117,4 +117,5 @@ class BaseBot(ABC):
 
     def can_afford_card(self, card: ImperiumCard) -> bool:
         """Helper: Check if player can afford a card."""
-        return self.player.persuasion >= card.cost
+        persuasion = getattr(self.player, "temp_persuasion", 0)
+        return persuasion >= card.cost

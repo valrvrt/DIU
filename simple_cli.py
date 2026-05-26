@@ -34,7 +34,7 @@ from src.engine.effects.effect_resolver import EffectResolver
 from src.models.game import Game, GamePhase
 from src.models.player import Player
 from src.models.card import ImperiumCard
-from src.bots import RandomBot
+from src.bots import RandomBot, HeuristicBot
 
 
 class Colors:
@@ -169,7 +169,7 @@ class SimpleCLI:
 
         # Create bots for AI players
         for player in game.players[1:]:  # Skip human player
-            self.bots[player.player_id] = RandomBot(player, self.managers)
+            self.bots[player.player_id] = HeuristicBot(player, self.managers)
 
         self.print_success("Game initialized!")
         self.print_info(f"Players: {', '.join(p.name for p in game.players)}")
@@ -763,6 +763,68 @@ class SimpleCLI:
                     self.print_info(f"  {player.name} acquires {chosen.name} (free)")
                 effect_resolver.execute_choice(player.player_id, choice_data, chosen.id)
 
+            elif ctype == "reveal_passive_choice":
+                # Feyd-Rautha: may recall spy → +2 swords
+                options = choice_data.get("options", [])
+                if is_human:
+                    desc = choice_data.get("description", "Use passive?")
+                    print(f"\n  ⚡ Leader passive — {desc}")
+                    for i, opt in enumerate(options, 1):
+                        print(f"    [{i}] {opt.get('description','?')}")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(options)+1)])
+                    chosen_id = options[int(sel)-1].get("id")
+                else:
+                    # Bot takes the bonus if it has a spy to spare
+                    chosen_id = "yes" if player.spies_placed else "no"
+                    if chosen_id == "yes":
+                        self.print_bot_action(f"  {player.name} (Feyd) recalls spy → +2 swords")
+                if chosen_id == "yes":
+                    # Recall any one spy
+                    if player.spies_placed:
+                        player.spies_placed.pop(0)
+                        player.spies_available += 1
+                    player.temp_swords = getattr(player, "temp_swords", 0) + 2
+
+            elif ctype == "conditional_multi_choice":
+                # Staban Tuek's optional signet bonuses — pick one or none
+                options = choice_data.get("options", [])
+                eligible = [o for o in options if o.get("id") != "none"]
+                if not eligible:
+                    continue
+                if is_human:
+                    print(f"\n  Optional signet bonus (Staban Tuek):")
+                    for i, opt in enumerate(options, 1):
+                        desc = opt.get("description", opt.get("id", "?"))
+                        cost = opt.get("cost", [])
+                        cost_str = ", ".join(
+                            f"{e.get('amount',1)} {e.get('resource','?')}"
+                            for e in cost if isinstance(e, dict)
+                        ) if cost else "free"
+                        print(f"    [{i}] {desc}  (cost: {cost_str})")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(options)+1)])
+                    chosen = options[int(sel)-1]
+                else:
+                    # Bot: take first eligible bonus if it can afford it
+                    chosen = next(
+                        (o for o in eligible
+                         if all(getattr(player, f"{e.get('resource','')}", 0) >= e.get("amount", 0)
+                                for e in o.get("cost", []) if isinstance(e, dict))),
+                        options[-1]  # "none" option
+                    )
+                    self.print_info(f"  {player.name} takes bonus: {chosen.get('description','')}")
+                opt_id = chosen.get("id", "none")
+                if opt_id != "none":
+                    effect_resolver = self.managers["effect_resolver"]
+                    cost_effects = chosen.get("cost", [])
+                    reward_effects = chosen.get("reward", [])
+                    # Pay cost
+                    if cost_effects:
+                        effect_resolver.resolve_effects(player.player_id, cost_effects, {"phase": "signet", "invert": True})
+                    # Apply reward
+                    if reward_effects:
+                        res = effect_resolver.resolve_effects(player.player_id, reward_effects, {"phase": "signet"})
+                        self._resolve_choices(player, res.get("choices_required", []))
+
             else:
                 # Truly unknown choice type — print warning
                 self.print_info(f"  (Choice type '{ctype}' not recognized — skipped)")
@@ -973,7 +1035,12 @@ class SimpleCLI:
         result = effect_resolver.resolve_effects(
             player.player_id,
             signet_effects,
-            context={"phase": "signet", "source": "signet_ring", "leader": leader.name}
+            context={
+                "phase": "signet",
+                "source": "signet_ring",
+                "leader": leader.name,
+                "placement_location": location,  # used by Staban Tuek's conditional_multi
+            }
         )
 
         # Show what was applied
@@ -1019,6 +1086,18 @@ class SimpleCLI:
             self.print_success(f"Revealed {revealed} card(s) → {persuasion} persuasion, {swords} swords")
         else:
             self.print_bot_action(f"{player.name} reveals {revealed} card(s) → {persuasion} persuasion, {swords} swords")
+
+        # Leader reveal-phase passives (Feyd-Rautha, Gurney Halleck)
+        effect_resolver = self.managers["effect_resolver"]
+        passive_result = effect_resolver.check_and_apply_reveal_passive(
+            player.player_id, {"phase": "reveal"}
+        )
+        for msg in passive_result.get("effects_applied", []):
+            if player == self.human_player:
+                self.print_info(f"  ⚡ {msg}")
+            else:
+                self.print_bot_action(f"  ⚡ {msg}")
+        self._resolve_choices(player, passive_result.get("choices_required", []))
         time.sleep(1)
 
     def take_turn_bot(self, player: Player):
@@ -1221,33 +1300,38 @@ class SimpleCLI:
                 self.print_error(f"Failed: {result.get('error', 'Unknown error')}")
 
     def _bot_acquisition(self, player: Player, action_gen, action_exec):
-        """Simple random bot acquisition fallback."""
+        """Bot acquisition — defer to the bot's own decision-maker."""
         import random
         contract_manager = self.managers.get("contract_manager")
-        options = action_gen.get_acquisition_options(player.player_id)
-        persuasion = options.get("total_persuasion", 0)
+        bot = self.bots[player.player_id]
 
-        all_buyable = []
-        for card in options.get("imperium_row", []):
-            if card.cost <= persuasion:
-                all_buyable.append((card, "row"))
-        for card in options.get("reserve_cards", []):
-            if card.cost <= persuasion:
-                all_buyable.append((card, "reserve"))
+        # Loop: bot keeps buying until it decides to stop or can't afford more.
+        for _ in range(5):  # safety cap
+            options = action_gen.get_acquisition_options(player.player_id)
+            row = list(options.get("imperium_row", []))
+            reserve = list(options.get("reserve_cards", []))
+            all_cards = row + reserve
+            if not all_cards:
+                break
 
-        if all_buyable and random.random() < 0.7:
-            card, source = random.choice(all_buyable)
+            card = bot.decide_card_to_acquire(all_cards)
+            if card is None:
+                break
+
+            source = "reserve" if card in reserve else "row"
             result = action_exec.execute_acquire_card(
                 AcquireCardAction(player_id=player.player_id, card=card, source=source)
             )
-            if result.get("success"):
-                self.print_bot_action(f"{player.name} acquires {card.name}")
+            if not result.get("success"):
+                break
+            self.print_bot_action(f"{player.name} acquires {card.name}")
+            self._resolve_choices(player, result.get("choices_required", []))
 
-        # Bots accept a contract ~30% of the time if one is available
-        if contract_manager and random.random() < 0.3:
+        # Contracts: accept one if we have an active strategy slot open.
+        if contract_manager and len(getattr(player, 'contracts_active', [])) < 2:
             contract_row = getattr(self.game.board, 'contract_row', [])
-            if contract_row:
-                contract = random.choice(contract_row[:2])
+            if contract_row and random.random() < 0.5:
+                contract = contract_row[0]
                 result = contract_manager.acquire_contract(player.player_id, contract)
                 if result.get("success"):
                     self.print_bot_action(f"{player.name} accepts contract '{contract.name}'")
@@ -1311,6 +1395,12 @@ class SimpleCLI:
                 player.troops_in_conflict += troops
                 player.troops_in_garrison -= troops
                 self.print_bot_action(f"{player.name} deploys {troops} troops")
+
+        # Shaddam restriction: clear no_troop_deployment flag after deployment phase
+        # (Muad'Dib's sandworm passive fires automatically on worm gain via effect_resolver)
+        for player in self.game.players:
+            if "no_troop_deployment_this_turn" in getattr(player, "turn_restrictions", []):
+                player.turn_restrictions.remove("no_troop_deployment_this_turn")
 
         # Show troop summary
         print()
@@ -1438,9 +1528,11 @@ class SimpleCLI:
 
         # Recall agents and draw cards
         for player in self.game.players:
-            # Reset agents
+            # Reset agents and turn-scoped restrictions
             player.agents_available = player.total_available_agents
             player.has_revealed_this_round = False
+            player.turn_restrictions = []  # Clear Shaddam restrict and any other turn restrictions
+            player._muaddib_passive_fired_this_round = False  # Reset Muad'Dib once-per-round passive
 
             # Draw cards
             deck_manager.draw_cards(player.player_id, 5)
