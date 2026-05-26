@@ -428,24 +428,19 @@ class GameSession:
 
     def _post_action_advance(self, action_type: str) -> None:
         """Advance the game after a human action that raised no pending choices."""
-        human = self.human_player
-
         if action_type in ("place_agent", "reveal", "resolve_choice"):
-            # Agent phase flow: run bots, then check if phase transitions needed
+            # Run bots' agent turns (they place agents or reveal)
             self._run_bots_agent_phase()
-
-            # If all revealed, run bot acquisitions + automated phases
-            if all(p.has_revealed_this_round for p in self.game.players):
-                self._run_bot_acquisitions()
-                self._run_automated_phases()
-                self._start_next_round()
+            # Do NOT auto-advance past human acquisition:
+            # when all players have revealed, the frontend will see
+            # phase="acquisition" and the human must click "Done Buying"
 
         elif action_type == "end_acquisition":
             self._run_bot_acquisitions()
             self._run_automated_phases()
             self._start_next_round()
 
-        # For acquire_card / acquire_contract: human just keeps going (no advance)
+        # acquire_card / acquire_contract / play_intrigue: no advance needed
 
     def _run_bots_agent_phase(self) -> None:
         """Run bots in turn until it's the human's turn again (or all revealed)."""
@@ -507,9 +502,12 @@ class GameSession:
         else:
             result = action_exec.execute_place_agent(action)
             if result.get("success"):
-                self.log("place_agent", player=player.name,
-                         card=action.card.name, location=action.location.name,
-                         troops=action.troops_to_deploy)
+                self.log("bot_action",
+                         player=player.name,
+                         card=action.card.name,
+                         location=action.location.name,
+                         troops=action.troops_to_deploy,
+                         effects=self._summarize_agent_effects(action.card))
                 self._bot_resolve_choices(player, result.get("choices_required", []))
             else:
                 # Fallback: reveal
@@ -565,6 +563,25 @@ class GameSession:
                     t = _random.choice(targets)
                     effect_resolver.execute_choice(player.player_id, choice_data, t["player_id"])
             # Unknown choices: silently skip
+
+    def _summarize_agent_effects(self, card) -> str:
+        """Return a short string describing a card's agent effects."""
+        effects = getattr(card, "agent_effects", []) or []
+        parts = []
+        for e in effects[:4]:
+            t = e.get("type", "")
+            amt = e.get("amount", 1)
+            res = e.get("resource", "")
+            if t == "resource":
+                parts.append(f"+{amt} {res}")
+            elif t == "draw":
+                deck = e.get("deck", "")
+                parts.append(f"draw {amt}{' intrigue' if deck=='intrigue' else ''}")
+            elif t == "influence":
+                parts.append(f"+{amt} inf")
+            elif t == "victory_point":
+                parts.append(f"+{amt} VP")
+        return ", ".join(parts) if parts else ""
 
     def _run_bot_acquisitions(self) -> None:
         action_gen = self.managers["action_generator"]

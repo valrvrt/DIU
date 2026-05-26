@@ -95,11 +95,14 @@ def _leader_card(card) -> Optional[Dict[str, Any]]:
     }
 
 
-def _objective_card(card: ObjectiveCard) -> Dict[str, Any]:
+def _objective_card(card) -> Dict[str, Any]:
+    if card is None:
+        return None
     return {
-        "id": card.id,
-        "name": card.name,
-        "tag": card.tag,
+        "id": getattr(card, "id", ""),
+        "name": getattr(card, "name", "Unknown"),
+        "tag": getattr(card, "tag", ""),
+        "description": getattr(card, "description", getattr(card, "text", getattr(card, "tag", ""))),
     }
 
 
@@ -219,6 +222,8 @@ def _player_private(player: Player) -> Dict[str, Any]:
     public["intrigue_cards"] = [_intrigue_card(c) for c in player.intrigue_cards]
     public["discard"] = [_imperium_card(c) for c in player.discard_pile.cards]
     public["temp_persuasion"] = getattr(player, "temp_persuasion", 0)
+    obj = getattr(player, "objective_card", None)
+    public["objective"] = _objective_card(obj) if obj is not None else None
     return public
 
 

@@ -22,6 +22,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 class NewGameRequest(BaseModel):
     player_count: int = 3
     human_name: str = "Player"
+    selected_leader: Optional[int] = None
 
 
 class ActionRequest(BaseModel):
@@ -43,6 +44,7 @@ def new_game(req: NewGameRequest):
         _session = GameSession.new(
             player_count=req.player_count,
             human_name=req.human_name,
+            selected_leaders=[req.selected_leader] if req.selected_leader is not None else None,
         )
         return _session.snapshot()
     except Exception as e:
