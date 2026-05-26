@@ -1,16 +1,49 @@
 /* ══════════════════════════════════════════════════════════
-   DUNE: Imperium Uprising — frontend app
+   DUNE: Imperium Uprising — frontend v2
    ══════════════════════════════════════════════════════════ */
 
 // ─────────────── global state ───────────────
-let G = {
-  state: null,          // full game state from server
-  selectedCard: null,   // {id, validLocations: [str]} card selected in hand
-  pendingChoice: null,  // choice waiting for resolution
+const G = {
+  state: null,
+  selectedCard: null,   // {id, validLocations:[str]}
+  pendingChoice: null,
   playerColors: ["p0","p1","p2","p3"],
   playerCount: 3,
   humanId: null,
+  selectedLeader: null,
+  leaders: [],
+  objective: null,
 };
+
+// ─────────────── startup ────────────────────
+(async function loadLeaders() {
+  const data = await api("GET", "/api/leaders");
+  if (!data) return;
+  G.leaders = Array.isArray(data) ? data : [];
+  renderLeaderPicker();
+})();
+
+function renderLeaderPicker() {
+  const el_ = document.getElementById("leader-picker");
+  el_.innerHTML = "";
+  if (!G.leaders.length) { el_.innerHTML = '<span class="leader-loading">No leaders available</span>'; return; }
+  G.leaders.forEach(l => {
+    const btn = el("button","leader-btn");
+    btn.textContent = l.name;
+    btn.dataset.id = l.id;
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".leader-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      G.selectedLeader = l.id;
+    });
+    el_.appendChild(btn);
+  });
+  // auto-select first
+  if (G.leaders.length) {
+    el_.firstChild.classList.add("selected");
+    G.selectedLeader = G.leaders[0].id;
+  }
+}
 
 // ─────────────── setup screen ───────────────
 document.querySelectorAll(".count-btn").forEach(btn => {
@@ -23,14 +56,39 @@ document.querySelectorAll(".count-btn").forEach(btn => {
 
 document.getElementById("start-btn").addEventListener("click", async () => {
   const name = document.getElementById("setup-name").value.trim() || "Player";
-  const snap = await api("POST", "/api/new-game", { player_count: G.playerCount, human_name: name });
+  const snap = await api("POST", "/api/new-game", {
+    player_count: G.playerCount,
+    human_name: name,
+    selected_leader: G.selectedLeader,
+  });
   if (snap) {
     G.humanId = snap.state.viewer_player_id;
     document.getElementById("setup-overlay").classList.add("hidden");
     document.getElementById("game").classList.remove("hidden");
     applySnapshot(snap);
+    // Show objective card
+    const human = snap.state.players.find(p => p.player_id === G.humanId);
+    if (human?.objective) {
+      G.objective = human.objective;
+      showObjective();
+    }
   }
 });
+
+// ─────────────── objective modal ────────────
+function showObjective() {
+  if (!G.objective) return;
+  const modal = document.getElementById("objective-modal");
+  const content = document.getElementById("objective-content");
+  content.innerHTML = `
+    <div class="objective-name">🎯 ${G.objective.name || "Unknown"}</div>
+    <div class="objective-desc">${G.objective.description || G.objective.tag || ""}</div>
+  `;
+  modal.classList.remove("hidden");
+}
+function closeObjective() {
+  document.getElementById("objective-modal").classList.add("hidden");
+}
 
 // ─────────────── api helpers ────────────────
 async function api(method, url, body) {
@@ -61,7 +119,6 @@ function applySnapshot(snap) {
 function render() {
   const s = G.state;
   if (!s) return;
-
   renderTopBar(s);
   renderContractsStrip(s);
   renderFactionSpaces(s);
@@ -81,15 +138,15 @@ function renderTopBar(s) {
   bar.innerHTML = "";
   s.players.forEach((p, i) => {
     if (p.player_id === s.viewer_player_id) return;
-    const chip = el("div", "opponent-chip");
+    const chip = el("div","opponent-chip");
+    const leaderName = p.leader?.name ? ` (${p.leader.name})` : "";
     chip.innerHTML = `
       <span class="chip-color" style="background:var(--${G.playerColors[i]})"></span>
-      <span title="${p.name}">${shortName(p.name)}</span>
+      <span>${shortName(p.name)}${leaderName}</span>
       <span class="chip-vp">⭐${p.victory_points}</span>
-      <span class="chip-sol">🪙${p.solari}</span>
-      <span class="chip-spi">🌶${p.spice}</span>
-      <span class="chip-wat">💧${p.water}</span>
-      <span class="chip-sol" style="color:var(--text-dim)">🃏${p.hand_size}</span>
+      <span class="chip-sol" style="color:var(--solari)">●${p.solari}</span>
+      <span class="chip-spi" style="color:var(--spice)">◆${p.spice}</span>
+      <span style="color:var(--text-dim)">🃏${p.hand_size}</span>
     `;
     bar.appendChild(chip);
   });
@@ -97,13 +154,8 @@ function renderTopBar(s) {
 
 function phaseLabel(phase) {
   const map = {
-    agent_turn: "Agent Phase",
-    acquisition: "Acquisition Phase",
-    player_turns: "Player Turns",
-    combat: "Combat",
-    recall: "Recall",
-    game_over: "GAME OVER",
-    choice: "Waiting for Choice…",
+    agent_turn:"Agent Phase", acquisition:"Acquisition", player_turns:"Playing",
+    combat:"Combat", recall:"Recall", game_over:"GAME OVER", choice:"Choose…",
   };
   return map[phase] || phase || "—";
 }
@@ -112,95 +164,98 @@ function phaseLabel(phase) {
 function renderContractsStrip(s) {
   const row = document.getElementById("contract-row");
   row.innerHTML = "";
+  const aa = s.available_actions || {};
   const contracts = s.board?.contract_row || [];
   contracts.forEach(c => {
-    const chip = el("div", "contract-chip");
-    chip.innerHTML = `
-      <span>📋 ${c.name}</span>
-      <span class="cond">${contractCondition(c)}</span>
-      <span class="reward">→ ${formatRewards(c.rewards || [])}</span>
-    `;
-    chip.addEventListener("click", () => promptAcceptContract(c));
+    const chip = el("div","contract-chip");
+    chip.innerHTML = `<span>${c.name}</span><span class="cond">${contractCondition(c)}</span><span class="reward">→ ${formatRewardsText(c.rewards||[])}</span>`;
+    if (aa.phase === "acquisition") {
+      chip.addEventListener("click", () => promptAcceptContract(c));
+    }
     row.appendChild(chip);
   });
 }
 
 function contractCondition(c) {
-  if (c.completion_type === "immediate") return "immediate";
-  if (c.completion_type === "location")  return `visit ${c.completion_target}`;
-  if (c.completion_type === "harvest")   return `harvest ${c.required_spice} spice`;
-  if (c.completion_type === "acquire_card") return `buy "${c.completion_target}"`;
-  return c.completion_type || "—";
+  if (c.completion_type === "immediate") return "now";
+  if (c.completion_type === "location")  return `@${c.completion_target}`;
+  if (c.completion_type === "harvest")   return `⛏${c.required_spice}`;
+  if (c.completion_type === "acquire_card") return `buy`;
+  return c.completion_type || "";
 }
 
 // ─────────────── FACTION SPACES ─────────────
 function renderFactionSpaces(s) {
   const factions = ["fremen","bene_gesserit","spacing_guild","emperor"];
   factions.forEach(f => {
-    // Influence track
-    const trackEl = document.getElementById(`inf-${f}`);
-    if (trackEl) renderInfluenceTrack(trackEl, f, s);
+    const infEl = document.getElementById(`inf-${f}`);
+    if (infEl) renderInfluenceCol(infEl, f, s);
 
-    // Spaces
-    const container = document.getElementById(`spaces-${f}`);
-    if (!container) return;
-    container.innerHTML = "";
-    const spaces = (s.board?.spaces || []).filter(sp => normalFaction(sp.faction) === f);
-    spaces.forEach(sp => container.appendChild(renderBoardSpace(sp, s)));
+    const cont = document.getElementById(`spaces-${f}`);
+    if (!cont) return;
+    cont.innerHTML = "";
+    const spaces = (s.board?.spaces || []).filter(sp => normFaction(sp.faction) === f);
+    spaces.forEach(sp => cont.appendChild(renderBoardSpace(sp, s)));
   });
 }
 
-function normalFaction(f) {
+function normFaction(f) {
   if (!f) return null;
-  return f.toLowerCase().replace(/ /g,"_").replace("benegesserit","bene_gesserit")
-          .replace("spacingguild","spacing_guild");
+  return f.toLowerCase().replace(/ /g,"_").replace("benegesserit","bene_gesserit").replace("spacingguild","spacing_guild");
 }
 
-function renderInfluenceTrack(trackEl, faction, s) {
-  trackEl.innerHTML = "";
+function renderInfluenceCol(colEl, faction, s) {
+  colEl.innerHTML = "";
   s.players.forEach((p, idx) => {
-    const factionKey = {
-      fremen: "fremen", bene_gesserit: "bene_gesserit",
-      spacing_guild: "spacing_guild", emperor: "emperor"
-    }[faction];
-    const level = p.influence?.[factionKey] ?? 0;
-    const alliance = p.alliances?.[factionKey] ?? false;
-    const row = el("div", "inf-row");
-    const nameSpan = el("span", "inf-player-label");
-    nameSpan.textContent = p.name[0];
-    nameSpan.style.color = `var(--${G.playerColors[idx]})`;
-    row.appendChild(nameSpan);
+    const level = p.influence?.[faction] ?? 0;
+    const alliance = p.alliances?.[faction] ?? false;
+    const row = el("div","inf-row");
+
+    const letter = el("span","inf-letter");
+    letter.textContent = p.name[0];
+    letter.style.color = `var(--${G.playerColors[idx]})`;
+    row.appendChild(letter);
+
+    const pips = el("span","inf-pips");
     for (let i = 0; i < 4; i++) {
-      const pip = el("span", "inf-pip" + (i < level ? " filled" : ""));
+      const pip = el("span","inf-pip" + (i < level ? " filled" : ""));
       if (i < level) pip.style.background = `var(--${G.playerColors[idx]})`;
-      row.appendChild(pip);
+      pips.appendChild(pip);
     }
+    row.appendChild(pips);
+
     if (alliance) {
-      const star = el("span", "alliance-star");
-      star.textContent = "★";
+      const star = el("span","alliance-star"); star.textContent = "★";
       row.appendChild(star);
     }
-    trackEl.appendChild(row);
+    colEl.appendChild(row);
   });
 }
 
 // ─────────────── NEUTRAL SPACES ─────────────
 function renderNeutralSpaces(s) {
-  const cityIds   = [22, 14, 13, 12, "22","14","13","12"];  // Arrakeen, Spice Refinery, Research Stn, Sietch Tabr
-  const desertIds = [9, 10, 11, 20, 21, "9","10","11","20","21"]; // Deep Desert, Haga, Imperial Basin, Shipping, Accept
-  const councilIds= [15, 16, 17, 18, 19, "15","16","17","18","19"]; // High Council, etc.
+  const landsraadEl  = document.getElementById("spaces-landsraad");
+  const shippingEl   = document.getElementById("spaces-shipping");
+  const cityEl       = document.getElementById("spaces-city");
+  const desertEl     = document.getElementById("spaces-desert");
 
-  const cityEl    = document.getElementById("spaces-city");
-  const councilEl = document.getElementById("spaces-council");
-  cityEl.innerHTML = "";
-  councilEl.innerHTML = "";
+  landsraadEl.innerHTML = "";
+  shippingEl.innerHTML  = "";
+  cityEl.innerHTML      = "";
+  desertEl.innerHTML    = "";
 
-  const neutral = (s.board?.spaces || []).filter(sp => !normalFaction(sp.faction));
+  const neutral = (s.board?.spaces || []).filter(sp => !normFaction(sp.faction));
   neutral.forEach(sp => {
-    const sid = parseInt(sp.id) || sp.id;
+    const icon = sp.agent_icon?.toLowerCase() || "";
+    const name = sp.name?.toLowerCase() || "";
     const node = renderBoardSpace(sp, s);
-    if (councilIds.includes(sid) || councilIds.includes(sp.id)) {
-      councilEl.appendChild(node);
+
+    if (icon === "green") {
+      landsraadEl.appendChild(node);
+    } else if (name.includes("shipping") || name.includes("accept")) {
+      shippingEl.appendChild(node);
+    } else if (icon === "yellow") {
+      desertEl.appendChild(node);
     } else {
       cityEl.appendChild(node);
     }
@@ -209,80 +264,55 @@ function renderNeutralSpaces(s) {
 
 // ─────────────── BOARD SPACE ────────────────
 function renderBoardSpace(sp, s) {
-  const div = el("div", "board-space");
+  const div = el("div","board-space");
   const aa = s.available_actions || {};
 
-  // Check if this is a valid target for the selected card
-  const isValid = G.selectedCard &&
-    G.selectedCard.validLocations.includes(String(sp.id));
+  const isValid = G.selectedCard && G.selectedCard.validLocations.includes(String(sp.id));
   if (isValid) div.classList.add("valid-target");
   if (sp.occupied_by) div.classList.add("occupied");
 
   // Header
   const hdr = el("div","sp-header");
   const nameEl = el("span","sp-name"); nameEl.textContent = sp.name;
-  const iconEl = el("span","sp-icon"); iconEl.textContent = agentIconLabel(sp.agent_icon);
-  hdr.appendChild(nameEl); hdr.appendChild(iconEl);
+  hdr.appendChild(nameEl);
   div.appendChild(hdr);
 
-  // Badges
-  const badges = el("div","sp-badges");
-  if (sp.is_combat_space) { const b = el("span","badge-small badge-combat"); b.textContent="⚔ Combat"; badges.appendChild(b); }
-  if (sp.is_maker_space)  { const b = el("span","badge-small badge-maker");  b.textContent="☆ Maker";  badges.appendChild(b); }
-  if (sp.is_critical_location) { const b = el("span","badge-small badge-critical"); b.textContent="⬟ Critical"; badges.appendChild(b); }
-  if (badges.children.length) div.appendChild(badges);
-
-  // Spice bonus on maker
-  if (sp.is_maker_space && sp.spice_bonus > 0) {
-    const sb = el("div","sp-spice-bonus"); sb.textContent = `🌶 +${sp.spice_bonus} bonus`;
-    div.appendChild(sb);
-  }
-
-  // Cost (if any)
-  if (sp.cost && sp.cost.length) {
-    const costBadge = el("span","badge-small badge-cost");
-    costBadge.textContent = "Cost: " + formatRewards(sp.cost);
-    div.appendChild(costBadge);
-  }
-
-  // Rewards
-  if (sp.reward && sp.reward.length) {
-    const rw = el("div","sp-rewards"); rw.textContent = formatRewards(sp.reward);
+  // Rewards (compact icon row)
+  const rwArr = sp.reward || [];
+  if (rwArr.length) {
+    const rw = el("div","sp-rewards");
+    rwArr.forEach(e => {
+      const ico = el("span",""); ico.innerHTML = describeEffectHTML(e);
+      rw.appendChild(ico);
+    });
     div.appendChild(rw);
+  }
+
+  // Combat marker
+  if (sp.is_combat_space) {
+    const marker = el("span","");
+    marker.innerHTML = "⚔ ";
+    marker.style.cssText = "font-size:8px;color:#e05050;";
+    div.insertBefore(marker, div.firstChild);
   }
 
   // Occupant
   if (sp.occupied_by) {
     const pidx = s.players.findIndex(p => p.player_id === sp.occupied_by);
-    const name = s.players[pidx]?.name || sp.occupied_by;
+    const name = s.players[pidx]?.name || "?";
     const occ = el("span", `sp-occupant occ-${Math.max(pidx,0)}`);
-    occ.textContent = "🧍" + shortName(name);
+    occ.textContent = "🧍" + name[0];
     div.appendChild(occ);
   }
-  // Infiltrated by spy
-  if (sp.infiltrated_by) {
-    const pidx = s.players.findIndex(p => p.player_id === sp.infiltrated_by);
-    const name = s.players[pidx]?.name || sp.infiltrated_by;
-    const inf = el("span","sp-occupant"); inf.textContent = "🕵" + shortName(name);
-    inf.style.top = sp.occupied_by ? "14px" : "3px";
-    div.appendChild(inf);
-  }
 
-  // Click: place agent here
   div.addEventListener("click", () => {
-    if (G.selectedCard && isValid) {
-      placeAgent(G.selectedCard.id, sp.id);
-    }
+    if (G.selectedCard && isValid) placeAgent(G.selectedCard.id, sp.id, sp.is_combat_space);
   });
-
   return div;
 }
 
 function agentIconLabel(icon) {
-  const map = {
-    fremen: "🌵", bene_gesserit: "🔮", spacing_guild: "🚀", emperor: "👑",
-    yellow: "🌶", blue: "🏙", green: "🏛", spy: "🕵", city: "🏙",
-  };
+  const map = { fremen:"🌵", bene_gesserit:"🔮", spacing_guild:"🚀", emperor:"👑", yellow:"◆", blue:"🏙", green:"🏛", spy:"🕵", city:"🏙" };
   return map[icon?.toLowerCase()] || icon || "◦";
 }
 
@@ -291,64 +321,53 @@ function renderCombatZone(s) {
   const conflict = s.board?.current_conflict;
   const cfEl = document.getElementById("current-conflict");
   if (conflict) {
-    const maxStrength = Math.max(1, ...s.players.map(p => p.combat_strength || 0));
     cfEl.innerHTML = `
-      <div class="cf-name">⚔ ${conflict.name} <span style="font-size:9px;color:var(--text-dim)">(Level ${conflict.level})</span></div>
-      <div class="cf-rewards">${renderConflictRewards(conflict.rewards)}</div>
+      <div class="cf-name">⚔ ${conflict.name}</div>
+      <div class="cf-lvl">Level ${conflict.level}</div>
+      <div class="cf-reward">${renderConflictRewards(conflict.rewards)}</div>
     `;
   } else {
-    cfEl.innerHTML = `<div style="color:var(--text-dim);font-size:10px">No active conflict</div>`;
+    cfEl.innerHTML = `<div style="color:var(--text-dim);font-size:8px">No conflict</div>`;
   }
 
   const cpDiv = document.getElementById("combat-players");
   cpDiv.innerHTML = "";
-  const maxStr = Math.max(1, ...s.players.map(p => p.combat_strength || 0));
   s.players.forEach((p, i) => {
     const row = el("div","combat-player-row");
     const str = p.combat_strength || 0;
-    const pct = Math.min(100, Math.round(str / maxStr * 100));
     row.innerHTML = `
-      <div class="cp-name" style="color:var(--${G.playerColors[i]})">${shortName(p.name)}</div>
-      <div class="cp-troops">${p.troops_in_conflict} troops${p.sandworms_in_conflict > 0 ? " + "+p.sandworms_in_conflict+"🪱" : ""}</div>
-      <div class="cp-strength">Strength: ${str}</div>
-      <div class="strength-bar-track"><div class="strength-bar-fill" style="width:${pct}%;background:var(--${G.playerColors[i]})"></div></div>
+      <span class="cp-color" style="background:var(--${G.playerColors[i]})"></span>
+      <span class="cp-info">${shortName(p.name)} — ${p.troops_in_conflict}🗡${p.sandworms_in_conflict>0?"+"+p.sandworms_in_conflict+"🪱":""}</span>
+      <span class="cp-str">${str}</span>
     `;
     cpDiv.appendChild(row);
   });
 
   const garr = document.getElementById("garrisons");
-  garr.innerHTML = "";
-  s.players.forEach((p, i) => {
-    const chip = el("div","garrison-chip");
-    chip.innerHTML = `
-      <div class="gc-name" style="color:var(--${G.playerColors[i]})">${shortName(p.name)}</div>
-      <div class="gc-troops">${p.troops_in_garrison} 🏰 / ${p.troops_in_reserve} res.</div>
-    `;
-    garr.appendChild(chip);
-  });
+  garr.innerHTML = s.players.map((p,i) =>
+    `<span class="garrison-chip" style="color:var(--${G.playerColors[i]})">${p.name[0]}:${p.troops_in_garrison}</span>`
+  ).join(" ");
 }
 
 function renderConflictRewards(rewards) {
   if (!rewards) return "";
   return Object.entries(rewards).map(([rank, effects]) => {
     const rankLabel = rank === "1" ? "🥇" : rank === "2" ? "🥈" : "🥉";
-    return `<div class="cf-reward-rank">${rankLabel} ${formatRewards(effects)}</div>`;
-  }).join("");
+    return `${rankLabel}${formatRewardsText(effects)}`;
+  }).join(" ");
 }
 
 // ─────────────── IMPERIUM ROW ───────────────
 function renderImperiumRow(s) {
   const aa = s.available_actions || {};
-  const inAcquisition = aa.phase === "acquisition";
+  const inAcq = aa.phase === "acquisition";
   const persuasion = aa.persuasion_left || 0;
 
   const rowEl = document.getElementById("imperium-row");
   rowEl.innerHTML = "";
   (s.board?.imperium_row || []).forEach(c => {
-    const div = buildCard(c, "row-card", inAcquisition, persuasion);
-    if (inAcquisition) {
-      div.addEventListener("click", () => tryAcquireCard(c, "row"));
-    }
+    const div = buildCard(c, "row-card", inAcq, persuasion);
+    if (inAcq) div.addEventListener("click", () => tryAcquireCard(c, "row"));
     rowEl.appendChild(div);
   });
 
@@ -356,72 +375,59 @@ function renderImperiumRow(s) {
   resEl.innerHTML = "";
   const rp = aa.reserve_prepare || s.board?.reserve_prepare_the_way;
   const rs = aa.reserve_spice   || s.board?.reserve_spice_must_flow;
-
-  if (rp?.card || rp?.top) {
-    const card = rp.card || rp.top;
-    const rem  = rp.remaining || 0;
-    const div = buildCard(card, "row-card", inAcquisition, persuasion);
-    const extra = el("div","sp-spice-bonus"); extra.textContent = `×${rem} left`;
+  [[rp, "reserve"], [rs, "reserve"]].forEach(([pile, src]) => {
+    if (!pile) return;
+    const card = pile.card || pile.top;
+    if (!card) return;
+    const rem  = pile.remaining || 0;
+    const div = buildCard(card, "row-card", inAcq, persuasion);
+    const extra = el("div",""); extra.textContent = `×${rem} left`; extra.style.cssText="font-size:8px;color:var(--text-dim);padding:2px 6px";
     div.appendChild(extra);
-    if (inAcquisition) div.addEventListener("click", () => tryAcquireCard(card, "reserve"));
+    if (inAcq) div.addEventListener("click", () => tryAcquireCard(card, src));
     resEl.appendChild(div);
-  }
-  if (rs?.card || rs?.top) {
-    const card = rs.card || rs.top;
-    const rem  = rs.remaining || 0;
-    const div = buildCard(card, "row-card", inAcquisition, persuasion);
-    const extra = el("div","sp-spice-bonus"); extra.textContent = `×${rem} left`;
-    div.appendChild(extra);
-    if (inAcquisition) div.addEventListener("click", () => tryAcquireCard(card, "reserve"));
-    resEl.appendChild(div);
-  }
+  });
 }
 
 // ─────────────── PLAYER AREA ────────────────
 function renderPlayerArea(s) {
   const human = s.players.find(p => p.player_id === s.viewer_player_id);
   if (!human) return;
-
   const aa = s.available_actions || {};
-  const inAcquisition = aa.phase === "acquisition";
+  const inAcq = aa.phase === "acquisition";
   const persuasion = aa.persuasion_left || 0;
 
-  // Hand label
-  document.getElementById("your-name-label").textContent =
-    (human.name || "Player").toUpperCase() + " — HAND";
+  document.getElementById("your-name-label").textContent = (human.name || "").toUpperCase();
 
-  // Persuasion badge
   const pbadge = document.getElementById("persuasion-display");
-  if (inAcquisition) {
+  if (inAcq && persuasion > 0) {
     pbadge.classList.remove("hidden");
-    pbadge.textContent = `🟢 ${persuasion} persuasion`;
+    pbadge.textContent = `${persuasion} persuasion`;
   } else {
     pbadge.classList.add("hidden");
   }
 
-  // Hand cards
+  // Hand
   const handEl = document.getElementById("hand-cards");
   handEl.innerHTML = "";
   (human.hand || []).forEach(c => {
     const div = buildCard(c, "hand-card", false, 0);
-
     if (aa.phase === "agent_turn") {
-      // Find this card's valid locations
       const entry = (aa.playable_cards || []).find(e => e.card_id === c.id);
       if (entry && entry.valid_location_ids.length > 0) {
         div.classList.add("selectable");
         div.addEventListener("click", () => selectCard(c, entry.valid_location_ids));
       } else {
-        div.style.opacity = ".5";
+        div.style.opacity = ".45";
       }
+    } else if (inAcq) {
+      // In acquisition phase, hand is revealed but not clickable for placement
+      div.style.opacity = ".6";
     }
     handEl.appendChild(div);
   });
 
-  // Intrigue count badge
   document.getElementById("intrigue-count").textContent = human.intrigue_count || 0;
 
-  // Intrigue cards
   const intEl = document.getElementById("intrigue-cards");
   intEl.innerHTML = "";
   (human.intrigue_cards || []).forEach(c => {
@@ -434,20 +440,17 @@ function renderPlayerArea(s) {
   acEl.innerHTML = "";
   (human.contracts_active || []).forEach(c => {
     const chip = el("div","active-contract-chip");
-    chip.innerHTML = `
-      <div class="ac-name">${c.name}</div>
-      <div class="ac-cond">${contractCondition(c)}</div>
-    `;
+    chip.innerHTML = `<div class="ac-name">${c.name}</div><div class="ac-cond">${contractCondition(c)}</div>`;
     acEl.appendChild(chip);
   });
 
-  // Discard pile buttons for ALL players
+  // Discard piles
   const discardStrip = document.getElementById("discard-piles-strip");
   discardStrip.innerHTML = "";
   s.players.forEach((p, i) => {
     if (!p.discard_size) return;
     const btn = el("button","discard-pile-btn");
-    btn.textContent = `${shortName(p.name)} (${p.discard_size})`;
+    btn.textContent = `${p.name[0]} (${p.discard_size})`;
     btn.style.borderColor = `var(--${G.playerColors[i]})`;
     btn.addEventListener("click", () => showDiscard(p, s));
     discardStrip.appendChild(btn);
@@ -457,39 +460,50 @@ function renderPlayerArea(s) {
 // ─────────────── ACTION BUTTONS ─────────────
 function updateActionButtons(s) {
   const aa = s.available_actions || {};
-  const revealBtn = document.getElementById("reveal-btn");
-  const endAcqBtn = document.getElementById("end-acq-btn");
-
-  revealBtn.classList.toggle("hidden", aa.phase !== "agent_turn");
-  endAcqBtn.classList.toggle("hidden", aa.phase !== "acquisition");
+  document.getElementById("reveal-btn").classList.toggle("hidden", aa.phase !== "agent_turn");
+  document.getElementById("end-acq-btn").classList.toggle("hidden", aa.phase !== "acquisition");
 }
 
-document.getElementById("reveal-btn").addEventListener("click", () => {
-  postAction({ type: "reveal" });
-  clearSelectedCard();
-});
-
+function doReveal() { postAction({ type: "reveal" }); clearSelectedCard(); }
 function endAcquisition() { postAction({ type: "end_acquisition" }); }
 
-// ─────────────── CARD CLICK FLOW ────────────
+// ─────────────── CARD SELECTION / PLACEMENT ─────────────
 function selectCard(card, validLocations) {
-  if (G.selectedCard?.id === card.id) {
-    clearSelectedCard();
-    return;
-  }
+  if (G.selectedCard?.id === card.id) { clearSelectedCard(); return; }
   G.selectedCard = { id: card.id, validLocations };
-  // Refresh highlight
   render();
 }
+function clearSelectedCard() { G.selectedCard = null; render(); }
 
-function clearSelectedCard() {
-  G.selectedCard = null;
-  render();
-}
-
-function placeAgent(cardId, locationId) {
+function placeAgent(cardId, locationId, isCombatSpace) {
+  if (isCombatSpace) {
+    const maxTroops = G.state?.available_actions?.max_troops || 0;
+    if (maxTroops > 0) {
+      showTroopPicker(cardId, locationId, maxTroops);
+      return;
+    }
+  }
   postAction({ type: "place_agent", card_id: cardId, location_id: String(locationId), troops: 0 });
   clearSelectedCard();
+}
+
+function showTroopPicker(cardId, locationId, maxTroops) {
+  const modal = document.getElementById("choice-modal");
+  document.getElementById("choice-title").textContent = "Deploy Troops to Conflict?";
+  document.getElementById("choice-desc").textContent = `You may send up to ${maxTroops} troops from garrison to the conflict.`;
+  const optEl = document.getElementById("choice-options");
+  optEl.innerHTML = "";
+  for (let t = 0; t <= maxTroops; t++) {
+    const btn = el("button","choice-btn");
+    btn.textContent = t === 0 ? "No troops" : `${t} troop${t > 1 ? "s" : ""}`;
+    btn.addEventListener("click", () => {
+      modal.classList.add("hidden");
+      postAction({ type: "place_agent", card_id: cardId, location_id: String(locationId), troops: t });
+      clearSelectedCard();
+    });
+    optEl.appendChild(btn);
+  }
+  modal.classList.remove("hidden");
 }
 
 function tryAcquireCard(card, source) {
@@ -502,239 +516,129 @@ function tryAcquireCard(card, source) {
 }
 
 function promptAcceptContract(contract) {
-  const aa = G.state?.available_actions || {};
-  if (aa.phase !== "acquisition") {
-    showError("Contracts can only be accepted during the acquisition phase"); return;
-  }
   postAction({ type: "acquire_contract", contract_id: String(contract.id) });
 }
 
 // ─────────────── CHOICE MODAL ───────────────
 function showChoiceModal(choice) {
   const modal = document.getElementById("choice-modal");
-  const titleEl = document.getElementById("choice-title");
-  const descEl = document.getElementById("choice-desc");
-  const optionsEl = document.getElementById("choice-options");
-  optionsEl.innerHTML = "";
-
-  const ctype = choice.type;
-  titleEl.textContent = choiceTitle(ctype);
-  descEl.textContent  = choice.description || "";
-
-  const items = getChoiceItems(choice);
-  items.forEach(item => {
-    const btn = el("button", "choice-btn" + (item.disabled ? " disabled" : ""));
+  document.getElementById("choice-title").textContent = choiceTitle(choice.type);
+  document.getElementById("choice-desc").textContent  = choice.description || "";
+  const optEl = document.getElementById("choice-options");
+  optEl.innerHTML = "";
+  getChoiceItems(choice).forEach(item => {
+    const btn = el("button","choice-btn"+(item.disabled?" disabled":""));
     btn.textContent = item.label;
-    if (!item.disabled) {
-      btn.addEventListener("click", () => {
-        modal.classList.add("hidden");
-        postAction({ type: "resolve_choice", option_id: item.value });
-      });
-    }
-    optionsEl.appendChild(btn);
+    if (!item.disabled) btn.addEventListener("click", () => {
+      modal.classList.add("hidden");
+      postAction({ type:"resolve_choice", option_id: item.value });
+    });
+    optEl.appendChild(btn);
   });
-
   modal.classList.remove("hidden");
 }
 
 function choiceTitle(ctype) {
   const map = {
-    choice: "Choose an option",
-    spy_post: "Place Spy",
-    play_spy: "Play Spy",
-    influence_faction: "Choose Faction",
-    conditional: "Optional: Pay for Bonus?",
-    trash_card: "Trash a Card",
-    trash_to_acquire: "Trash a Card to Unlock Acquisition",
-    discard_card: "Discard a Card",
-    steal_intrigue: "Steal Intrigue From",
-    recall_agent: "Recall Agent From",
-    accept_contract: "Accept a Contract",
-    acquire_card: "Acquire Card (Free)",
-    choose_opponent_discard: "Force Opponent to Discard",
-    play_spy_on_space: "Plant Spy on Space",
-    conditional_multi_choice: "Optional Bonuses",
-    reveal_passive_choice: "Leader Passive Ability",
+    choice:"Choose an option", spy_post:"Place Spy", play_spy:"Play Spy",
+    influence_faction:"Choose Faction", conditional:"Pay for Bonus?",
+    trash_card:"Trash a Card", trash_to_acquire:"Trash to Acquire",
+    discard_card:"Discard a Card", steal_intrigue:"Steal Intrigue From",
+    recall_agent:"Recall Agent From", accept_contract:"Accept a Contract",
+    acquire_card:"Acquire Card (Free)", choose_opponent_discard:"Force Discard",
+    play_spy_on_space:"Plant Spy", conditional_multi_choice:"Optional Bonuses",
+    reveal_passive_choice:"Leader Passive",
   };
   return map[ctype] || "Make a Choice";
 }
 
 function getChoiceItems(choice) {
   const ctype = choice.type;
-
-  if (ctype === "choice") {
-    return (choice.options || []).map(o => ({
-      label: o.label || o.id, value: o.id,
-      disabled: o.available === false,
-    }));
-  }
-  if (ctype === "influence_faction") {
-    return (choice.factions || []).map(f => ({ label: factionLabel(f), value: f }));
-  }
+  if (ctype === "choice") return (choice.options||[]).map(o=>({label:o.label||o.id,value:o.id,disabled:o.available===false}));
+  if (ctype === "influence_faction") return (choice.factions||[]).map(f=>({label:factionLabel(f),value:f}));
   if (ctype === "conditional") {
-    const costs   = formatRewards(choice.costs || []);
-    const rewards = formatRewards(choice.rewards || []);
-    return [
-      { label: `✓ Pay ${costs} → gain ${rewards}`, value: "accept" },
-      { label: "✗ Skip", value: "decline" },
-    ];
+    const costs=formatRewardsText(choice.costs||[]), rewards=formatRewardsText(choice.rewards||[]);
+    return [{label:`✓ Pay ${costs} → ${rewards}`,value:"accept"},{label:"✗ Skip",value:"decline"}];
   }
-  if (ctype === "trash_card" || ctype === "discard_card" || ctype === "trash_to_acquire") {
-    return (choice.available_cards || []).map(item => {
-      const c = item.card || item;
-      return { label: `${c.name} (from ${item.source || "hand"})`, value: c.id };
-    });
+  if (ctype==="trash_card"||ctype==="discard_card"||ctype==="trash_to_acquire") {
+    return (choice.available_cards||[]).map(item=>{const c=item.card||item;return{label:`${c.name} (${item.source||"hand"})`,value:c.id};});
   }
-  if (ctype === "accept_contract") {
-    return (choice.available_contracts || []).map(c => ({
-      label: `${c.name} — ${contractCondition(c)} → ${formatRewards(c.rewards||[])}`,
-      value: c.id,
-    }));
+  if (ctype==="accept_contract") return (choice.available_contracts||[]).map(c=>({label:`${c.name} — ${contractCondition(c)}`,value:c.id}));
+  if (ctype==="steal_intrigue"||ctype==="choose_opponent_discard") return (choice.valid_targets||[]).map(t=>({label:`${t.player_name} (${t.intrigue_count??t.hand_size})`,value:t.player_id}));
+  if (ctype==="recall_agent") {
+    const spaces=G.state?.board?.spaces||[];
+    return (choice.placed_locations||[]).map(lid=>{const sp=spaces.find(s=>String(s.id)===String(lid));return{label:sp?.name||String(lid),value:String(lid)};});
   }
-  if (ctype === "steal_intrigue" || ctype === "choose_opponent_discard") {
-    return (choice.valid_targets || []).map(t => ({
-      label: `${t.player_name} (${t.intrigue_count ?? t.hand_size} cards)`,
-      value: t.player_id,
-    }));
+  if (ctype==="spy_post"||ctype==="play_spy") return (choice.available_posts||[]).map(p=>({label:p.post_name||p.post_id||p,value:p.post_id||p}));
+  if (ctype==="play_spy_on_space") return (choice.eligible_spaces||[]).map(sp=>({label:sp.space_name||sp.space_id,value:sp.space_id}));
+  if (ctype==="conditional_multi_choice") return (choice.options||[]).map(o=>({label:o.label||o.id,value:o.id}));
+  if (ctype==="reveal_passive_choice") return (choice.options||[]).map(o=>({label:o.description||o.id,value:o.id}));
+  if (ctype==="acquire_card") {
+    const row=G.state?.board?.imperium_row||[];
+    const target=choice.card;
+    const cards=target?row.filter(c=>c.name===target):row;
+    return cards.map(c=>({label:`${c.name} (${c.cost})`,value:c.id}));
   }
-  if (ctype === "recall_agent") {
-    const spaces = G.state?.board?.spaces || [];
-    return (choice.placed_locations || []).map(lid => {
-      const sp = spaces.find(s => String(s.id) === String(lid));
-      return { label: sp?.name || String(lid), value: String(lid) };
-    });
-  }
-  if (ctype === "spy_post" || ctype === "play_spy") {
-    return (choice.available_posts || []).map(p => ({
-      label: p.post_name || p.post_id || p,
-      value: p.post_id || p,
-    }));
-  }
-  if (ctype === "play_spy_on_space") {
-    return (choice.eligible_spaces || []).map(sp => ({
-      label: sp.space_name || sp.space_id, value: sp.space_id,
-    }));
-  }
-  if (ctype === "conditional_multi_choice") {
-    return (choice.options || []).map(o => ({
-      label: o.label || o.id, value: o.id,
-    }));
-  }
-  if (ctype === "reveal_passive_choice") {
-    return (choice.options || []).map(o => ({
-      label: o.description || o.id, value: o.id,
-    }));
-  }
-  if (ctype === "acquire_card") {
-    const row = G.state?.board?.imperium_row || [];
-    const target = choice.card;
-    const cards = target ? row.filter(c => c.name === target) : row;
-    return cards.map(c => ({ label: `${c.name} (cost ${c.cost})`, value: c.id }));
-  }
-  return [{ label: "OK", value: "ok" }];
+  return [{label:"OK",value:"ok"}];
 }
 
 function factionLabel(f) {
-  return { fremen:"Fremen", bene_gesserit:"Bene Gesserit",
-           spacing_guild:"Spacing Guild", emperor:"Emperor" }[f] || f;
+  return{fremen:"Fremen",bene_gesserit:"Bene Gesserit",spacing_guild:"Spacing Guild",emperor:"Emperor"}[f]||f;
 }
 
 // ─────────────── DISCARD MODAL ──────────────
 function showDiscard(player, s) {
   const modal = document.getElementById("discard-modal");
-  document.getElementById("discard-title").textContent =
-    `${player.name}'s Discard Pile (${player.discard_size} cards)`;
+  document.getElementById("discard-title").textContent = `${player.name}'s Discard (${player.discard_size})`;
   const cardsEl = document.getElementById("discard-cards");
   cardsEl.innerHTML = "";
-
-  // If it's our own discard we have the cards; otherwise just show count
   const cards = player.discard || [];
-  if (cards.length) {
-    cards.forEach(c => cardsEl.appendChild(buildCard(c, "row-card", false, 0)));
-  } else {
-    cardsEl.innerHTML = `<div style="color:var(--text-dim);padding:12px">
-      (Card details not visible for opponents)</div>`;
-  }
+  if (cards.length) cards.forEach(c => cardsEl.appendChild(buildCard(c,"row-card",false,0)));
+  else cardsEl.innerHTML = `<div style="color:var(--text-dim);padding:10px">Hidden for opponents</div>`;
   modal.classList.remove("hidden");
 }
-
-function closeDiscard() {
-  document.getElementById("discard-modal").classList.add("hidden");
-}
+function closeDiscard() { document.getElementById("discard-modal").classList.add("hidden"); }
 
 // ─────────────── CARD BUILDER ───────────────
 function buildCard(card, extraClass, inAcquisition, persuasion) {
-  const div = el("div", `card ${extraClass}`);
-
+  const div = el("div",`card ${extraClass}`);
   const faction = card.factions?.[0] || "neutral";
   const affordable = !inAcquisition || card.cost <= persuasion;
   if (inAcquisition) div.classList.add(affordable ? "affordable acquisition-card" : "unaffordable");
 
-  // Header
-  const hdr = el("div", `card-header ${faction}`);
+  const hdr = el("div",`card-header ${faction}`);
   const nameEl = el("span","card-name"); nameEl.textContent = card.name;
   hdr.appendChild(nameEl);
-  if (card.cost > 0) {
-    const costEl = el("span","card-cost"); costEl.textContent = card.cost;
-    hdr.appendChild(costEl);
-  } else if (inAcquisition) {
-    const costEl = el("span","card-cost free"); costEl.textContent = "0";
+  if (card.cost >= 0 && (card.cost > 0 || inAcquisition)) {
+    const costEl = el("span","card-cost"+(card.cost===0?" free":"")); costEl.textContent = card.cost;
     hdr.appendChild(costEl);
   }
   div.appendChild(hdr);
 
-  // Body
   const body = el("div","card-body");
 
   // Agent icons
-  const icons = card.agent_icons || [];
-  if (icons.length) {
+  if (card.agent_icons?.length) {
     const iconRow = el("div","card-icons");
-    icons.forEach(ic => {
-      const pip = el("span", `icon-pip ${ic}`);
+    card.agent_icons.forEach(ic => {
+      const pip = el("span",`icon-pip ${ic}`);
       pip.textContent = agentIconLabel(ic);
       iconRow.appendChild(pip);
     });
     body.appendChild(iconRow);
   }
 
-  // Faction tags
-  if (card.factions && card.factions.length) {
-    const facRow = el("div","card-factions");
-    card.factions.forEach(f => {
-      const tag = el("span",`icon-pip ${f}`);
-      tag.textContent = factionLabel(f);
-      facRow.appendChild(tag);
-    });
-    body.appendChild(facRow);
-  }
-
-  // Agent effects
-  const agEff = card.agent_effects || [];
-  if (agEff.length) {
-    const lbl = el("div","card-section-label"); lbl.textContent = "AGENT"; body.appendChild(lbl);
+  function addEffects(effects, label) {
+    if (!effects?.length) return;
+    const lbl = el("div","card-section-label"); lbl.textContent = label; body.appendChild(lbl);
     const efDiv = el("div","card-effects");
-    agEff.forEach(e => efDiv.appendChild(effectLine(e)));
+    effects.forEach(e => efDiv.appendChild(effectLine(e)));
     body.appendChild(efDiv);
   }
 
-  // Reveal effects
-  const rvEff = card.reveal_effects || [];
-  if (rvEff.length) {
-    const lbl = el("div","card-section-label"); lbl.textContent = "REVEAL"; body.appendChild(lbl);
-    const efDiv = el("div","card-effects");
-    rvEff.forEach(e => efDiv.appendChild(effectLine(e)));
-    body.appendChild(efDiv);
-  }
-
-  // On-acquire effects
-  const acqEff = card.on_acquire_effects || [];
-  if (acqEff.length) {
-    const lbl = el("div","card-section-label"); lbl.textContent = "ON BUY"; body.appendChild(lbl);
-    const efDiv = el("div","card-effects");
-    acqEff.forEach(e => efDiv.appendChild(effectLine(e)));
-    body.appendChild(efDiv);
-  }
+  addEffects(card.agent_effects, "AGENT");
+  addEffects(card.reveal_effects, "REVEAL");
+  addEffects(card.on_acquire_effects, "ON BUY");
 
   div.appendChild(body);
   return div;
@@ -746,110 +650,128 @@ function buildIntrigueCard(card, isAgentPhase) {
   const nameEl = el("span","card-name"); nameEl.textContent = card.name;
   hdr.appendChild(nameEl);
   const phaseTag = el("span","intrigue-phase");
-  phaseTag.textContent = (card.phases || []).map(p => p).join("/") || "Plot";
+  phaseTag.textContent = (card.phases||[]).join("/") || "Plot";
   hdr.appendChild(phaseTag);
   div.appendChild(hdr);
 
   const body = el("div","card-body");
-  const effects = card.effects || [];
-  if (effects.length) {
-    const efDiv = el("div","card-effects");
-    effects.slice(0,3).forEach(e => efDiv.appendChild(effectLine(e)));
-    body.appendChild(efDiv);
-  }
+  const efDiv = el("div","card-effects");
+  (card.effects||[]).slice(0,3).forEach(e => efDiv.appendChild(effectLine(e)));
+  body.appendChild(efDiv);
   div.appendChild(body);
 
-  if (isAgentPhase) {
-    div.addEventListener("click", () => {
-      postAction({ type: "play_intrigue", card_id: card.id });
-    });
-  }
+  if (isAgentPhase) div.addEventListener("click", () => postAction({type:"play_intrigue",card_id:card.id}));
   return div;
 }
 
-// ─────────────── EFFECT FORMATTING ──────────
+// ─────────────── EFFECT RENDERING ───────────
 function effectLine(e) {
   const line = el("div","effect-line");
-  const bullet = el("span","ef-bullet"); bullet.textContent = "•";
-  const text = el("span","ef-gain");   text.textContent = describeEffect(e);
-  line.appendChild(bullet); line.appendChild(text);
-  if (e.type === "choice" || e.type === "conditional") line.classList.add("choice-effect");
+  const bullet = el("span","ef-bullet"); bullet.textContent = "·";
+  const text = el("span","ef-text");
+  text.innerHTML = describeEffectHTML(e);
+  line.appendChild(bullet);
+  line.appendChild(text);
   return line;
 }
 
-function describeEffect(e) {
+function describeEffectHTML(e) {
   if (!e || typeof e !== "object") return String(e || "");
   const t = e.type || "";
-  const amt = e.amount || 1;
+  const amt = e.amount != null ? e.amount : 1;
 
   if (t === "resource") {
-    const icons = { solari:"🪙", spice:"🌶", water:"💧", troop:"🗡", persuasion:"🗣", sword:"⚔", worm:"🪱", agent:"📍", victory_point:"⭐" };
-    return `+${amt} ${icons[e.resource] || e.resource}`;
+    const res = e.resource || "";
+    const iconH = resourceIconHTML(res);
+    return `${iconH}${amt > 1 ? ` ×${amt}` : ""}`;
   }
-  if (t === "draw")       return `Draw ${amt} ${e.deck === "intrigue" ? "🃏" : "📄"}`;
-  if (t === "influence")  return `+${amt} ${factionLabel(e.target)} inf.`;
-  if (t === "victory_point") return `+${amt} ⭐`;
-  if (t === "choice")     return choiceSummary(e);
-  if (t === "conditional") return `Optional: pay for bonus`;
-  if (t === "trash")      return `Trash ${amt} card(s)`;
-  if (t === "restrict")   return `Restrict: ${e.restriction || ""}`;
-  if (t === "accept")     return "Accept contract";
-  if (t === "council_seat") return "High Council seat";
-  if (t === "shieldwall_deactivate") return "Destroy shield wall";
-  if (t === "maker_hooks") return "Maker hooks";
-  if (t === "endgame_condition") return `End-game: ${e.condition || ""}`;
+  if (t === "draw") {
+    if (e.deck === "intrigue") return `<i class="efx intrigue-draw"></i>${amt > 1 ? ` ×${amt}` : ""}`;
+    return `<i class="efx card-draw"></i>${amt > 1 ? ` ×${amt}` : ""}`;
+  }
+  if (t === "influence") return `<i class="efx influence"></i> ${factionLabel(e.target||"")}`;
+  if (t === "victory_point") return `⭐×${amt}`;
+  if (t === "choice") return `Choose: ${(e.options||[]).slice(0,2).map(o=>o.id||"").join("/")}`;
+  if (t === "conditional") return `Optional bonus`;
+  if (t === "trash") return `<i class="efx trash"></i>×${amt}`;
+  if (t === "accept") return `<i class="efx contract"></i> contract`;
+  if (t === "council_seat") return `Council seat`;
+  if (t === "maker_hooks") return `<i class="efx maker-hook"></i>`;
+  if (t === "recall_agent") return `<i class="efx recall"></i> recall`;
+  if (t === "restrict") return `restrict`;
   return t;
 }
 
-function choiceSummary(e) {
-  const opts = (e.options || []).map(o => {
-    if (o.reward) return formatRewards(o.reward);
-    if (o.id) return o.id;
-    return "";
-  }).filter(Boolean);
-  return "Choose: " + opts.slice(0,2).join(" or ") + (opts.length > 2 ? "…" : "");
+function resourceIconHTML(res) {
+  const map = {
+    solari:   `<i class="efx solari"></i>`,
+    spice:    `<i class="efx spice"></i>`,
+    water:    `💧`,
+    troop:    `🗡`,
+    persuasion: `<i class="efx persuasion"></i>`,
+    sword:    `⚔`,
+    worm:     `🪱`,
+    agent:    `📍`,
+    victory_point: `⭐`,
+  };
+  return map[res] || res;
 }
 
-function formatRewards(effects) {
+function formatRewardsText(effects) {
   if (!Array.isArray(effects)) return String(effects || "");
-  return effects.map(describeEffect).filter(Boolean).join(", ") || "—";
+  return effects.map(e => {
+    if (!e || typeof e !== "object") return String(e);
+    const t = e.type || "", amt = e.amount ?? 1, res = e.resource || "";
+    if (t === "resource") return `+${amt}${res[0]||""}`;
+    if (t === "victory_point") return `${amt}VP`;
+    if (t === "influence") return `+inf`;
+    if (t === "draw") return `+${amt}card`;
+    return t;
+  }).filter(Boolean).join(" ") || "—";
 }
 
 // ─────────────── EVENT LOG ──────────────────
 function appendEvents(events) {
   const logEl = document.getElementById("event-log");
   events.forEach(ev => {
-    const div = el("div", `ev ev-${evClass(ev.type)}`);
+    const div = el("div",`ev ev-${evClass(ev.type)}`);
     div.textContent = describeEvent(ev);
     logEl.appendChild(div);
-    while (logEl.children.length > 60) logEl.removeChild(logEl.firstChild);
+    while (logEl.children.length > 80) logEl.removeChild(logEl.firstChild);
   });
   logEl.scrollTop = logEl.scrollHeight;
 }
 
 function evClass(t) {
-  if (["combat_resolved","deploy_troops"].includes(t)) return "combat";
+  if (["combat_resolved"].includes(t)) return "combat";
   if (["acquire_card","acquire_contract"].includes(t)) return "acquire";
   if (["reveal","auto_reveal"].includes(t)) return "reveal";
   if (["contract_completed"].includes(t)) return "contract";
   if (["new_round"].includes(t)) return "round";
+  if (["bot_action","reveal"].includes(t)) return "bot";
   return "";
 }
 
 function describeEvent(ev) {
   const t = ev.type;
-  if (t === "place_agent")    return `${ev.player} → ${ev.location} (${ev.card})`;
+  if (t === "place_agent")  return `${ev.player} → ${ev.location} [${ev.card}]`;
+  if (t === "bot_action") {
+    let msg = `🤖 ${ev.player}: ${ev.card} → ${ev.location}`;
+    if (ev.troops > 0) msg += ` (${ev.troops}🗡)`;
+    if (ev.effects) msg += ` | ${ev.effects}`;
+    return msg;
+  }
   if (t === "reveal")         return `${ev.player} reveals (${ev.persuasion} persuasion)`;
-  if (t === "auto_reveal")    return `${ev.player} auto-reveals (${ev.persuasion} persuasion)`;
-  if (t === "acquire_card")   return `${ev.player} buys ${ev.card} (${ev.cost})`;
-  if (t === "acquire_contract") return `${ev.player} takes contract${ev.completed ? " ✓" : ""}`;
-  if (t === "play_intrigue")  return `${ev.player} plays ${ev.card} (intrigue)`;
-  if (t === "combat_resolved") return `⚔ ${ev.winner} wins ${ev.conflict}`;
-  if (t === "contract_completed") return `🎉 ${ev.player}: ${ev.contract} complete!`;
-  if (t === "recall")         return `${ev.player} recalls agents`;
+  if (t === "auto_reveal")    return `${ev.player} auto-reveals`;
+  if (t === "acquire_card")   return `${ev.player} buys ${ev.card} [${ev.cost}]`;
+  if (t === "acquire_contract") return `${ev.player} takes contract`;
+  if (t === "play_intrigue")  return `${ev.player} plays ${ev.card}`;
+  if (t === "combat_resolved") return `⚔ ${ev.winner} wins!`;
+  if (t === "contract_completed") return `🎉 ${ev.player}: ${ev.contract}!`;
+  if (t === "recall")         return `${ev.player} recalls`;
   if (t === "new_round")      return `═══ Round ${ev.round} ═══`;
   if (t === "new_conflict")   return `Conflict: ${ev.conflict}`;
-  return `${t}: ${JSON.stringify(ev).slice(0,40)}`;
+  return `${t}`;
 }
 
 // ─────────────── UTILITIES ──────────────────
@@ -858,15 +780,10 @@ function el(tag, className) {
   if (className) e.className = className;
   return e;
 }
-
-function shortName(name) {
-  return name?.length > 8 ? name.slice(0,7) + "…" : (name || "?");
-}
-
+function shortName(name) { return name?.length > 9 ? name.slice(0,8)+"…" : (name||"?"); }
 function showError(msg) {
-  // Flash a temporary toast error
-  const toast = el("div", "choice-btn disabled");
-  toast.style.cssText = "position:fixed;top:10px;right:10px;z-index:9999;max-width:300px;background:#3a1010;border:1px solid #e06060;color:#f08080;padding:10px";
+  const toast = el("div","");
+  toast.style.cssText = "position:fixed;top:10px;right:10px;z-index:9999;max-width:280px;background:#2a0a0a;border:1px solid #c04040;color:#f08080;padding:9px 12px;border-radius:5px;font-size:11px;";
   toast.textContent = "⚠ " + msg;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3500);
@@ -874,7 +791,7 @@ function showError(msg) {
 
 function showFullState() {
   if (!G.state) return;
-  const human = G.state.players.find(p => p.player_id === G.state.viewer_player_id);
-  if (!human) return;
-  alert(`Your stats:\nVP: ${human.victory_points} | Solari: ${human.solari} | Spice: ${human.spice} | Water: ${human.water}\nTroops: ${human.troops_in_garrison} garrison / ${human.troops_in_conflict} conflict\nAgents: ${human.agents_available}/${human.total_available_agents}\nSpies: ${human.spies_available}/${human.total_available_spies}\nInfluence — Fr:${human.influence?.fremen} BG:${human.influence?.bene_gesserit} GU:${human.influence?.spacing_guild} EM:${human.influence?.emperor}`);
+  const h = G.state.players.find(p => p.player_id === G.state.viewer_player_id);
+  if (!h) return;
+  alert(`VP:${h.victory_points} Sol:${h.solari} Spi:${h.spice} Wat:${h.water}\nTroops: ${h.troops_in_garrison} garrison / ${h.troops_in_conflict} conflict\nAgents: ${h.agents_available}/${h.total_available_agents}\nInfluence: Fr${h.influence?.fremen} BG${h.influence?.bene_gesserit} GU${h.influence?.spacing_guild} EM${h.influence?.emperor}`);
 }
