@@ -379,6 +379,12 @@ class SimpleCLI:
         self.print_section("Your Hand")
         self.display_hand(player)
 
+        # Detect plot intrigues
+        plot_intrigues = [
+            c for c in player.intrigue_cards
+            if hasattr(c, 'phases') and any(p.value == 'Plot' for p in c.phases)
+        ]
+
         # Get action choice
         print("\nWhat would you like to do?")
         print("  1. Place agent (play card + use board space)")
@@ -386,9 +392,15 @@ class SimpleCLI:
         print("  3. View board spaces")
         print("  4. View imperium row")
         print("  5. View all players")
-        print("  6. Quit game")
+        if plot_intrigues:
+            print(f"  6. Play plot intrigue ({len(plot_intrigues)} available)")
+            print("  7. Quit game")
+            valid = ["1", "2", "3", "4", "5", "6", "7"]
+        else:
+            print("  6. Quit game")
+            valid = ["1", "2", "3", "4", "5", "6"]
 
-        choice = self.get_input("\nChoice:", ["1", "2", "3", "4", "5", "6"])
+        choice = self.get_input("\nChoice:", valid)
 
         if choice == "1":
             self.action_place_agent(player)
@@ -406,9 +418,119 @@ class SimpleCLI:
             self.display_full_state()
             input("\nPress Enter to continue...")
             self.take_turn_human(player)
-        elif choice == "6":
+        elif choice == "6" and plot_intrigues:
+            self.action_play_plot_intrigue(player, plot_intrigues)
+        else:
             print("\nThanks for playing!")
             sys.exit(0)
+
+    def action_play_plot_intrigue(self, player: Player, plot_intrigues):
+        """Let player play a plot-phase intrigue card during their agent turn."""
+        action_exec = self.managers["action_executor"]
+
+        print("\nYour plot intrigue cards:")
+        for i, card in enumerate(plot_intrigues, 1):
+            print(f"  [{i}] {card.name}")
+        print("  [0] Cancel")
+
+        choice = self.get_input("Choice:", [str(i) for i in range(len(plot_intrigues) + 1)])
+        if choice == "0":
+            self.take_turn_human(player)
+            return
+
+        card = plot_intrigues[int(choice) - 1]
+        result = action_exec.execute_play_intrigue(PlayIntrigueAction(
+            player_id=player.player_id, intrigue_card=card
+        ))
+        if result.get("success"):
+            self.print_success(f"Played intrigue: {card.name}")
+            effects = result.get("effects", {}).get("effects_applied", [])
+            for eff in effects:
+                self.print_info(f"  • {eff}")
+        else:
+            self.print_error(f"Cannot play: {result.get('error','')}")
+
+        time.sleep(2)
+        self.take_turn_human(player)
+
+    def _resolve_choices(self, player: Player, choices_required: list):
+        """Interactively resolve choice effects that need player input."""
+        if not choices_required:
+            return
+
+        effect_resolver = self.managers["effect_resolver"]
+        is_human = (player == self.human_player)
+        import random as _random
+
+        for choice_data in choices_required:
+            ctype = choice_data.get("type")
+
+            if ctype == "choice":
+                # Generic option list with {id, label, available}
+                options = choice_data.get("options", [])
+                available = [o for o in options if o.get("available", True)]
+                if not available:
+                    continue
+                if is_human:
+                    print(f"\n  Choose one:")
+                    for i, opt in enumerate(available, 1):
+                        label = opt.get("label", opt.get("id", "?"))
+                        print(f"    [{i}] {label}")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(available)+1)])
+                    chosen = available[int(sel)-1]
+                else:
+                    chosen = _random.choice(available)
+                    self.print_info(f"  {player.name} chooses: {chosen.get('label', chosen.get('id'))}")
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen["id"])
+
+            elif ctype == "spy_post":
+                posts = choice_data.get("available_posts", [])
+                if not posts:
+                    continue
+                if is_human:
+                    print(f"\n  Place spy on which observation post?")
+                    for i, p in enumerate(posts, 1):
+                        controls = p.get("controlled_spaces", p.get("connected_locations", []))
+                        ctrl_str = f" (controls: {', '.join(controls)})" if controls else ""
+                        print(f"    [{i}] {p.get('post_name')}{ctrl_str}")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(posts)+1)])
+                    chosen = posts[int(sel)-1]
+                else:
+                    chosen = _random.choice(posts)
+                    self.print_info(f"  {player.name} places spy on {chosen.get('post_name')}")
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen["post_id"])
+
+            elif ctype == "influence_faction":
+                factions = choice_data.get("factions", [])
+                if not factions:
+                    continue
+                if is_human:
+                    print(f"\n  Choose a faction to gain influence:")
+                    for i, f in enumerate(factions, 1):
+                        print(f"    [{i}] {f}")
+                    sel = self.get_input("  Choice:", [str(i) for i in range(1, len(factions)+1)])
+                    chosen = factions[int(sel)-1]
+                else:
+                    chosen = _random.choice(factions)
+                    self.print_info(f"  {player.name} gains influence with {chosen}")
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen)
+
+            elif ctype == "conditional":
+                # accept/decline a cost-for-reward trade
+                if is_human:
+                    costs = choice_data.get("costs", [])
+                    rewards = choice_data.get("rewards", [])
+                    print(f"\n  Optional: pay {costs} to gain {rewards}?")
+                    sel = self.get_input("  [1] Accept  [2] Decline:", ["1", "2"])
+                    chosen_id = "accept" if sel == "1" else "decline"
+                else:
+                    chosen_id = "accept" if _random.random() < 0.5 else "decline"
+                effect_resolver.execute_choice(player.player_id, choice_data, chosen_id)
+
+            else:
+                # Other choice types (trash_card, recall_agent, etc.)
+                # Not yet wired into CLI — skip silently to avoid breaking flow
+                self.print_info(f"  (Choice type '{ctype}' skipped — not yet supported in CLI)")
 
     def action_place_agent(self, player: Player):
         """Handle placing an agent action."""
@@ -543,6 +665,9 @@ class SimpleCLI:
             if troops_to_deploy > 0:
                 self.print_info(f"  Deployed {troops_to_deploy} troops to conflict")
 
+            # Resolve any pending choices from the placement effects
+            self._resolve_choices(player, result.get("choices_required", []))
+
             # Gather intel bonus — spy was at this location
             if result.get("gather_intel_card"):
                 self.print_success(f"  🔍 Gather intel: drew intrigue card '{result['gather_intel_card']}'")
@@ -551,12 +676,27 @@ class SimpleCLI:
             if card.name == "Signet Ring" and player.leader:
                 self.process_signet_ability(player, location)
 
-            # Show what was gained
-            if 'effects_applied' in result and result['effects_applied']:
+            # Show what was gained (from both card agent effects and location effects)
+            applied_effects = []
+            card_eff = result.get('card_agent_effects', {}) or {}
+            loc_eff = result.get('location_effects', {}) or {}
+            applied_effects.extend(card_eff.get('effects_applied', []))
+            applied_effects.extend(loc_eff.get('effects_applied', []))
+
+            if applied_effects:
                 self.print_section("Rewards Gained")
-                for effect in result['effects_applied']:
+                for effect in applied_effects:
                     if isinstance(effect, dict):
-                        self.print_info(f"  • {effect}")
+                        # Format common shapes nicely
+                        etype = effect.get('type', '?')
+                        if etype == 'resource':
+                            self.print_info(f"  • +{effect.get('amount',1)} {effect.get('resource','?')}")
+                        elif etype == 'influence':
+                            self.print_info(f"  • +{effect.get('amount',1)} {effect.get('target','?')} influence")
+                        elif etype == 'draw':
+                            self.print_info(f"  • drew {effect.get('amount',1)} card(s) from {effect.get('deck','deck')}")
+                        else:
+                            self.print_info(f"  • {effect}")
                     else:
                         self.print_info(f"  • {effect}")
 
@@ -686,11 +826,25 @@ class SimpleCLI:
 
     def take_turn_bot(self, player: Player):
         """Handle bot player's turn."""
+        import random as _random
         bot = self.bots[player.player_id]
         action_exec = self.managers["action_executor"]
 
         self.print_bot_action(f"{player.name} is thinking...")
         time.sleep(0.5)
+
+        # Bot may play a plot intrigue card (~30% chance if they have one)
+        plot_intrigues = [
+            c for c in player.intrigue_cards
+            if hasattr(c, 'phases') and any(p.value == 'Plot' for p in c.phases)
+        ]
+        if plot_intrigues and _random.random() < 0.3:
+            chosen = _random.choice(plot_intrigues)
+            result = action_exec.execute_play_intrigue(PlayIntrigueAction(
+                player_id=player.player_id, intrigue_card=chosen
+            ))
+            if result.get("success"):
+                self.print_bot_action(f"{player.name} plays plot intrigue: {chosen.name}")
 
         # Bot decides action
         action = bot.decide_agent_action()
@@ -709,6 +863,8 @@ class SimpleCLI:
             if result.get("success"):
                 if action.troops_to_deploy > 0:
                     self.print_info(f"  Deployed {action.troops_to_deploy} troops")
+                # Resolve any pending choices (bots auto-pick)
+                self._resolve_choices(player, result.get("choices_required", []))
             else:
                 self.print_error(f"  Bot action failed: {result.get('error')}")
 
@@ -863,6 +1019,8 @@ class SimpleCLI:
             )
             if result.get("success"):
                 self.print_success(f"Acquired {item.name}!")
+                # Resolve any on-acquire choices
+                self._resolve_choices(player, result.get("choices_required", []))
                 # Notify on any acquire-card contract completions
                 for completed in result.get("contract_completions", {}).get("completed_contracts", []):
                     self.print_success(f"🎉 Contract completed: {completed['contract']}!")
@@ -1138,6 +1296,24 @@ class SimpleCLI:
     def display_final_scores(self):
         """Display final scores and winner."""
         self.print_header("GAME OVER")
+
+        # Advance to GAME_OVER phase so endgame intrigues resolve correctly
+        self.game.current_phase = GamePhase.GAME_OVER
+
+        # Resolve any end-game intrigue cards (phase = "End Game")
+        action_exec = self.managers.get("action_executor")
+        if action_exec:
+            for player in self.game.players:
+                endgame_intrigues = [
+                    c for c in player.intrigue_cards
+                    if hasattr(c, 'phases') and any(p.value == 'End Game' for p in c.phases)
+                ]
+                for card in list(endgame_intrigues):
+                    result = action_exec.execute_play_intrigue(PlayIntrigueAction(
+                        player_id=player.player_id, intrigue_card=card
+                    ))
+                    if result.get("success"):
+                        self.print_info(f"  {player.name} resolves end-game intrigue: {card.name}")
 
         # Sort by full tiebreaker order (matches phase_manager logic)
         sorted_players = sorted(
