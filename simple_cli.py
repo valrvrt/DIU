@@ -230,10 +230,24 @@ class SimpleCLI:
         print(f"  💰 Solari: {player.solari}  |  🧂 Spice: {player.spice}  |  💧 Water: {player.water}")
         print(f"  ⭐ Victory Points: {player.victory_points}")
 
+        # Temporary turn resources (only show if non-zero)
+        temp_p = getattr(player, 'temp_persuasion', 0)
+        temp_s = getattr(player, 'temp_swords', 0)
+        if temp_p or temp_s:
+            print(f"  📜 Persuasion: {temp_p}  |  ⚔  Swords: {temp_s}")
+
         # Troops & Agents
         print(f"  🪖 Troops: {player.troops_in_garrison} garrison, {player.troops_in_conflict} in conflict")
         print(f"  👤 Agents: {player.agents_available}/{player.total_available_agents} available")
-        print(f"  🕵️  Spies: {player.spies_available}/{player.total_available_spies} available")
+        spies_placed = getattr(player, 'spies_placed', [])
+        spy_str = f"  🕵️  Spies: {player.spies_available}/{player.total_available_spies} available"
+        if spies_placed:
+            spy_str += f", {len(spies_placed)} posted"
+        print(spy_str)
+
+        # Maker hooks + sandworms (commitment-required mechanics)
+        if getattr(player, 'has_maker_hooks', False):
+            print(f"  🪝 Maker Hooks: yes  |  🪱 Sandworms: {getattr(player, 'sandworms_available', 0)} available, {getattr(player, 'sandworms_in_conflict', 0)} in conflict")
 
         # Influence
         print(f"  🤝 Influence: F:{player.fremen_influence} B:{player.bene_gesserit_influence} " +
@@ -915,99 +929,42 @@ class SimpleCLI:
             self.take_turn_human(player)
 
     def process_signet_ability(self, player: Player, location=None):
-        """Process leader signet ability when Signet Ring is played."""
+        """
+        Trigger leader's signet ability via EffectResolver.
+
+        Pulls the leader's current signet effects (handles flat, dict, and
+        progressive formats), resolves them through the standard effect pipeline,
+        and dispatches any returned choices to the interactive resolver.
+        """
         self.print_section(f"⚡ {player.leader.name}'s Signet Ability")
-        # location parameter reserved for future use (conditional signets based on placement)
 
-        # Simple implementation for Princess Irulan
-        if player.leader.name == "Princess Irulan":
-            print("\nChoose signet ability:")
-            print("  1. Acquire a card (cost ≤1) from the imperium row")
-            print("  2. Trash a card from hand (gain 2 spice if it cost ≥1)")
-            print("  3. Skip signet ability")
+        leader = player.leader
+        if leader is None:
+            self.print_info("  Player has no leader")
+            return
 
-            choice = self.get_input("Choice:", ["1", "2", "3"])
+        if not hasattr(leader, 'get_current_signet_effects'):
+            self.print_info(f"  {leader.name} has no signet ability data")
+            return
 
-            if choice == "1":
-                # Show affordable cards (cost ≤ 1)
-                affordable = [c for c in self.game.board.imperium_row if c and c.cost <= 1]
-                if affordable:
-                    print("\nChoose card to acquire:")
-                    for i, card in enumerate(affordable, 1):
-                        print(f"  {i}. {card.name} (cost: {card.cost})")
-                    print("  0. Cancel")
+        signet_effects = leader.get_current_signet_effects()
+        if not signet_effects:
+            self.print_info(f"  {leader.name} has no signet effects at current level")
+            return
 
-                    card_choice = self.get_input("Card:", [str(i) for i in range(len(affordable) + 1)])
-                    if card_choice != "0":
-                        card_to_acquire = affordable[int(card_choice) - 1]
-                        player.discard_pile.add_card(card_to_acquire)
-                        self.game.board.imperium_row.remove(card_to_acquire)
-                        self.print_success(f"Acquired {card_to_acquire.name}!")
-                else:
-                    self.print_info("No affordable cards in imperium row")
+        effect_resolver = self.managers["effect_resolver"]
+        result = effect_resolver.resolve_effects(
+            player.player_id,
+            signet_effects,
+            context={"phase": "signet", "source": "signet_ring", "leader": leader.name}
+        )
 
-            elif choice == "2":
-                # Trash a card
-                if player.hand.cards:
-                    print("\nChoose card to trash:")
-                    for i, card in enumerate(player.hand.cards, 1):
-                        print(f"  {i}. {card.name}")
-                    print("  0. Cancel")
+        # Show what was applied
+        for eff in result.get("effects_applied", []):
+            self.print_info(f"  • {eff}")
 
-                    card_choice = self.get_input("Card:", [str(i) for i in range(len(player.hand.cards) + 1)])
-                    if card_choice != "0":
-                        card_to_trash = player.hand.cards[int(card_choice) - 1]
-                        player.hand.cards.remove(card_to_trash)
-
-                        # Check if card cost ≥ 1 for bonus
-                        if card_to_trash.cost >= 1:
-                            player.spice += 2
-                            self.print_success(f"Trashed {card_to_trash.name}! Gained 2 spice")
-                        else:
-                            self.print_success(f"Trashed {card_to_trash.name}!")
-                else:
-                    self.print_info("No cards in hand to trash")
-
-        elif player.leader.name == "Feyd Rautha Harkonnen":
-            # Simplified Feyd-Rautha signet (complex multi-step ability)
-            print("\nFeyd-Rautha's Signet (simplified):")
-            print("  1. Choice: Pay 1 solari to trash a card, OR skip")
-            print("  2. Trash a card from hand (mandatory)")
-            print("  3. Gain 2 spice")
-            print("  4. Skip")
-
-            choice = self.get_input("Choice:", ["1", "2", "3", "4"])
-
-            if choice == "1" and player.solari >= 1:
-                # Pay 1 solari to trash
-                if player.hand.cards:
-                    print("\nChoose card to trash:")
-                    for i, card in enumerate(player.hand.cards, 1):
-                        print(f"  {i}. {card.name}")
-                    card_choice = self.get_input("Card:", [str(i) for i in range(1, len(player.hand.cards) + 1)])
-                    card_to_trash = player.hand.cards[int(card_choice) - 1]
-                    player.hand.cards.remove(card_to_trash)
-                    player.solari -= 1
-                    self.print_success(f"Paid 1 solari, trashed {card_to_trash.name}")
-
-            elif choice == "2":
-                # Mandatory trash
-                if player.hand.cards:
-                    print("\nChoose card to trash:")
-                    for i, card in enumerate(player.hand.cards, 1):
-                        print(f"  {i}. {card.name}")
-                    card_choice = self.get_input("Card:", [str(i) for i in range(1, len(player.hand.cards) + 1)])
-                    card_to_trash = player.hand.cards[int(card_choice) - 1]
-                    player.hand.cards.remove(card_to_trash)
-                    self.print_success(f"Trashed {card_to_trash.name}")
-
-            # Always get 2 spice
-            player.spice += 2
-            self.print_success("Gained 2 spice from signet")
-
-        else:
-            # For other leaders, show note
-            self.print_info(f"  {player.leader.name}'s signet ability not yet implemented")
+        # Resolve any interactive choices the signet raised
+        self._resolve_choices(player, result.get("choices_required", []))
 
         time.sleep(1)
 
