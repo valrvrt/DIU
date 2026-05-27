@@ -724,7 +724,14 @@ function buildIntrigueCard(card, isAgentPhase) {
   body.appendChild(efDiv);
   div.appendChild(body);
 
-  if (isAgentPhase) div.addEventListener("click", () => postAction({type:"play_intrigue",card_id:card.id}));
+  const phases = (card.phases||[]).map(p=>String(p).toLowerCase());
+  const isPlot = phases.length === 0 || phases.includes("plot");
+  if (isAgentPhase && isPlot) {
+    div.classList.add("selectable");
+    div.addEventListener("click", () => postAction({type:"play_intrigue",card_id:card.id}));
+  } else if (!isPlot) {
+    div.style.opacity = ".55";
+  }
   return div;
 }
 
