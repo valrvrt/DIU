@@ -35,14 +35,18 @@ def _make_choice_json_safe(choice_data: Dict) -> Dict:
     """
     result = {k: v for k, v in choice_data.items()}
 
-    # available_cards: list of {"card": ImperiumCard, "source": str}
+    # available_cards: list of {"card": ImperiumCard|IntrigueCard, "source": str}
     if "available_cards" in result:
+        def _safe_card(card):
+            if hasattr(card, "factions"):  # ImperiumCard
+                return _imperium_card(card)
+            if hasattr(card, "id") and hasattr(card, "name"):  # IntrigueCard or others
+                return {"id": str(card.id), "name": card.name,
+                        "cost": getattr(card, "cost", 0),
+                        "type": type(card).__name__}
+            return {"id": str(card), "name": str(card)}
         result["available_cards"] = [
-            {
-                "card": _imperium_card(item["card"]) if hasattr(item.get("card"), "cost")
-                        else {"id": str(item.get("card", "")), "name": str(item.get("card", ""))},
-                "source": item.get("source", ""),
-            }
+            {"card": _safe_card(item["card"]), "source": item.get("source", "")}
             for item in result["available_cards"]
         ]
 
