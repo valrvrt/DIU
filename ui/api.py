@@ -73,7 +73,9 @@ def list_leaders():
     """Return available leaders for a new-game setup screen."""
     from src.loaders.card_loader import load_leaders
     leaders = load_leaders()
-    return [{"id": int(l.id), "name": l.name} for l in leaders]
+    # Exclude Reverend Mother (NPC/bot-only leader)
+    return [{"id": int(l.id), "name": l.name} for l in leaders
+            if l.name != "Reverend Mother"]
 
 
 # ─────────────────── static / SPA ─────────────────────

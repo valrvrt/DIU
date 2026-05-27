@@ -616,11 +616,21 @@ class GameSession:
             # Buy up to 5 cards
             for _ in range(5):
                 opts = action_gen.get_acquisition_options(player.player_id)
-                all_cards = list(opts.get("imperium_row", [])) + list(opts.get("reserve_cards", []))
+                imperium = list(opts.get("imperium_row", []))
+                reserve_prepare = list(opts.get("reserve_prepare", []))
+                reserve_spice   = list(opts.get("reserve_spice", []))
+                reserve_cards   = reserve_prepare + reserve_spice
+                all_cards = imperium + reserve_cards
                 card = bot.decide_card_to_acquire(all_cards)
                 if card is None:
                     break
-                source = "reserve" if card in opts.get("reserve_cards", []) else "row"
+                # Determine source based on which pile the card came from
+                if card in reserve_prepare:
+                    source = "prepare"
+                elif card in reserve_spice:
+                    source = "spice"
+                else:
+                    source = "row"
                 result = action_exec.execute_acquire_card(
                     AcquireCardAction(player_id=player.player_id, card=card, source=source)
                 )

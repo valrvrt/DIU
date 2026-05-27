@@ -458,6 +458,7 @@ function renderPlayerArea(s) {
       const entry = (aa.playable_cards || []).find(e => e.card_id === c.id);
       if (entry && entry.valid_location_ids.length > 0) {
         div.classList.add("selectable");
+        if (G.selectedCard?.id === c.id) div.classList.add("card-selected");
         div.addEventListener("click", () => selectCard(c, entry.valid_location_ids));
       } else {
         // No valid agent locations — check if it's a reveal-only card
@@ -765,12 +766,17 @@ function describeEffectHTML(e) {
     return `Choose: ${parts.join(" / ")}`;
   }
   if (t === "conditional") return `Optional bonus`;
-  if (t === "trash") return `<i class="efx trash"></i>×${amt}`;
-  if (t === "accept") return `<i class="efx contract"></i> contract`;
-  if (t === "council_seat") return `Council seat`;
-  if (t === "maker_hooks") return `<i class="efx maker-hook"></i>`;
-  if (t === "recall_agent") return `<i class="efx recall"></i> recall`;
-  if (t === "restrict") return `restrict`;
+  if (t === "trash") return `🗑 ×${amt}`;
+  if (t === "accept") return `📋 take contract`;
+  if (t === "council_seat") return `🪑 Council`;
+  if (t === "maker_hooks") return `🪝 Maker hooks`;
+  if (t === "recall_agent") return `↩ recall agent`;
+  if (t === "restrict") return `⚠ restrict`;
+  if (t === "deploy_troops") return `🗡 +${amt} to battle`;
+  if (t === "combat_strength") return `⚔ +${amt} strength`;
+  if (t === "spy") return `🕵 spy post`;
+  if (t === "steal") return `steal`;
+  if (t === "shield_wall") return `🛡 shield`;
   return t;
 }
 

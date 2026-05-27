@@ -261,7 +261,8 @@ body {
   position:relative; flex-shrink:0;
 }
 .card:hover { transform:translateY(-1px); }
-.card.selectable:hover { border-color:#80e040; }
+.card.selectable { border-color:#4a8030; cursor:pointer; }
+.card.selectable:hover { border-color:#80e040; box-shadow:0 0 6px rgba(80,200,40,.35); }
 .card.affordable { border-color:var(--gold-dim); }
 .card.unaffordable { opacity:.5; cursor:not-allowed; }
 .card.acquisition-card.affordable:hover { border-color:var(--gold); }
@@ -494,3 +495,6 @@ body {
   background:rgba(80,60,140,.3); padding:1px 4px; border-radius:2px;
   letter-spacing:.5px;
 }
+
+/* ─────── SELECTED CARD IN HAND ─────── */
+.card.card-selected { border-color:#80e040 !important; box-shadow:0 0 10px rgba(80,200,40,.5) !important; transform:translateY(-3px); }
