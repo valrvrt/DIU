@@ -352,11 +352,11 @@ class GameSession:
         if card is None and self.game.board.reserve_prepare_the_way:
             top = self.game.board.reserve_prepare_the_way[0]
             if top.id == card_id:
-                card, source = top, "reserve"
+                card, source = top, "prepare"   # execute_acquire_card expects "prepare"
         if card is None and self.game.board.reserve_spice_must_flow:
             top = self.game.board.reserve_spice_must_flow[0]
             if top.id == card_id:
-                card, source = top, "reserve"
+                card, source = top, "spice"     # execute_acquire_card expects "spice"
 
         if card is None:
             return {"success": False, "error": f"Card {card_id} not available"}

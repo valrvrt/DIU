@@ -4214,8 +4214,11 @@ class EffectResolver:
 
         # Human players must pick; bots auto-select first card
         if player.is_human:
+            # Use the standard {"card": obj, "source": "hand"} format so
+            # _make_choice_json_safe serialises it correctly and execute_choice
+            # can look the card up by id (same pattern as trash_card).
             available_cards = [
-                {"card_id": c.id, "card_name": c.name if hasattr(c, 'name') else str(c)}
+                {"card": c, "source": "hand"}
                 for c in player.hand.cards
             ]
             return {
