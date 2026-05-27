@@ -124,22 +124,23 @@ body {
 
 /* Influence column — VERTICAL, left of spaces */
 .influence-col {
-  width:26px; flex-shrink:0;
-  display:flex; flex-direction:column; gap:1px;
+  width:38px; flex-shrink:0;
+  display:flex; flex-direction:column; gap:2px;
   padding:3px 2px;
   border-right:1px solid var(--border);
   overflow:hidden;
 }
-.inf-row { display:flex; align-items:center; gap:1px; }
-.inf-letter { font-size:7px; font-weight:700; width:9px; text-align:center; flex-shrink:0; }
+/* Each player row: letter above pips (stacked vertically) */
+.inf-row { display:flex; flex-direction:column; align-items:center; gap:0; }
+.inf-letter { font-size:7px; font-weight:700; line-height:1.2; text-align:center; }
 .inf-pips { display:flex; gap:1px; }
 .inf-pip {
-  width:5px; height:5px; border-radius:1px;
+  width:6px; height:4px; border-radius:1px;
   border:1px solid rgba(255,255,255,.15);
   background:rgba(255,255,255,.06);
 }
 .inf-pip.filled { border-color:transparent; }
-.alliance-star { font-size:7px; color:var(--gold); margin-left:1px; }
+.alliance-star { font-size:7px; color:var(--gold); }
 
 .faction-spaces { flex:1; display:flex; flex-direction:column; gap:2px; padding:2px 3px; overflow-y:auto; }
 
