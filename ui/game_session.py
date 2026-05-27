@@ -82,6 +82,15 @@ class GameSession:
         if player_count not in (3, 4):
             raise ValueError("player_count must be 3 or 4")
 
+        # If only the human's leader was provided, fill in random bot leaders
+        if selected_leaders and len(selected_leaders) == 1:
+            from src.loaders.leader_loader import load_leaders
+            human_lid = selected_leaders[0]
+            all_leaders = [l for l in load_leaders() if l.name != "Reverend Mother"]
+            others = [l for l in all_leaders if l.leader_id != human_lid]
+            bot_leaders = _random.sample(others, player_count - 1)
+            selected_leaders = [human_lid] + [l.leader_id for l in bot_leaders]
+
         game, _ = GameSetup.create_game(
             player_count=player_count,
             human_player_name=human_name,
