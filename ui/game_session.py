@@ -703,12 +703,26 @@ class GameSession:
 
         # ── recall ──
         for player in self.game.players:
+            # Discard played cards → discard pile
+            try:
+                deck_manager.discard_played_cards(player.player_id)
+            except Exception:
+                pass
+            # Discard remaining hand → discard pile
+            try:
+                deck_manager.discard_hand(player.player_id)
+            except Exception:
+                pass
+
+            # Reset state
             player.agents_available = player.total_available_agents
             player.has_revealed_this_round = False
             player.turn_restrictions = []
             player._muaddib_passive_fired_this_round = False
             player.temp_persuasion = 0
+            player.temp_swords = 0
 
+            # Draw new hand of 5 (auto-shuffles discard if deck is empty)
             deck_manager.draw_cards(player.player_id, 5)
             self.log("recall", player=player.name)
 
@@ -718,6 +732,13 @@ class GameSession:
                     contract_manager.check_harvest_contracts(player.player_id)
                 except Exception:
                     pass
+
+        # Clear all board space occupants for the next round
+        if self.game.board:
+            for space in self.game.board.spaces:
+                space.occupied_by = None
+                if hasattr(space, 'agents_placed'):
+                    space.agents_placed = []
 
     def _start_next_round(self) -> None:
         """Increment round, draw new conflict, reset acquisition flag."""
