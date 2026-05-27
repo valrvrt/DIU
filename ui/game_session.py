@@ -77,6 +77,9 @@ class GameSession:
         self._choices_queue: List[Dict[str, Any]] = []
         # Track which phase of the round we're in for acquisition
         self._human_acquisition_done: bool = False
+        # Count of pending contract-accept tokens earned this turn
+        # (from placing on Accept Contract space or card effects)
+        self._pending_contract_accepts: int = 0
 
     # ──────── construction ────────
 
@@ -177,12 +180,16 @@ class GameSession:
     def _compute_available_actions(self) -> Dict[str, Any]:
         """What can the human do right now?"""
         human = self.human_player
-        if self.pending_choice:
-            return {"phase": "choice", "pending_choice": self.pending_choice}
-
         action_gen = self.managers["action_generator"]
         phase = self.game.current_phase.value if hasattr(self.game.current_phase, "value") \
                 else str(self.game.current_phase)
+
+        if self.pending_choice:
+            # Preserve the underlying game phase so the UI can still show
+            # context (e.g. keep showing the Done button during acquisition).
+            underlying = "acquisition" if human.has_revealed_this_round else "agent_turn"
+            return {"phase": "choice", "underlying_phase": underlying,
+                    "pending_choice": self.pending_choice}
 
         if phase == "player_turns" and not human.has_revealed_this_round:
             # Agent turn: can place agent or reveal
@@ -225,6 +232,7 @@ class GameSession:
                     if opts.get("reserve_spice") else None
                 ),
                 "contract_row": [_contract_card(c) for c in self.game.board.contract_row],
+                "can_accept_contract": self._pending_contract_accepts > 0,
             }
 
         return {"phase": phase}
@@ -245,6 +253,10 @@ class GameSession:
         if not choices:
             return
         safe = [_make_choice_json_safe(c) for c in choices]
+        # Count accept_contract choices — player earns one token per accept effect
+        for c in safe:
+            if c.get("type") == "accept_contract":
+                self._pending_contract_accepts += 1
         self._choices_queue.extend(safe)
         if not self.pending_choice:
             self.pending_choice = self._choices_queue.pop(0)
@@ -385,6 +397,10 @@ class GameSession:
         if contract_manager is None:
             return {"success": False, "error": "No contract manager"}
 
+        # Must have earned the right to accept a contract this turn
+        if self._pending_contract_accepts <= 0:
+            return {"success": False, "error": "You need to trigger an 'Accept Contract' effect first (place an agent on the Accept Contract space)"}
+
         contract_id = str(d.get("contract_id", ""))
         contract = next(
             (c for c in self.game.board.contract_row if str(c.id) == contract_id), None
@@ -394,6 +410,7 @@ class GameSession:
 
         result = contract_manager.acquire_contract(self.human_player_id, contract)
         if result.get("success"):
+            self._pending_contract_accepts -= 1  # consume the token
             self.log("acquire_contract", player=self.human_player.name,
                      contract=contract.name, completed=result.get("completed", False))
         return result
@@ -704,6 +721,9 @@ class GameSession:
                 self.log("makers", spaces=[s["space"] for s in result.get("spaces_updated", [])])
         except Exception as e:
             self.log("error", msg=f"Makers error: {e}")
+
+        # Reset per-round tokens
+        self._pending_contract_accepts = 0
 
         # ── recall ──
         for player in self.game.players:

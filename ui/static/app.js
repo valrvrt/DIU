@@ -138,7 +138,7 @@ function render() {
 // ─────────────── TOP BAR ────────────────────
 function renderTopBar(s) {
   document.getElementById("round-label").textContent = `Round ${s.round}`;
-  document.getElementById("phase-badge").textContent = phaseLabel(s.available_actions?.phase || s.phase);
+  document.getElementById("phase-badge").textContent = phaseLabel(s.available_actions?.phase || s.phase, s.available_actions?.underlying_phase);
 
   const bar = document.getElementById("opponents-bar");
   bar.innerHTML = "";
@@ -158,11 +158,13 @@ function renderTopBar(s) {
   });
 }
 
-function phaseLabel(phase) {
+function phaseLabel(phase, underlying) {
   const map = {
     agent_turn:"Agent Phase", acquisition:"Acquisition", player_turns:"Playing",
-    combat:"Combat", recall:"Recall", game_over:"GAME OVER", choice:"Choose…",
+    combat:"Combat", recall:"Recall", game_over:"GAME OVER",
+    choice:"Choose…",
   };
+  if (phase === "choice" && underlying) return (map[underlying] || underlying) + " — Choose";
   return map[phase] || phase || "—";
 }
 
@@ -173,6 +175,7 @@ function renderContractDisplay(s) {
   panel.innerHTML = "";
   const aa = s.available_actions || {};
   const inAcq = aa.phase === "acquisition";
+  const canAccept = inAcq && aa.can_accept_contract;
   const contracts = s.board?.contract_row || [];
 
   if (!contracts.length) {
@@ -183,13 +186,15 @@ function renderContractDisplay(s) {
   }
 
   contracts.forEach(c => {
-    const item = el("div", "contract-item" + (inAcq ? " contract-takeable" : ""));
+    const itemClass = "contract-item" + (canAccept ? " contract-takeable" : "");
+    const item = el("div", itemClass);
+    const hint = canAccept ? ' <span class="ci-take-hint">click to take</span>' : "";
     item.innerHTML = `
-      <div class="ci-name">${c.name}${inAcq ? ' <span class="ci-take-hint">click to take</span>' : ""}</div>
+      <div class="ci-name">${c.name}${hint}</div>
       <div class="ci-cond">${contractCondition(c)}</div>
       <div class="ci-reward">→ ${formatRewardsText(c.rewards || [])}</div>
     `;
-    if (inAcq) item.addEventListener("click", () => promptAcceptContract(c));
+    if (canAccept) item.addEventListener("click", () => promptAcceptContract(c));
     panel.appendChild(item);
   });
 }
@@ -289,10 +294,21 @@ function renderBoardSpace(sp, s) {
   if (isValid) div.classList.add("valid-target");
   if (sp.occupied_by) div.classList.add("occupied");
 
-  // Header
+  // Header: name + cost badge
   const hdr = el("div","sp-header");
   const nameEl = el("span","sp-name"); nameEl.textContent = sp.name;
   hdr.appendChild(nameEl);
+  // Show cost if any (e.g. "1💧" for Desert Tactics)
+  const costArr = sp.cost || [];
+  if (costArr.length) {
+    const costEl = el("span","sp-cost-badge");
+    costEl.innerHTML = costArr.map(c => {
+      const amt = c.amount || 1;
+      const res = c.resource || "";
+      return `${amt}${resourceIconHTML(res)}`;
+    }).join("");
+    hdr.appendChild(costEl);
+  }
   div.appendChild(hdr);
 
   // Rewards (compact icon row)
@@ -537,8 +553,11 @@ function renderPlayerArea(s) {
 // ─────────────── ACTION BUTTONS ─────────────
 function updateActionButtons(s) {
   const aa = s.available_actions || {};
-  document.getElementById("reveal-btn").classList.toggle("hidden", aa.phase !== "agent_turn");
-  document.getElementById("end-acq-btn").classList.toggle("hidden", aa.phase !== "acquisition");
+  // When a choice is pending, keep the button for the underlying phase visible
+  // (it's blocked by the execute_action guard anyway, but gives context)
+  const effectivePhase = (aa.phase === "choice" && aa.underlying_phase) ? aa.underlying_phase : aa.phase;
+  document.getElementById("reveal-btn").classList.toggle("hidden", effectivePhase !== "agent_turn");
+  document.getElementById("end-acq-btn").classList.toggle("hidden", effectivePhase !== "acquisition");
 }
 
 function doReveal() { postAction({ type: "reveal" }); clearSelectedCard(); }
@@ -735,29 +754,94 @@ function buildCard(card, extraClass, inAcquisition, persuasion) {
 
 function buildIntrigueCard(card, isAgentPhase) {
   const div = el("div","card intrigue-card");
-  const hdr = el("div","card-header");
+
+  // Header: name + phase tags
+  const hdr = el("div","card-header intrigue-hdr");
   const nameEl = el("span","card-name"); nameEl.textContent = card.name;
   hdr.appendChild(nameEl);
-  const phaseTag = el("span","intrigue-phase");
-  phaseTag.textContent = (card.phases||[]).join("/") || "Plot";
-  hdr.appendChild(phaseTag);
+  const phaseWrap = el("div","intrigue-phases");
+  (card.phases||["Plot"]).forEach(p => {
+    const tag = el("span","intrigue-phase-tag phase-" + String(p).toLowerCase());
+    tag.textContent = String(p);
+    phaseWrap.appendChild(tag);
+  });
+  hdr.appendChild(phaseWrap);
   div.appendChild(hdr);
 
+  // Body: effects
   const body = el("div","card-body");
-  const efDiv = el("div","card-effects");
-  (card.effects||[]).slice(0,3).forEach(e => efDiv.appendChild(effectLine(e)));
-  body.appendChild(efDiv);
+  const effects = card.effects || [];
+  if (!effects.length) {
+    const note = el("div","card-effects");
+    note.style.cssText = "color:var(--text-dim);font-size:8px;font-style:italic";
+    note.textContent = "No effects";
+    body.appendChild(note);
+  } else {
+    const efDiv = el("div","card-effects");
+    effects.forEach(e => efDiv.appendChild(intrigueEffectLine(e)));
+    body.appendChild(efDiv);
+  }
   div.appendChild(body);
 
+  // Interactivity
   const phases = (card.phases||[]).map(p=>String(p).toLowerCase());
   const isPlot = phases.length === 0 || phases.includes("plot");
   if (isAgentPhase && isPlot) {
     div.classList.add("selectable");
     div.addEventListener("click", () => postAction({type:"play_intrigue",card_id:card.id}));
-  } else if (!isPlot) {
-    div.style.opacity = ".55";
+  } else {
+    div.style.opacity = isPlot ? "1" : ".5";
   }
   return div;
+}
+
+function intrigueEffectLine(e) {
+  // Intrigue effects have varied shapes; render a human-readable summary
+  const line = el("div","effect-line");
+  const bullet = el("span","ef-bullet"); bullet.textContent = "·";
+  const text = el("span","ef-text");
+  text.innerHTML = describeIntrigueEffect(e);
+  line.appendChild(bullet);
+  line.appendChild(text);
+  return line;
+}
+
+function describeIntrigueEffect(e) {
+  if (!e || typeof e !== "object") return String(e || "");
+  const t = e.type || "";
+
+  // Simple pass-through to describeEffectHTML for standard effects
+  if (["resource","draw","influence","victory_point","trash","deploy_troops","combat_strength"].includes(t)) {
+    return describeEffectHTML(e);
+  }
+
+  // Choice: show each option separated by /
+  if (t === "choice") {
+    const parts = (e.options||[]).map(o => {
+      const costStr = o.cost?.length ? formatRewardsText(o.cost) + " → " : "";
+      const rwStr = o.reward?.length ? formatRewardsText(o.reward) : (o.id||"?");
+      const cond = o.condition ? ` (if ${o.condition.type})` : "";
+      return costStr + rwStr + cond;
+    });
+    return `Choose: ${parts.join(" / ")}`;
+  }
+
+  // Action with cost+reward
+  if (t === "action" || (e.cost && e.reward)) {
+    const costStr = e.cost?.length ? formatRewardsText(e.cost) + " → " : "";
+    const rwStr = e.reward?.length ? formatRewardsText(e.reward) : "";
+    return costStr + rwStr;
+  }
+
+  // Conditional reward
+  if (t === "conditional_reward") {
+    const cond = e.condition?.type || "condition";
+    const rwStr = e.reward?.length ? formatRewardsText(e.reward) : "";
+    return `If ${cond}: ${rwStr}`;
+  }
+
+  // Fallback: try as standard effect
+  return describeEffectHTML(e) || t;
 }
 
 // ─────────────── EFFECT RENDERING ───────────

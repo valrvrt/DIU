@@ -38,7 +38,7 @@
 
   --card-w:  118px;
   --card-h:  155px;
-  --space-w: 108px;
+  --space-w: 130px;
 }
 
 body {
@@ -146,10 +146,10 @@ body {
 
 /* ─────── BOARD SPACE ─────── */
 .board-space {
-  background:var(--bg3); border:1px solid var(--border); border-radius:4px;
-  padding:4px 6px; cursor:pointer; position:relative;
+  background:var(--bg3); border:1px solid var(--border); border-radius:5px;
+  padding:5px 7px; cursor:pointer; position:relative;
   transition:border-color .12s, background .12s;
-  width:100%; min-height:52px;
+  width:100%; min-height:60px;
 }
 .board-space:hover { border-color:#5a4a38; }
 .board-space.valid-target { border-color:#5ab030 !important; background:#0e1e08 !important; }
@@ -157,19 +157,28 @@ body {
 .board-space.occupied { border-color:#5a2020; border-style:dashed; opacity:.70; }
 .board-space.occupied .sp-name { color:var(--text-dim); }
 
-.sp-header { display:flex; align-items:center; gap:4px; }
-.sp-name { font-size:10px; font-weight:600; color:var(--text); flex:1; line-height:1.2; }
+.sp-header { display:flex; align-items:flex-start; gap:4px; }
+.sp-name { font-size:10px; font-weight:700; color:var(--text); flex:1; line-height:1.3; }
+.sp-cost-badge {
+  font-size:9px; font-weight:700; color:#d06020; background:rgba(180,80,0,.18);
+  border:1px solid rgba(180,80,0,.4); border-radius:3px; padding:1px 4px;
+  flex-shrink:0; white-space:nowrap; display:flex; align-items:center; gap:1px;
+}
 .sp-icon { font-size:9px; }
-.sp-rewards { font-size:9px; color:var(--text-dim); display:flex; gap:3px; flex-wrap:wrap; align-items:center; margin-top:1px; }
+.sp-rewards {
+  font-size:10px; color:var(--text); display:flex; gap:4px; flex-wrap:wrap;
+  align-items:center; margin-top:3px; padding-top:3px;
+  border-top:1px solid rgba(255,255,255,.06);
+}
 .sp-occupant {
   display:inline-block; font-size:9px; font-weight:700; padding:1px 5px; border-radius:3px;
-  margin-top:2px; border:1px solid currentColor; letter-spacing:.5px;
+  margin-top:3px; border:1px solid currentColor; letter-spacing:.5px;
 }
 .sp-spice-bonus {
-  font-size:9px; color:#d09030; font-weight:700; margin-top:2px;
+  font-size:10px; color:#d09030; font-weight:700; margin-top:3px;
   display:flex; align-items:center; gap:2px;
 }
-.sp-checks { font-size:8px; color:#c08070; font-style:italic; margin-top:1px; letter-spacing:.2px; }
+.sp-checks { font-size:8px; color:#b07060; font-style:italic; margin-top:2px; letter-spacing:.2px; }
 .sp-check-inf { display:inline-block; }
 .sp-badges { display:none; } /* hidden to save space */
 
@@ -177,17 +186,18 @@ body {
 .sp-faction-strip { height:2px; margin-bottom:2px; border-radius:1px; }
 
 /* ─────── CENTER ─────── */
-.board-center { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; overflow:hidden; padding:3px; border-right:1px solid var(--border); }
+.board-center { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; overflow:hidden; padding:4px; border-right:1px solid var(--border); }
 
-.center-row { display:flex; gap:3px; flex-shrink:0; }
-.desert-combat-row { flex:1; min-height:0; }
+.center-row { display:flex; gap:4px; flex:1; min-height:0; }
+.landsraad-row { flex:4; }
+.center-row:not(.desert-combat-row):not(.landsraad-row) { flex:3; }
+.desert-combat-row { flex:3; }
 
-.neutral-group { background:var(--bg2); border-radius:4px; padding:3px 5px; min-width:0; }
+.neutral-group { background:var(--bg2); border-radius:5px; padding:4px 6px; min-width:0; flex:1; display:flex; flex-direction:column; }
 .neutral-group.full-width { flex:1; }
-.shipping-aside { flex-shrink:0; width:230px; display:flex; flex-direction:column; }
-/* Landsraad group and desert group fill remaining row space */
+.shipping-aside { flex:0 0 220px; display:flex; flex-direction:column; }
+/* Landsraad group fills remaining row space */
 .landsraad-row > .neutral-group:not(.shipping-aside) { flex:1; }
-.desert-combat-row > .neutral-group { flex:1; }
 
 /* ─────── CONTRACT PANEL (inside shipping-aside) ─────── */
 .contract-panel-header {
@@ -228,7 +238,8 @@ body {
 }
 
 .space-grid {
-  display:flex; flex-wrap:wrap; gap:2px;
+  display:flex; flex-wrap:wrap; gap:3px;
+  align-content:flex-start; flex:1;
 }
 .space-grid .board-space { width:var(--space-w); }
 
@@ -314,9 +325,17 @@ body {
 /* IMPERIUM ROW card */
 .row-card { width:165px; min-height:130px; }
 /* INTRIGUE card */
-.intrigue-card { width:100px; min-height:100px; cursor:pointer; }
-.intrigue-card .card-header { background:#120820; color:#8050c0; }
-.intrigue-phase { font-size:7px; color:var(--text-dim); padding:1px 3px; border-radius:2px; background:var(--bg2); }
+.intrigue-card { width:115px; min-height:110px; cursor:pointer; }
+.intrigue-card .card-header { background:#120820; color:#9060d0; }
+.intrigue-hdr { flex-direction:column; align-items:flex-start; gap:2px; padding:4px 6px; }
+.intrigue-phases { display:flex; gap:2px; flex-wrap:wrap; }
+.intrigue-phase-tag {
+  font-size:7px; font-weight:700; padding:1px 4px; border-radius:2px;
+  text-transform:uppercase; letter-spacing:.3px;
+}
+.intrigue-phase-tag.phase-plot    { background:#1a0a30; color:#9060d0; border:1px solid #4a1a60; }
+.intrigue-phase-tag.phase-combat  { background:#2a0808; color:#c04040; border:1px solid #601010; }
+.intrigue-phase-tag.phase-endgame { background:#0a1a08; color:#40a040; border:1px solid #104010; }
 
 /* ─────── EFFECT ICONS (CSS shapes) ─────── */
 .efx {
