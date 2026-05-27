@@ -422,7 +422,7 @@ function renderImperiumRow(s) {
   resEl.innerHTML = "";
   const rp = aa.reserve_prepare || s.board?.reserve_prepare_the_way;
   const rs = aa.reserve_spice   || s.board?.reserve_spice_must_flow;
-  [[rp, "reserve"], [rs, "reserve"]].forEach(([pile, src]) => {
+  [[rp, "prepare"], [rs, "spice"]].forEach(([pile, src]) => {
     if (!pile) return;
     const card = pile.card || pile.top;
     if (!card) return;
