@@ -382,9 +382,13 @@ function renderCombatZone(s) {
   s.players.forEach((p, i) => {
     const row = el("div","combat-player-row");
     const str = p.combat_strength || 0;
+    const swords = p.temp_swords || 0;
+    const parts = [`${p.troops_in_conflict}🗡`];
+    if (p.sandworms_in_conflict > 0) parts.push(`+${p.sandworms_in_conflict}🪱`);
+    if (swords > 0) parts.push(`+${swords}⚔`);
     row.innerHTML = `
       <span class="cp-color" style="background:var(--${G.playerColors[i]})"></span>
-      <span class="cp-info">${shortName(p.name)} — ${p.troops_in_conflict}🗡${p.sandworms_in_conflict>0?"+"+p.sandworms_in_conflict+"🪱":""}</span>
+      <span class="cp-info">${shortName(p.name)} — ${parts.join("")}</span>
       <span class="cp-str">${str}</span>
     `;
     cpDiv.appendChild(row);

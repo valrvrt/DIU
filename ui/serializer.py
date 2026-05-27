@@ -211,7 +211,12 @@ def _player_public(player: Player) -> Dict[str, Any]:
 
         # Turn state
         "has_revealed_this_round": player.has_revealed_this_round,
-        "combat_strength": player.combat_strength,
+        "combat_strength": (
+            player.troops_in_conflict * 2
+            + player.sandworms_in_conflict * 3
+            + getattr(player, "temp_swords", 0)
+        ) if (player.troops_in_conflict > 0 or player.sandworms_in_conflict > 0) else 0,
+        "temp_swords": getattr(player, "temp_swords", 0),
     }
 
 
