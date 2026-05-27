@@ -80,6 +80,10 @@ class GameSession:
         # Count of pending contract-accept tokens earned this turn
         # (from placing on Accept Contract space or card effects)
         self._pending_contract_accepts: int = 0
+        # When set, the human just placed an agent on a combat space and
+        # needs to choose how many troops to deploy from garrison.
+        # Shape: {"location_name": str, "max_troops": int, "bonus": int}
+        self._pending_troop_deployment: Optional[Dict[str, Any]] = None
 
     # ──────── construction ────────
 
@@ -243,6 +247,7 @@ class GameSession:
         return {
             "state": state,
             "pending_choice": self.pending_choice,
+            "pending_troop_deployment": self._pending_troop_deployment,
             "is_human_turn": self.is_human_turn,
             "events": self.drain_log(),
         }
@@ -279,9 +284,12 @@ class GameSession:
         human = self.human_player
         if self.pending_choice:
             return {"error": "A choice must be resolved first", **self.snapshot()}
+        if self._pending_troop_deployment and action_type != "deploy_troops":
+            return {"error": "Must deploy troops first", **self.snapshot()}
 
         dispatch = {
             "place_agent": self._do_place_agent,
+            "deploy_troops": self._do_deploy_troops,
             "reveal": self._do_reveal,
             "acquire_card": self._do_acquire_card,
             "acquire_contract": self._do_acquire_contract,
@@ -308,13 +316,11 @@ class GameSession:
     # ──────── human action handlers ────────
 
     def _do_place_agent(self, d: Dict) -> Dict:
-        action_gen = self.managers["action_generator"]
         action_exec = self.managers["action_executor"]
         human = self.human_player
 
         card_id = d.get("card_id", "")
         location_id = str(d.get("location_id", ""))
-        troops = int(d.get("troops", 0))
 
         card = next((c for c in human.hand.cards if c.id == card_id), None)
         if card is None:
@@ -322,7 +328,6 @@ class GameSession:
 
         location = self.game.board.get_space_by_id(location_id)
         if location is None:
-            # Try int lookup
             try:
                 location = self.game.board.get_space_by_id(int(location_id))
             except Exception:
@@ -330,16 +335,53 @@ class GameSession:
         if location is None:
             return {"success": False, "error": f"Location {location_id} not found"}
 
+        # Always pass troops_to_deploy=0 so location rewards (including troop
+        # bonuses like Arrakeen's +1) are applied BEFORE the player picks how
+        # many troops to deploy from garrison.
         action = PlaceAgentAction(
             player_id=self.human_player_id,
             card=card,
             location=location,
             placement_type=location.agent_icon,
-            troops_to_deploy=troops,
+            troops_to_deploy=0,
         )
         result = action_exec.execute_place_agent(action)
         if result.get("success"):
             self.log("place_agent", player=human.name, card=card.name, location=location.name)
+            # If this is a combat space, queue a pending troop deployment prompt
+            if location.is_combat_space:
+                # Bonus deployable troops from location's reward (e.g. Arrakeen +1)
+                bonus = sum(
+                    e.get("amount", 0) for e in (location.reward or [])
+                    if isinstance(e, dict)
+                    and e.get("type") == "resource"
+                    and e.get("resource") in ("troop", "troops")
+                )
+                # Standard rule allows up to 2 from garrison per agent;
+                # Arrakeen-style bonus increases that cap by N.
+                max_troops = min(2 + bonus, human.troops_in_garrison)
+                if max_troops > 0:
+                    self._pending_troop_deployment = {
+                        "location_name": location.name,
+                        "max_troops": max_troops,
+                        "bonus": bonus,
+                    }
+        return result
+
+    def _do_deploy_troops(self, d: Dict) -> Dict:
+        if not self._pending_troop_deployment:
+            return {"success": False, "error": "No troop deployment pending"}
+        action_exec = self.managers["action_executor"]
+        num = max(0, int(d.get("troops", 0)))
+        max_troops = self._pending_troop_deployment.get("max_troops", 0)
+        if num > max_troops:
+            return {"success": False, "error": f"Cannot deploy more than {max_troops} troops"}
+        result = action_exec.deploy_troops_to_conflict(self.human_player_id, num)
+        if result.get("success"):
+            if num > 0:
+                self.log("deploy_troops", player=self.human_player.name,
+                         count=num, location=self._pending_troop_deployment.get("location_name"))
+            self._pending_troop_deployment = None
         return result
 
     def _do_reveal(self, d: Dict) -> Dict:
@@ -724,6 +766,7 @@ class GameSession:
 
         # Reset per-round tokens
         self._pending_contract_accepts = 0
+        self._pending_troop_deployment = None
 
         # ── recall ──
         for player in self.game.players:

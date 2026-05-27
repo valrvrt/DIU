@@ -111,10 +111,12 @@ async function postAction(actionDict) {
 function applySnapshot(snap) {
   G.state = snap.state;
   G.pendingChoice = snap.pending_choice;
+  G.pendingTroopDeployment = snap.pending_troop_deployment || null;
   const evts = snap.events || [];
   appendEvents(evts);
   render();
   if (G.pendingChoice) showChoiceModal(G.pendingChoice);
+  else if (G.pendingTroopDeployment) showTroopPicker(G.pendingTroopDeployment);
   // Check for combat events to show toast
   const combatEv = evts.find(e => e.type === "combat_resolved");
   if (combatEv) showCombatToast(combatEv);
@@ -572,30 +574,28 @@ function selectCard(card, validLocations) {
 function clearSelectedCard() { G.selectedCard = null; render(); }
 
 function placeAgent(cardId, locationId, isCombatSpace) {
-  if (isCombatSpace) {
-    const maxTroops = G.state?.available_actions?.max_troops || 0;
-    if (maxTroops > 0) {
-      showTroopPicker(cardId, locationId, maxTroops);
-      return;
-    }
-  }
-  postAction({ type: "place_agent", card_id: cardId, location_id: String(locationId), troops: 0 });
+  // Always place with troops=0. Location rewards (e.g. Arrakeen +1 troop)
+  // are applied first; if the space is combat and troops remain in garrison,
+  // the server returns pending_troop_deployment and the picker opens.
+  postAction({ type: "place_agent", card_id: cardId, location_id: String(locationId) });
   clearSelectedCard();
 }
 
-function showTroopPicker(cardId, locationId, maxTroops) {
+function showTroopPicker(p) {
+  // p = { location_name, max_troops, bonus }
   const modal = document.getElementById("choice-modal");
-  document.getElementById("choice-title").textContent = "Deploy Troops to Conflict?";
-  document.getElementById("choice-desc").textContent = `You may send up to ${maxTroops} troops from garrison to the conflict.`;
+  document.getElementById("choice-title").textContent = `Deploy Troops to Conflict (${p.location_name})?`;
+  const bonusNote = p.bonus > 0 ? ` (includes +${p.bonus} bonus from ${p.location_name})` : "";
+  document.getElementById("choice-desc").textContent =
+    `Send up to ${p.max_troops} troops from garrison to the conflict${bonusNote}.`;
   const optEl = document.getElementById("choice-options");
   optEl.innerHTML = "";
-  for (let t = 0; t <= maxTroops; t++) {
+  for (let t = 0; t <= p.max_troops; t++) {
     const btn = el("button","choice-btn");
     btn.textContent = t === 0 ? "No troops" : `${t} troop${t > 1 ? "s" : ""}`;
     btn.addEventListener("click", () => {
       modal.classList.add("hidden");
-      postAction({ type: "place_agent", card_id: cardId, location_id: String(locationId), troops: t });
-      clearSelectedCard();
+      postAction({ type: "deploy_troops", troops: t });
     });
     optEl.appendChild(btn);
   }
@@ -712,7 +712,10 @@ function buildCard(card, extraClass, inAcquisition, persuasion) {
   const div = el("div",`card ${extraClass}`);
   const faction = card.factions?.[0] || "neutral";
   const affordable = !inAcquisition || card.cost <= persuasion;
-  if (inAcquisition) div.classList.add(affordable ? "affordable acquisition-card" : "unaffordable");
+  if (inAcquisition) {
+    if (affordable) div.classList.add("affordable", "acquisition-card");
+    else div.classList.add("unaffordable");
+  }
 
   const hdr = el("div",`card-header ${faction}`);
   const nameEl = el("span","card-name"); nameEl.textContent = card.name;
