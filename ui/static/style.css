@@ -104,10 +104,11 @@ body {
 .btn-icon { background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:13px; }
 
 /* ─────── MAIN AREA ─────── */
-.main-area { display:grid; grid-template-columns:175px 1fr 148px; overflow:hidden; min-height:0; }
+/* Use flex instead of grid so children inherit the full 1fr height from parent grid */
+.main-area { display:flex; flex-direction:row; overflow:hidden; min-height:0; }
 
 /* ─────── FACTION COLUMN ─────── */
-.faction-column { border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+.faction-column { width:175px; flex-shrink:0; border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
 .faction-section { display:flex; flex-direction:column; flex:1; min-height:0; border-bottom:1px solid var(--border); overflow:hidden; }
 .faction-section:last-child { border-bottom:none; }
 
@@ -168,14 +169,17 @@ body {
 .sp-faction-strip { height:2px; margin-bottom:2px; border-radius:1px; }
 
 /* ─────── CENTER ─────── */
-.board-center { display:flex; flex-direction:column; gap:3px; overflow:hidden; padding:3px; border-right:1px solid var(--border); }
+.board-center { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; overflow:hidden; padding:3px; border-right:1px solid var(--border); }
 
 .center-row { display:flex; gap:3px; flex-shrink:0; }
 .desert-combat-row { flex:1; min-height:0; }
 
-.neutral-group { background:var(--bg2); border-radius:4px; padding:3px 4px; }
+.neutral-group { background:var(--bg2); border-radius:4px; padding:3px 4px; min-width:0; }
 .neutral-group.full-width { flex:1; }
 .shipping-aside { flex-shrink:0; }
+/* Landsraad group and desert group fill remaining row space */
+.landsraad-row > .neutral-group:not(.shipping-aside) { flex:1; }
+.desert-combat-row > .neutral-group { flex:1; }
 
 .group-label {
   font-size:8px; color:var(--text-dim); text-transform:uppercase;
@@ -219,7 +223,7 @@ body {
 .garrison-chip { font-size:8px; color:var(--text-dim); }
 
 /* ─────── IMPERIUM COLUMN ─────── */
-.imperium-column { overflow-y:auto; padding:3px; display:flex; flex-direction:column; gap:3px; }
+.imperium-column { width:148px; flex-shrink:0; overflow-y:auto; padding:3px; display:flex; flex-direction:column; gap:3px; }
 .section-header { font-size:8px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.4px; padding:1px 0; }
 .imperium-cards { display:flex; flex-direction:column; gap:3px; }
 .reserve-piles  { display:flex; flex-direction:column; gap:3px; }
