@@ -111,9 +111,15 @@ async function postAction(actionDict) {
 function applySnapshot(snap) {
   G.state = snap.state;
   G.pendingChoice = snap.pending_choice;
-  appendEvents(snap.events || []);
+  const evts = snap.events || [];
+  appendEvents(evts);
   render();
   if (G.pendingChoice) showChoiceModal(G.pendingChoice);
+  // Check for combat events to show toast
+  const combatEv = evts.find(e => e.type === "combat_resolved");
+  if (combatEv) showCombatToast(combatEv);
+  // Show game-over overlay
+  if (G.state?.game_over) showGameOver(G.state.game_over_data);
 }
 
 function render() {
@@ -177,12 +183,13 @@ function renderContractDisplay(s) {
   }
 
   contracts.forEach(c => {
-    const item = el("div", "contract-item");
+    const item = el("div", "contract-item" + (inAcq ? " contract-takeable" : ""));
     item.innerHTML = `
-      <div class="ci-name">${c.name}</div>
+      <div class="ci-name">${c.name}${inAcq ? ' <span class="ci-take-hint">click to take</span>' : ""}</div>
       <div class="ci-cond">${contractCondition(c)}</div>
       <div class="ci-reward">→ ${formatRewardsText(c.rewards || [])}</div>
     `;
+    if (inAcq) item.addEventListener("click", () => promptAcceptContract(c));
     panel.appendChild(item);
   });
 }
@@ -433,9 +440,10 @@ function renderPlayerArea(s) {
   }
 
   const pbadge = document.getElementById("persuasion-display");
-  if (inAcq && persuasion > 0) {
+  if (inAcq) {
     pbadge.classList.remove("hidden");
     pbadge.textContent = `${persuasion} persuasion`;
+    pbadge.style.opacity = persuasion > 0 ? "1" : "0.5";
   } else {
     pbadge.classList.add("hidden");
   }
@@ -821,12 +829,73 @@ function describeEvent(ev) {
   if (t === "acquire_card")   return `${ev.player} buys ${ev.card} [${ev.cost}]`;
   if (t === "acquire_contract") return `${ev.player} takes contract`;
   if (t === "play_intrigue")  return `${ev.player} plays ${ev.card}`;
-  if (t === "combat_resolved") return `⚔ ${ev.winner} wins!`;
+  if (t === "combat_resolved") {
+    const tied = ev.tied || ev.winner === "(tied)";
+    return tied ? `⚔ ${ev.conflict}: Tie!` : `⚔ ${ev.conflict}: ${ev.winner} wins!`;
+  }
   if (t === "contract_completed") return `🎉 ${ev.player}: ${ev.contract}!`;
   if (t === "recall")         return `${ev.player} recalls`;
   if (t === "new_round")      return `═══ Round ${ev.round} ═══`;
   if (t === "new_conflict")   return `Conflict: ${ev.conflict}`;
   return `${t}`;
+}
+
+// ─────────────── COMBAT TOAST ────────────────
+function showCombatToast(ev) {
+  const toast = document.getElementById("combat-toast");
+  if (!toast) return;
+  const winner = ev.winner || "(tied)";
+  const lines = [`⚔ ${ev.conflict || "Conflict"} resolved`];
+  if (ev.strength_summary) {
+    ev.strength_summary.forEach(p => {
+      const you = p.is_human ? " (YOU)" : "";
+      lines.push(`  ${p.name}${you}: ${p.strength}`);
+    });
+  }
+  const isTied = ev.tied || winner === "(tied)";
+  lines.push(isTied ? "🤝 Tied — no winner" : `🏆 Winner: ${winner}`);
+  toast.innerHTML = lines.join("<br>");
+  toast.classList.remove("hidden");
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.add("hidden"), 5000);
+}
+
+// ─────────────── GAME OVER ────────────────
+function showGameOver(data) {
+  if (!data) return;
+  const overlay = document.getElementById("gameover-overlay");
+  if (!overlay) return;
+  const titleEl = document.getElementById("gameover-title");
+  const subtitleEl = document.getElementById("gameover-subtitle");
+  const scoresEl = document.getElementById("gameover-scores");
+
+  if (data.is_human_winner) {
+    titleEl.textContent = "🏆 VICTORY!";
+    titleEl.style.color = "var(--gold)";
+  } else {
+    titleEl.textContent = "⚔ GAME OVER";
+    titleEl.style.color = "var(--text-dim)";
+  }
+
+  const winners = data.winner_names || [];
+  subtitleEl.textContent = winners.length > 0
+    ? `Winner${winners.length > 1 ? "s" : ""}: ${winners.join(" & ")} • After ${data.total_rounds} rounds`
+    : `${data.total_rounds} rounds complete`;
+
+  scoresEl.innerHTML = "";
+  (data.ranked_players || []).forEach((p, i) => {
+    const row = el("div", "go-score-row" + (p.is_human ? " go-human" : ""));
+    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i+1}.`;
+    row.innerHTML = `
+      <span class="go-rank">${medal}</span>
+      <span class="go-name">${p.name}${p.is_human ? " (You)" : ""}</span>
+      <span class="go-vp">⭐ ${p.vp} VP</span>
+      <span class="go-res">${p.solari}● ${p.spice}◆</span>
+    `;
+    scoresEl.appendChild(row);
+  });
+
+  overlay.classList.remove("hidden");
 }
 
 // ─────────────── UTILITIES ──────────────────

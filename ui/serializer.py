@@ -227,6 +227,32 @@ def _player_private(player: Player) -> Dict[str, Any]:
     return public
 
 
+# ───────────────────────── game over ──────────────────────
+
+def _game_over_data(game: Game, players_serialized: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Build final score / ranking data shown on the game-over overlay."""
+    # Sort players by VP descending, then by name for tie-breaking display
+    ranked = sorted(players_serialized, key=lambda p: -p.get("victory_points", 0))
+    winners = [p["name"] for p in ranked if p.get("victory_points", 0) == ranked[0].get("victory_points", 0)]
+    return {
+        "ranked_players": [
+            {
+                "player_id": p["player_id"],
+                "name": p["name"],
+                "vp": p.get("victory_points", 0),
+                "solari": p.get("solari", 0),
+                "spice": p.get("spice", 0),
+                "is_human": p.get("is_human", False),
+            }
+            for p in ranked
+        ],
+        "winner_names": winners,
+        "is_human_winner": any(p.get("is_human") for p in ranked
+                                if p.get("victory_points", 0) == ranked[0].get("victory_points", 0)),
+        "total_rounds": game.current_round,
+    }
+
+
 # ───────────────────────── top level ──────────────────────
 
 def serialize_state(game: Game, viewer_player_id: Optional[str] = None) -> Dict[str, Any]:
@@ -242,6 +268,7 @@ def serialize_state(game: Game, viewer_player_id: Optional[str] = None) -> Dict[
         A JSON-safe dict ready to send to the frontend.
     """
     players_serialized: List[Dict[str, Any]] = []
+
     for player in game.players:
         if viewer_player_id is not None and player.player_id == viewer_player_id:
             players_serialized.append(_player_private(player))
@@ -263,4 +290,6 @@ def serialize_state(game: Game, viewer_player_id: Optional[str] = None) -> Dict[
         "players": players_serialized,
         "board": _board(game.board) if game.board else None,
         "game_over": game.current_phase == GamePhase.GAME_OVER,
+        "game_over_data": _game_over_data(game, players_serialized)
+            if game.current_phase == GamePhase.GAME_OVER else None,
     }

@@ -655,7 +655,22 @@ class GameSession:
                 if combat_result.get("success"):
                     winners = combat_result.get("winners", [])
                     winner = winners[0] if winners else ""
-                    self.log("combat_resolved", winner=winner or "(tied)", conflict=conflict_name)
+                    # Build per-player strength summary for the UI
+                    strength_summary = []
+                    for p in self.game.players:
+                        ps = combat_result.get("player_strengths", {}).get(p.player_id, {})
+                        strength_summary.append({
+                            "name": p.name,
+                            "strength": ps.get("total_strength", 0),
+                            "is_human": getattr(p, "is_human", False),
+                        })
+                    # Sort by strength desc
+                    strength_summary.sort(key=lambda x: -x["strength"])
+                    self.log("combat_resolved",
+                             winner=winner or "(tied)",
+                             conflict=conflict_name,
+                             strength_summary=strength_summary,
+                             tied=len(winners) == 0)
                     for p in self.game.players:
                         p.troops_in_conflict = 0
                         p.sandworms_in_conflict = 0
