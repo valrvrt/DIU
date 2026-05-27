@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 *.pyo
 *.pyc
+*.cypython-313.pyc
 
 # Distribution / packaging
 dist/
