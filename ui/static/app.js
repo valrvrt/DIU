@@ -422,7 +422,8 @@ function renderPlayerArea(s) {
   const inAcq = aa.phase === "acquisition";
   const persuasion = aa.persuasion_left || 0;
 
-  document.getElementById("your-name-label").textContent = (human.name || "").toUpperCase();
+  const leaderStr = human.leader?.name ? ` · ${human.leader.name}` : "";
+  document.getElementById("your-name-label").textContent = (human.name || "").toUpperCase() + leaderStr;
 
   // Resources bar
   const resBar = document.getElementById("player-resources");
@@ -459,7 +460,15 @@ function renderPlayerArea(s) {
         div.classList.add("selectable");
         div.addEventListener("click", () => selectCard(c, entry.valid_location_ids));
       } else {
-        div.style.opacity = ".45";
+        // No valid agent locations — check if it's a reveal-only card
+        const isRevealOnly = !c.agent_icons?.length && c.reveal_effects?.length > 0;
+        if (isRevealOnly) {
+          div.classList.add("reveal-only");
+          const tag = el("div","reveal-only-tag"); tag.textContent = "REVEAL";
+          div.appendChild(tag);
+        } else {
+          div.style.opacity = ".45";
+        }
       }
     } else if (inAcq) {
       // In acquisition phase, hand is revealed but not clickable for placement

@@ -485,3 +485,12 @@ body {
   box-shadow:0 4px 16px rgba(0,0,0,.6);
 }
 .combat-toast.hidden { display:none; }
+
+/* ─────── REVEAL-ONLY CARDS ─────── */
+.hand-card.reveal-only { opacity:.7; border-style:dashed; border-color:#6060a0; position:relative; }
+.reveal-only-tag {
+  position:absolute; bottom:3px; right:3px;
+  font-size:7px; color:#a090e0; font-weight:700;
+  background:rgba(80,60,140,.3); padding:1px 4px; border-radius:2px;
+  letter-spacing:.5px;
+}

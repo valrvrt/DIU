@@ -685,9 +685,11 @@ class GameSession:
         # ── makers (spice accumulation) ──
         try:
             makers_manager = self.managers["makers_manager"]
-            makers_manager.run_makers_phase()
-        except Exception:
-            pass
+            result = makers_manager.execute_makers_phase()
+            if result.get("total_bonus_added", 0) > 0:
+                self.log("makers", spaces=[s["space"] for s in result.get("spaces_updated", [])])
+        except Exception as e:
+            self.log("error", msg=f"Makers error: {e}")
 
         # ── recall ──
         for player in self.game.players:
