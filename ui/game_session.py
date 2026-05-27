@@ -518,28 +518,50 @@ class GameSession:
         # acquire_card / acquire_contract / play_intrigue: no advance needed
 
     def _run_bots_agent_phase(self) -> None:
-        """Run bots in turn order until ALL bots have revealed."""
-        # Loop repeatedly so bots with multiple agents each get all their turns.
-        # A single pass only moves each bot once; we keep going until every
-        # non-human player has revealed (or a safety limit is hit).
-        max_passes = 15  # safety: no player should ever need more than ~3 agents
-        for _ in range(max_passes):
-            any_pending = False
+        """Run bots in turn order.
+
+        If the human still has agents to place, each bot takes exactly ONE step
+        (place one agent, or auto-reveal if they have none left).  This keeps
+        turns interleaved: human → bots (once each) → human → bots (once each).
+
+        Once the human has already revealed, we run all bots to completion so
+        the round can finish.
+        """
+        human = self.human_player
+
+        if human.has_revealed_this_round:
+            # Human is done placing agents; drain all remaining bot turns.
+            max_passes = 15
+            for _ in range(max_passes):
+                any_pending = False
+                for player in self.game.players:
+                    if player.player_id == self.human_player_id:
+                        continue
+                    if player.has_revealed_this_round:
+                        continue
+                    any_pending = True
+                    if player.agents_available <= 0:
+                        self._bot_auto_reveal(player)
+                    else:
+                        self._bot_take_turn(player)
+                if not any_pending:
+                    break
+        else:
+            # Human still has agents: each bot takes exactly ONE turn.
             for player in self.game.players:
                 if player.player_id == self.human_player_id:
                     continue
                 if player.has_revealed_this_round:
                     continue
-                any_pending = True
                 if player.agents_available <= 0:
                     self._bot_auto_reveal(player)
                 else:
                     self._bot_take_turn(player)
-            if not any_pending:
-                break
+                    # If that was their last agent, reveal them immediately.
+                    if player.agents_available <= 0 and not player.has_revealed_this_round:
+                        self._bot_auto_reveal(player)
 
-        # Auto-reveal human if they have no agents left
-        human = self.human_player
+        # Auto-reveal the human if they have no agents left (e.g., started with 1).
         if not human.has_revealed_this_round and human.agents_available <= 0:
             self._human_auto_reveal()
 
