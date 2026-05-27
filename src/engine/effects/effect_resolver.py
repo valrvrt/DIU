@@ -2487,42 +2487,60 @@ class EffectResolver:
             }
 
         elif choice_type == "trash_card":
-            # Execute card trashing
+            # Execute card trashing.
+            # NOTE: card_info["card"] may be a live ImperiumCard object (from bot path)
+            # OR a plain dict (when serialised via _make_choice_json_safe for the human).
+            # We always resolve to the live card via player collection lookup.
             available_cards = choice_data.get("available_cards", [])
             player = self.state.get_player_by_id(player_id)
 
-            # Find the selected card
+            # Find the selected card_info entry
             selected_card_info = None
             for card_info in available_cards:
-                if card_info["card"].id == selected_option_id:
+                card_data = card_info.get("card", card_info)
+                cid = card_data.id if hasattr(card_data, "id") else card_data.get("id", "")
+                if str(cid) == str(selected_option_id):
                     selected_card_info = card_info
                     break
 
             if not selected_card_info:
                 return {"success": False, "error": "Invalid card selection"}
 
-            card = selected_card_info["card"]
-            source = selected_card_info["source"]
+            card_data = selected_card_info.get("card", selected_card_info)
+            source = selected_card_info.get("source", "hand")
+            card_id = card_data.id if hasattr(card_data, "id") else card_data.get("id", "")
 
-            # Remove from source
+            # Find and remove the live card from the appropriate collection
+            live_card = None
             if source == "hand":
-                player.hand.remove_card(card)
+                live_card = next((c for c in player.hand.cards if str(c.id) == str(card_id)), None)
+                if live_card:
+                    player.hand.remove(live_card)
             elif source == "played":
-                player.played_cards_this_turn.remove(card)
+                live_card = next((c for c in player.played_cards_this_turn if str(c.id) == str(card_id)), None)
+                if live_card:
+                    player.played_cards_this_turn.remove(live_card)
             elif source == "intrigue":
-                player.intrigue_cards.remove(card)
+                live_card = next((c for c in player.intrigue_cards if str(c.id) == str(card_id)), None)
+                if live_card:
+                    player.intrigue_cards.remove(live_card)
             elif source == "discard":
-                player.discard_pile.remove_card(card)
+                live_card = next((c for c in player.discard_pile.cards if str(c.id) == str(card_id)), None)
+                if live_card:
+                    player.discard_pile.remove(live_card)
 
-            # Add to trash
+            if live_card is None:
+                return {"success": False, "error": f"Card {card_id} not found in {source}"}
+
+            # Add to trash pile
             if hasattr(self.game, 'trash_pile'):
-                self.game.trash_pile.append(card)
+                self.game.trash_pile.append(live_card)
 
             return {
                 "success": True,
                 "applied": {
                     "type": "trash",
-                    "card_trashed": card.name,
+                    "card_trashed": live_card.name,
                     "from_source": source
                 }
             }
@@ -2601,25 +2619,33 @@ class EffectResolver:
             }
 
         elif choice_type == "accept_contract":
-            # Execute contract acceptance
-            contract = None
+            # Execute contract acceptance.
+            # available_contracts may contain live ContractCard objects (bot path)
+            # or serialized dicts (human path via _make_choice_json_safe).
+            # In either case, look up the live contract from the board.
             available_contracts = choice_data.get("available_contracts", [])
-
-            # Find the selected contract
-            for c in available_contracts:
-                if c.id == selected_option_id:
-                    contract = c
-                    break
-
-            if not contract:
-                return {"success": False, "error": "Contract not found"}
-
             player = self.state.get_player_by_id(player_id)
 
-            if contract not in self.game.board.contract_row:
+            # Determine the selected contract ID
+            selected_cid = None
+            for c in available_contracts:
+                c_id = c.id if hasattr(c, "id") else c.get("id", "")
+                if str(c_id) == str(selected_option_id):
+                    selected_cid = str(c_id)
+                    break
+
+            if not selected_cid:
+                return {"success": False, "error": "Contract not found"}
+
+            # Resolve to the live contract object on the board
+            contract = next(
+                (c for c in self.game.board.contract_row if str(c.id) == selected_cid),
+                None
+            )
+            if not contract:
                 return {"success": False, "error": "Contract not in row"}
 
-            # Add to player's contracts
+            # Add to player's active contracts
             player.contracts_active.append(contract)
 
             # Remove from row
@@ -2772,36 +2798,50 @@ class EffectResolver:
             }
 
         elif choice_type == "discard_card":
-            # Move selected card from its source pile to the discard pile
+            # Move selected card from its source pile to the discard pile.
+            # card_info["card"] may be a live object or a serialized dict.
             card_id = selected_option_id
             player = self.state.get_player_by_id(player_id)
 
             available = choice_data.get("available_cards", [])
             selected = None
             for ci in available:
-                if str(ci["card"].id) == str(card_id):
+                card_data = ci.get("card", ci)
+                cid = card_data.id if hasattr(card_data, "id") else card_data.get("id", "")
+                if str(cid) == str(card_id):
                     selected = ci
                     break
 
             if not selected:
                 return {"success": False, "error": f"Card {card_id} not available to discard"}
 
-            card = selected["card"]
-            source = selected["source"]
+            card_data = selected.get("card", selected)
+            source = selected.get("source", "hand")
+            cid = card_data.id if hasattr(card_data, "id") else card_data.get("id", "")
+
+            # Find and remove the live card
+            live_card = None
             if source == "hand":
-                player.hand.cards.remove(card)
+                live_card = next((c for c in player.hand.cards if str(c.id) == str(cid)), None)
+                if live_card:
+                    player.hand.remove(live_card)
             elif source == "played":
-                player.played_cards_this_turn.remove(card)
+                live_card = next((c for c in player.played_cards_this_turn if str(c.id) == str(cid)), None)
+                if live_card:
+                    player.played_cards_this_turn.remove(live_card)
             else:
                 return {"success": False, "error": f"Unsupported discard source: {source}"}
 
-            player.discard_pile.add_card(card)
+            if live_card is None:
+                return {"success": False, "error": f"Card {cid} not found in {source}"}
+
+            player.discard_pile.add_card(live_card)
 
             return {
                 "success": True,
                 "applied": {
                     "type": "discard",
-                    "card_discarded": card.name,
+                    "card_discarded": live_card.name,
                     "from_source": source
                 }
             }

@@ -588,7 +588,19 @@ function choiceTitle(ctype) {
 
 function getChoiceItems(choice) {
   const ctype = choice.type;
-  if (ctype === "choice") return (choice.options||[]).map(o=>({label:o.label||o.id,value:o.id,disabled:o.available===false}));
+  if (ctype === "choice") return (choice.options||[]).map(o => {
+    const rw = o.rewards || o.reward || [];
+    const cost = o.costs || o.cost || [];
+    let label;
+    if (rw.length) {
+      const rwStr = formatRewardsText(rw);
+      label = cost.length ? `Pay ${formatRewardsText(cost)} → ${rwStr}` : rwStr;
+    } else {
+      label = o.label || o.id || "?";
+    }
+    if (o.available === false && o.unavailable_reason) label += ` (${o.unavailable_reason})`;
+    return {label, value: o.id, disabled: o.available === false};
+  });
   if (ctype === "influence_faction") return (choice.factions||[]).map(f=>({label:factionLabel(f),value:f}));
   if (ctype === "conditional") {
     const costs=formatRewardsText(choice.costs||[]), rewards=formatRewardsText(choice.rewards||[]);
