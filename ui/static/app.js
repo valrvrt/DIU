@@ -306,6 +306,27 @@ function renderBoardSpace(sp, s) {
     div.appendChild(rw);
   }
 
+  // Influence/alliance requirements (e.g., 2+ Fremen for Sietch Tabr)
+  const checks = sp.check || [];
+  if (checks.length) {
+    const req = el("div","sp-checks");
+    checks.forEach(c => {
+      const t = c.type || "";
+      if (t === "influence") {
+        const ico = el("span","sp-check-inf");
+        ico.innerHTML = `<i class="efx influence"></i>${c.amount||1}+ ${factionLabel(c.target||"")}`;
+        req.appendChild(ico);
+      } else if (t === "council_seat") {
+        const ico = el("span","sp-check-inf"); ico.textContent = "🪑 Council seat";
+        req.appendChild(ico);
+      } else if (t === "alliance") {
+        const ico = el("span","sp-check-inf"); ico.textContent = `★ ${factionLabel(c.target||"")} alliance`;
+        req.appendChild(ico);
+      }
+    });
+    if (req.children.length) div.appendChild(req);
+  }
+
   // Combat marker
   if (sp.is_combat_space) {
     const marker = el("span","");

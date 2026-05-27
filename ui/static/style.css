@@ -169,6 +169,8 @@ body {
   font-size:9px; color:#d09030; font-weight:700; margin-top:2px;
   display:flex; align-items:center; gap:2px;
 }
+.sp-checks { font-size:8px; color:#c08070; font-style:italic; margin-top:1px; letter-spacing:.2px; }
+.sp-check-inf { display:inline-block; }
 .sp-badges { display:none; } /* hidden to save space */
 
 /* Space faction-icon strip */
