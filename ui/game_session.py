@@ -84,6 +84,8 @@ class GameSession:
         # needs to choose how many troops to deploy from garrison.
         # Shape: {"location_name": str, "max_troops": int, "bonus": int}
         self._pending_troop_deployment: Optional[Dict[str, Any]] = None
+        # History of resolved conflicts for UI display
+        self._conflict_history: List[Dict[str, Any]] = []
 
     # ──────── construction ────────
 
@@ -250,6 +252,7 @@ class GameSession:
             "pending_troop_deployment": self._pending_troop_deployment,
             "is_human_turn": self.is_human_turn,
             "events": self.drain_log(),
+            "conflict_history": self._conflict_history,
         }
 
     # ──────── choice queue management ────────
@@ -744,6 +747,28 @@ class GameSession:
                              conflict=conflict_name,
                              strength_summary=strength_summary,
                              tied=len(winners) == 0)
+                    # Record in conflict history
+                    conflict_card = self.game.board.resolved_conflicts[-1] if self.game.board.resolved_conflicts else None
+                    history_entry = {
+                        "round": self.game.current_round,
+                        "name": conflict_name,
+                        "level": getattr(conflict_card, "level", 0) if conflict_card else 0,
+                        "winner": winner or "(tied)",
+                        "tied": len(winners) == 0,
+                        "rewards": {},
+                        "worm_players": [],
+                    }
+                    # Collect per-rank rewards and worm info
+                    for rd in combat_result.get("rewards", []):
+                        if rd.get("sandworm_doubled"):
+                            history_entry["worm_players"].append(rd["player"])
+                        rank_k = str(rd["rank"])
+                        history_entry["rewards"].setdefault(rank_k, [])
+                        history_entry["rewards"][rank_k].append({
+                            "player": rd["player"],
+                            "sandworm_doubled": rd.get("sandworm_doubled", False),
+                        })
+                    self._conflict_history.append(history_entry)
                     for p in self.game.players:
                         p.troops_in_conflict = 0
                         p.sandworms_in_conflict = 0

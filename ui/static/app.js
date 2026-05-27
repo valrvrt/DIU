@@ -13,6 +13,7 @@ const G = {
   selectedLeader: null,
   leaders: [],
   objective: null,
+  conflictHistory: [],
 };
 
 // ─────────────── startup ────────────────────
@@ -112,6 +113,7 @@ function applySnapshot(snap) {
   G.state = snap.state;
   G.pendingChoice = snap.pending_choice;
   G.pendingTroopDeployment = snap.pending_troop_deployment || null;
+  G.conflictHistory = snap.conflict_history || [];
   const evts = snap.events || [];
   appendEvents(evts);
   render();
@@ -220,7 +222,11 @@ function renderFactionSpaces(s) {
     if (!cont) return;
     cont.innerHTML = "";
     const spaces = (s.board?.spaces || []).filter(sp => normFaction(sp.faction) === f);
-    spaces.forEach(sp => cont.appendChild(renderBoardSpace(sp, s)));
+    spaces.forEach(sp => {
+      const node = renderBoardSpace(sp, s);
+      node.classList.add(`space-${f}`);
+      cont.appendChild(node);
+    });
   });
 }
 
@@ -276,12 +282,16 @@ function renderNeutralSpaces(s) {
     const node = renderBoardSpace(sp, s);
 
     if (icon === "green") {
+      node.classList.add("space-landsraad");
       landsraadEl.appendChild(node);
     } else if (name.includes("shipping") || name.includes("accept")) {
+      node.classList.add("space-trade");
       shippingEl.appendChild(node);
     } else if (icon === "yellow") {
+      node.classList.add("space-desert");
       desertEl.appendChild(node);
     } else {
+      node.classList.add("space-city");
       cityEl.appendChild(node);
     }
   });
@@ -290,7 +300,6 @@ function renderNeutralSpaces(s) {
 // ─────────────── BOARD SPACE ────────────────
 function renderBoardSpace(sp, s) {
   const div = el("div","board-space");
-  const aa = s.available_actions || {};
 
   const isValid = G.selectedCard && G.selectedCard.validLocations.includes(String(sp.id));
   if (isValid) div.classList.add("valid-target");
@@ -300,7 +309,6 @@ function renderBoardSpace(sp, s) {
   const hdr = el("div","sp-header");
   const nameEl = el("span","sp-name"); nameEl.textContent = sp.name;
   hdr.appendChild(nameEl);
-  // Show cost if any (e.g. "1💧" for Desert Tactics)
   const costArr = sp.cost || [];
   if (costArr.length) {
     const costEl = el("span","sp-cost-badge");
@@ -313,32 +321,48 @@ function renderBoardSpace(sp, s) {
   }
   div.appendChild(hdr);
 
-  // Rewards (compact icon row)
+  // Rewards — choice effects expand into OR rows; regular effects are one row
   const rwArr = sp.reward || [];
   if (rwArr.length) {
-    const rw = el("div","sp-rewards");
-    rwArr.forEach(e => {
-      const ico = el("span",""); ico.innerHTML = describeEffectHTML(e);
-      rw.appendChild(ico);
+    const rwDiv = el("div","sp-rewards");
+    const nonChoice = rwArr.filter(e => e.type !== "choice");
+    const choices   = rwArr.filter(e => e.type === "choice");
+
+    if (nonChoice.length) {
+      const row = el("div","sp-reward-row");
+      nonChoice.forEach(e => { const s2 = el("span",""); s2.innerHTML = describeEffectHTML(e); row.appendChild(s2); });
+      rwDiv.appendChild(row);
+    }
+    choices.forEach(ce => {
+      (ce.options || []).forEach((opt, idx) => {
+        if (idx > 0) { const or = el("div","sp-or"); or.textContent = "OR"; rwDiv.appendChild(or); }
+        const row = el("div","sp-choice-option");
+        row.innerHTML = formatOptionRewardsHTML(opt);
+        rwDiv.appendChild(row);
+      });
     });
-    div.appendChild(rw);
+    div.appendChild(rwDiv);
   }
 
-  // Influence/alliance requirements (e.g., 2+ Fremen for Sietch Tabr)
+  // Influence/alliance requirements
   const checks = sp.check || [];
   if (checks.length) {
     const req = el("div","sp-checks");
+    const factionIcons = {fremen:"🌵",bene_gesserit:"🔮",spacing_guild:"🚀",emperor:"👑"};
     checks.forEach(c => {
       const t = c.type || "";
       if (t === "influence") {
         const ico = el("span","sp-check-inf");
-        ico.innerHTML = `<i class="efx influence"></i>${c.amount||1}+ ${factionLabel(c.target||"")}`;
+        const fIcon = factionIcons[c.target] || "★";
+        ico.textContent = `${c.amount||1}+ ${fIcon}`;
         req.appendChild(ico);
       } else if (t === "council_seat") {
-        const ico = el("span","sp-check-inf"); ico.textContent = "🪑 Council seat";
+        const ico = el("span","sp-check-inf"); ico.textContent = "🪑";
         req.appendChild(ico);
       } else if (t === "alliance") {
-        const ico = el("span","sp-check-inf"); ico.textContent = `★ ${factionLabel(c.target||"")} alliance`;
+        const ico = el("span","sp-check-inf");
+        const fIcon = factionIcons[c.target] || "★";
+        ico.textContent = `★${fIcon}`;
         req.appendChild(ico);
       }
     });
@@ -349,14 +373,15 @@ function renderBoardSpace(sp, s) {
   if (sp.is_combat_space) {
     const marker = el("span","");
     marker.innerHTML = "⚔ ";
-    marker.style.cssText = "font-size:8px;color:#e05050;";
-    div.insertBefore(marker, div.firstChild);
+    marker.style.cssText = "font-size:9px;color:#e05050;position:absolute;top:3px;right:3px;";
+    div.style.position = "relative";
+    div.appendChild(marker);
   }
 
   // Spice bonus (accumulated on maker spaces)
   if (sp.spice_bonus > 0) {
     const bonus = el("div","sp-spice-bonus");
-    bonus.innerHTML = `<i class="efx spice"></i> +${sp.spice_bonus}`;
+    bonus.innerHTML = `+${sp.spice_bonus}<i class="efx spice"></i>`;
     div.appendChild(bonus);
   }
 
@@ -388,7 +413,7 @@ function renderCombatZone(s) {
   if (conflict) {
     cfEl.innerHTML = `
       <div class="cf-name">⚔ ${conflict.name}</div>
-      <div class="cf-lvl">Level ${conflict.level}</div>
+      <div class="cf-lvl">Lvl ${conflict.level}</div>
       <div class="cf-reward">${renderConflictRewards(conflict.rewards)}</div>
     `;
   } else {
@@ -416,6 +441,45 @@ function renderCombatZone(s) {
   garr.innerHTML = s.players.map((p,i) =>
     `<span class="garrison-chip" style="color:var(--${G.playerColors[i]})">${p.name[0]}:${p.troops_in_garrison}</span>`
   ).join(" ");
+
+  // ── Conflict history ──
+  renderConflictHistory();
+}
+
+function renderConflictHistory() {
+  const hist = G.conflictHistory || [];
+  const garr = document.getElementById("garrisons");
+  if (!garr) return;
+
+  // Remove and re-create history elements each render to keep them fresh
+  const existing = document.getElementById("cf-hist-toggle");
+  if (existing) existing.remove();
+  const existingPanel = document.getElementById("cf-hist-panel");
+  if (existingPanel) existingPanel.remove();
+
+  if (!hist.length) return;
+
+  const histPanel = el("div","cf-hist-panel hidden");
+  histPanel.id = "cf-hist-panel";
+  [...hist].reverse().forEach(h => {
+    const row = el("div","cf-hist-row");
+    const wormNote = h.worm_players?.length ? ` 🪱×2` : "";
+    const winnerStr = h.tied ? "🤝 Tied" : `🏆 ${h.winner}`;
+    row.innerHTML = `
+      <span class="ch-round">R${h.round}</span>
+      <span class="ch-name">${h.name}</span>
+      <span class="ch-winner">${winnerStr}${wormNote}</span>
+    `;
+    histPanel.appendChild(row);
+  });
+
+  const histToggle = el("button","cf-hist-toggle");
+  histToggle.id = "cf-hist-toggle";
+  histToggle.textContent = `📜 ${hist.length} past conflict${hist.length > 1 ? "s" : ""}`;
+  histToggle.addEventListener("click", () => histPanel.classList.toggle("hidden"));
+
+  // Insert after garrisons
+  garr.after(histToggle, histPanel);
 }
 
 function renderConflictRewards(rewards) {
@@ -743,7 +807,25 @@ function buildCard(card, extraClass, inAcquisition, persuasion) {
     if (!effects?.length) return;
     const lbl = el("div","card-section-label"); lbl.textContent = label; body.appendChild(lbl);
     const efDiv = el("div","card-effects");
-    effects.forEach(e => efDiv.appendChild(effectLine(e)));
+    effects.forEach(e => {
+      if (e && e.type === "choice") {
+        // Expand each option as its own line with OR between
+        (e.options || []).forEach((opt, idx) => {
+          if (idx > 0) {
+            const orLine = el("div","card-or-sep"); orLine.textContent = "── OR ──";
+            efDiv.appendChild(orLine);
+          }
+          const line = el("div","effect-line");
+          const bullet = el("span","ef-bullet"); bullet.textContent = "→";
+          const text = el("span","ef-text");
+          text.innerHTML = formatOptionRewardsHTML(opt);
+          line.appendChild(bullet); line.appendChild(text);
+          efDiv.appendChild(line);
+        });
+      } else {
+        efDiv.appendChild(effectLine(e));
+      }
+    });
     body.appendChild(efDiv);
   }
 
@@ -813,41 +895,41 @@ function describeIntrigueEffect(e) {
   if (!e || typeof e !== "object") return String(e || "");
   const t = e.type || "";
 
-  // Simple pass-through to describeEffectHTML for standard effects
-  if (["resource","draw","influence","victory_point","trash","deploy_troops","combat_strength"].includes(t)) {
+  // Standard effects — delegate
+  if (["resource","draw","influence","victory_point","trash","deploy_troops","combat_strength",
+       "accept","council_seat","maker_hooks","recall_agent","spy","restrict","shield_wall"].includes(t)) {
     return describeEffectHTML(e);
   }
 
-  // Choice: show each option separated by /
+  // Choice: each option expanded with OR
   if (t === "choice") {
     const parts = (e.options||[]).map(o => {
-      const costStr = o.cost?.length ? formatRewardsText(o.cost) + " → " : "";
-      const rwStr = o.reward?.length ? formatRewardsText(o.reward) : (o.id||"?");
-      const cond = o.condition ? ` (if ${o.condition.type})` : "";
-      return costStr + rwStr + cond;
+      const cond = o.condition ? ` <em style="color:var(--text-dim)">(if ${o.condition.type})</em>` : "";
+      return formatOptionRewardsHTML(o) + cond;
     });
-    return `Choose: ${parts.join(" / ")}`;
+    return parts.join(`<span style="color:var(--gold-dim);font-size:8px;margin:0 3px">OR</span>`);
   }
 
-  // Action with cost+reward
+  // Action with cost → reward
   if (t === "action" || (e.cost && e.reward)) {
-    const costStr = e.cost?.length ? formatRewardsText(e.cost) + " → " : "";
-    const rwStr = e.reward?.length ? formatRewardsText(e.reward) : "";
-    return costStr + rwStr;
+    const costHTML = (e.cost||[]).map(x => describeEffectHTML(x)).join("") || "";
+    const rwHTML   = (e.reward||[]).map(x => describeEffectHTML(x)).join(" ") || "";
+    return costHTML ? `<span class="ef-cost">${costHTML}&thinsp;→</span> ${rwHTML}` : rwHTML;
   }
 
   // Conditional reward
   if (t === "conditional_reward") {
-    const cond = e.condition?.type || "condition";
-    const rwStr = e.reward?.length ? formatRewardsText(e.reward) : "";
-    return `If ${cond}: ${rwStr}`;
+    const cond = e.condition?.type || "?";
+    const rwHTML = (e.reward||[]).map(x => describeEffectHTML(x)).join(" ") || "";
+    return `❓<em style="color:var(--text-dim);font-size:8px">${cond}</em>: ${rwHTML}`;
   }
 
-  // Fallback: try as standard effect
   return describeEffectHTML(e) || t;
 }
 
 // ─────────────── EFFECT RENDERING ───────────
+const FACTION_ICONS = {fremen:"🌵", bene_gesserit:"🔮", spacing_guild:"🚀", emperor:"👑"};
+
 function effectLine(e) {
   const line = el("div","effect-line");
   const bullet = el("span","ef-bullet"); bullet.textContent = "·";
@@ -864,54 +946,65 @@ function describeEffectHTML(e) {
   const amt = e.amount != null ? e.amount : 1;
 
   if (t === "resource") {
-    const res = e.resource || "";
-    const iconH = resourceIconHTML(res);
-    return `${iconH}${amt > 1 ? ` ×${amt}` : ""}`;
+    const iconH = resourceIconHTML(e.resource || "");
+    return amt !== 1 ? `+${amt}${iconH}` : `${iconH}`;
   }
   if (t === "draw") {
-    if (e.deck === "intrigue") return `<i class="efx intrigue-draw"></i>${amt > 1 ? ` ×${amt}` : ""}`;
-    return `<i class="efx card-draw"></i>${amt > 1 ? ` ×${amt}` : ""}`;
+    const icon = e.deck === "intrigue"
+      ? `<i class="efx intrigue-draw"></i>`
+      : `<i class="efx card-draw"></i>`;
+    return amt !== 1 ? `+${amt}${icon}` : icon;
   }
-  if (t === "influence") return `<i class="efx influence"></i> ${factionLabel(e.target||"")}`;
-  if (t === "victory_point") return `⭐×${amt}`;
+  if (t === "influence") {
+    const fIcon = FACTION_ICONS[e.target] || "★";
+    return `↑${fIcon}`;
+  }
+  if (t === "victory_point") return `+${amt}⭐`;
   if (t === "choice") {
-    const parts = (e.options||[]).slice(0,3).map(o => {
-      const rw = o.reward || [];
-      const cost = o.cost || [];
-      const rwStr = formatRewardsText(rw);
-      if (cost.length) return `(${formatRewardsText(cost)}→${rwStr})`;
-      return rwStr || o.id || "?";
-    });
-    return `Choose: ${parts.join(" / ")}`;
+    // Inline context (intrigue card body): show options separated by OR
+    const parts = (e.options || []).map(o => formatOptionRewardsHTML(o));
+    return parts.join(`<span style="color:var(--gold-dim);font-size:8px;margin:0 3px">OR</span>`);
   }
-  if (t === "conditional") return `Optional bonus`;
-  if (t === "trash") return `🗑 ×${amt}`;
-  if (t === "accept") return `📋 take contract`;
-  if (t === "council_seat") return `🪑 Council`;
-  if (t === "maker_hooks") return `🪝 Maker hooks`;
-  if (t === "recall_agent") return `↩ recall agent`;
-  if (t === "restrict") return `⚠ restrict`;
-  if (t === "deploy_troops") return `🗡 +${amt} to battle`;
-  if (t === "combat_strength") return `⚔ +${amt} strength`;
-  if (t === "spy") return `🕵 spy post`;
-  if (t === "steal") return `steal`;
-  if (t === "shield_wall") return `🛡 shield`;
+  if (t === "conditional") return `❓`;
+  if (t === "trash")          return `🗑${amt > 1 ? `×${amt}` : ""}`;
+  if (t === "accept")         return `📋`;
+  if (t === "council_seat")   return `🪑`;
+  if (t === "maker_hooks")    return `🪝`;
+  if (t === "recall_agent")   return `↩`;
+  if (t === "restrict")       return `⚠`;
+  if (t === "deploy_troops")  return `🗡+${amt}`;
+  if (t === "combat_strength") return `⚔+${amt}`;
+  if (t === "spy")            return `🕵`;
+  if (t === "steal")          return `⚡`;
+  if (t === "shield_wall")    return `🛡`;
   return t;
 }
 
 function resourceIconHTML(res) {
   const map = {
-    solari:   `<i class="efx solari"></i>`,
-    spice:    `<i class="efx spice"></i>`,
-    water:    `💧`,
-    troop:    `🗡`,
-    persuasion: `<i class="efx persuasion"></i>`,
-    sword:    `⚔`,
-    worm:     `🪱`,
-    agent:    `📍`,
+    solari:        `<i class="efx solari"></i>`,
+    spice:         `<i class="efx spice"></i>`,
+    water:         `💧`,
+    troop:         `🗡`,
+    persuasion:    `<i class="efx persuasion"></i>`,
+    sword:         `⚔`,
+    worm:          `🪱`,
+    agent:         `📍`,
     victory_point: `⭐`,
   };
   return map[res] || res;
+}
+
+/** Render one choice option (reward ± cost) as HTML icons. */
+function formatOptionRewardsHTML(opt) {
+  const rewardArr = opt.reward || opt.rewards || [];
+  const costArr   = opt.cost   || opt.costs   || [];
+  const rewHTML = rewardArr.map(e => describeEffectHTML(e)).filter(Boolean).join(" ");
+  if (costArr.length) {
+    const costHTML = costArr.map(e => describeEffectHTML(e)).filter(Boolean).join("");
+    return `<span class="ef-cost">${costHTML}&thinsp;→</span> ${rewHTML}`;
+  }
+  return rewHTML || (opt.id ? `<em style="color:var(--text-dim)">${opt.id}</em>` : "—");
 }
 
 function formatRewardsText(effects) {
@@ -919,10 +1012,15 @@ function formatRewardsText(effects) {
   return effects.map(e => {
     if (!e || typeof e !== "object") return String(e);
     const t = e.type || "", amt = e.amount ?? 1, res = e.resource || "";
-    if (t === "resource") return `+${amt}${res[0]||""}`;
-    if (t === "victory_point") return `${amt}VP`;
-    if (t === "influence") return `+inf`;
-    if (t === "draw") return `+${amt}card`;
+    if (t === "resource") {
+      const sym = {solari:"●",spice:"◆",water:"💧",troop:"🗡",persuasion:"◇",sword:"⚔",worm:"🪱",agent:"📍"}[res] || res[0] || "";
+      return `+${amt}${sym}`;
+    }
+    if (t === "victory_point") return `+${amt}⭐`;
+    if (t === "influence") return `↑${FACTION_ICONS[e.target]||"★"}`;
+    if (t === "draw") return e.deck==="intrigue" ? `+${amt}🃏` : `+${amt}🂠`;
+    if (t === "accept") return `📋`;
+    if (t === "victory_point") return `+${amt}⭐`;
     return t;
   }).filter(Boolean).join(" ") || "—";
 }
@@ -988,10 +1086,15 @@ function showCombatToast(ev) {
   }
   const isTied = ev.tied || winner === "(tied)";
   lines.push(isTied ? "🤝 Tied — no winner" : `🏆 Winner: ${winner}`);
+  // Show worm doubling note
+  const wormPlayers = (G.conflictHistory[G.conflictHistory.length - 1] || {}).worm_players || [];
+  if (wormPlayers.length) {
+    lines.push(`🪱 ${wormPlayers.join(", ")}: rewards ×2!`);
+  }
   toast.innerHTML = lines.join("<br>");
   toast.classList.remove("hidden");
   clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => toast.classList.add("hidden"), 5000);
+  toast._timer = setTimeout(() => toast.classList.add("hidden"), 6000);
 }
 
 // ─────────────── GAME OVER ────────────────

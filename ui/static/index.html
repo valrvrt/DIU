@@ -89,59 +89,10 @@
     </div>
   </div>
 
-  <!-- MAIN AREA: 3 columns -->
+  <!-- MAIN AREA: center + imperium (factions integrated as bottom row) -->
   <div class="main-area">
 
-    <!-- LEFT: Faction sections stacked vertically -->
-    <div class="faction-column">
-
-      <div class="faction-section" id="faction-fremen">
-        <div class="faction-header fremen">
-          <span class="faction-icon">🌵</span>
-          <span class="faction-name">FREMEN</span>
-        </div>
-        <div class="faction-body">
-          <div class="influence-col" id="inf-fremen"></div>
-          <div class="faction-spaces" id="spaces-fremen"></div>
-        </div>
-      </div>
-
-      <div class="faction-section" id="faction-bene_gesserit">
-        <div class="faction-header bene_gesserit">
-          <span class="faction-icon">🔮</span>
-          <span class="faction-name">BENE GESSERIT</span>
-        </div>
-        <div class="faction-body">
-          <div class="influence-col" id="inf-bene_gesserit"></div>
-          <div class="faction-spaces" id="spaces-bene_gesserit"></div>
-        </div>
-      </div>
-
-      <div class="faction-section" id="faction-spacing_guild">
-        <div class="faction-header spacing_guild">
-          <span class="faction-icon">🚀</span>
-          <span class="faction-name">SPACING GUILD</span>
-        </div>
-        <div class="faction-body">
-          <div class="influence-col" id="inf-spacing_guild"></div>
-          <div class="faction-spaces" id="spaces-spacing_guild"></div>
-        </div>
-      </div>
-
-      <div class="faction-section" id="faction-emperor">
-        <div class="faction-header emperor">
-          <span class="faction-icon">👑</span>
-          <span class="faction-name">EMPEROR</span>
-        </div>
-        <div class="faction-body">
-          <div class="influence-col" id="inf-emperor"></div>
-          <div class="faction-spaces" id="spaces-emperor"></div>
-        </div>
-      </div>
-
-    </div><!-- end faction-column -->
-
-    <!-- CENTER: Neutral board + combat -->
+    <!-- CENTER: All board sections + faction row -->
     <div class="board-center">
 
       <!-- Row 1: Landsraad + Shipping aside -->
@@ -179,6 +130,47 @@
           <div id="garrisons" class="garrisons"></div>
         </div>
       </div>
+
+      <!-- Row 4: Faction sections (horizontal) -->
+      <div class="center-row faction-row">
+
+        <div class="faction-section-h" id="faction-fremen">
+          <div class="faction-header fremen">
+            <span class="faction-icon">🌵</span>
+            <span class="faction-name">FREMEN</span>
+          </div>
+          <div class="influence-col" id="inf-fremen"></div>
+          <div class="faction-spaces" id="spaces-fremen"></div>
+        </div>
+
+        <div class="faction-section-h" id="faction-bene_gesserit">
+          <div class="faction-header bene_gesserit">
+            <span class="faction-icon">🔮</span>
+            <span class="faction-name">BENE GESSERIT</span>
+          </div>
+          <div class="influence-col" id="inf-bene_gesserit"></div>
+          <div class="faction-spaces" id="spaces-bene_gesserit"></div>
+        </div>
+
+        <div class="faction-section-h" id="faction-spacing_guild">
+          <div class="faction-header spacing_guild">
+            <span class="faction-icon">🚀</span>
+            <span class="faction-name">SPACING GUILD</span>
+          </div>
+          <div class="influence-col" id="inf-spacing_guild"></div>
+          <div class="faction-spaces" id="spaces-spacing_guild"></div>
+        </div>
+
+        <div class="faction-section-h" id="faction-emperor">
+          <div class="faction-header emperor">
+            <span class="faction-icon">👑</span>
+            <span class="faction-name">EMPEROR</span>
+          </div>
+          <div class="influence-col" id="inf-emperor"></div>
+          <div class="faction-spaces" id="spaces-emperor"></div>
+        </div>
+
+      </div><!-- end faction-row -->
 
     </div><!-- end board-center -->
 
