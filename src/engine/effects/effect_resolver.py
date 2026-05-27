@@ -568,9 +568,10 @@ class EffectResolver:
                     })
 
             if not available_posts:
+                # No posts available — skip silently so other effects still apply
                 return {
-                    "success": False,
-                    "error": "No available observation posts"
+                    "success": True,
+                    "applied": {"type": "play", "unit": "spy", "skipped": True, "reason": "No available observation posts"}
                 }
 
             # Human players must pick; bots auto-select first available post
