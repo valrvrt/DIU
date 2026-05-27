@@ -190,7 +190,7 @@ class GameSession:
                 "can_reveal": True,
                 "can_place_agent": bool(playable) and human.agents_available > 0,
                 "playable_cards": playable,
-                "max_troops": troop_opts.get("max_deployable", 0),
+                "max_troops": troop_opts.get("max_from_garrison", 0),
             }
 
         if phase == "player_turns" and human.has_revealed_this_round:
@@ -360,7 +360,7 @@ class GameSession:
             player_id=self.human_player_id, card=card, source=source
         ))
         if result.get("success"):
-            human.temp_persuasion = getattr(human, "temp_persuasion", 0) - card.cost
+            # Note: action_executor already deducts card.cost from temp_persuasion; don't double-deduct
             self.log("acquire_card", player=human.name, card=card.name, cost=card.cost)
             # Contract completions
             for comp in result.get("contract_completions", {}).get("completed_contracts", []):
@@ -630,14 +630,14 @@ class GameSession:
 
         # ── combat ──
         if self.game.board.current_conflict:
+            conflict_name = self.game.board.current_conflict.name
             try:
-                combat_result = combat_manager.resolve_combat()
+                # Pass intrigue_round_complete=True to skip intrigue phase (web UI handles no intrigue round)
+                combat_result = combat_manager.resolve_conflict(intrigue_round_complete=True)
                 if combat_result.get("success"):
-                    winner = combat_result.get("winner_name", "")
-                    if winner:
-                        self.log("combat_resolved", winner=winner,
-                                 conflict=self.game.board.current_conflict.name
-                                 if self.game.board.current_conflict else "")
+                    winners = combat_result.get("winners", [])
+                    winner = winners[0] if winners else ""
+                    self.log("combat_resolved", winner=winner or "(tied)", conflict=conflict_name)
                     for p in self.game.players:
                         p.troops_in_conflict = 0
                         p.sandworms_in_conflict = 0
