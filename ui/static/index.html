@@ -140,6 +140,8 @@
         <div class="neutral-group shipping-aside">
           <div class="group-label"><i class="grp-icon ship-icon"></i>TRADE</div>
           <div class="space-grid" id="spaces-shipping"></div>
+          <div class="contract-panel-header">📋 CONTRACTS</div>
+          <div id="contract-display" class="contract-display-panel"></div>
         </div>
       </div>
 
@@ -186,9 +188,8 @@
         <button id="reveal-btn" class="btn-action hidden" onclick="doReveal()">👁 Reveal</button>
         <button id="end-acq-btn" class="btn-action hidden" onclick="endAcquisition()">✓ Done</button>
         <button id="obj-btn" class="btn-icon" onclick="showObjective()" title="Objective">🎯</button>
-        <!-- Contracts strip inline -->
-        <div id="contract-row" class="contract-row-inline"></div>
       </div>
+      <div id="player-resources" class="player-resources-bar"></div>
       <div id="hand-cards" class="hand-cards"></div>
     </div>
     <div class="player-area-mid">

@@ -120,7 +120,7 @@ function render() {
   const s = G.state;
   if (!s) return;
   renderTopBar(s);
-  renderContractsStrip(s);
+  renderContractDisplay(s);
   renderFactionSpaces(s);
   renderNeutralSpaces(s);
   renderCombatZone(s);
@@ -160,27 +160,38 @@ function phaseLabel(phase) {
   return map[phase] || phase || "—";
 }
 
-// ─────────────── CONTRACTS STRIP ────────────
-function renderContractsStrip(s) {
-  const row = document.getElementById("contract-row");
-  row.innerHTML = "";
+// ─────────────── CONTRACT DISPLAY (board Trade panel) ────────────
+function renderContractDisplay(s) {
+  const panel = document.getElementById("contract-display");
+  if (!panel) return;
+  panel.innerHTML = "";
   const aa = s.available_actions || {};
+  const inAcq = aa.phase === "acquisition";
   const contracts = s.board?.contract_row || [];
+
+  if (!contracts.length) {
+    const empty = el("div",""); empty.style.cssText = "font-size:8px;color:var(--text-dim)";
+    empty.textContent = "None available";
+    panel.appendChild(empty);
+    return;
+  }
+
   contracts.forEach(c => {
-    const chip = el("div","contract-chip");
-    chip.innerHTML = `<span>${c.name}</span><span class="cond">${contractCondition(c)}</span><span class="reward">→ ${formatRewardsText(c.rewards||[])}</span>`;
-    if (aa.phase === "acquisition") {
-      chip.addEventListener("click", () => promptAcceptContract(c));
-    }
-    row.appendChild(chip);
+    const item = el("div", "contract-item");
+    item.innerHTML = `
+      <div class="ci-name">${c.name}</div>
+      <div class="ci-cond">${contractCondition(c)}</div>
+      <div class="ci-reward">→ ${formatRewardsText(c.rewards || [])}</div>
+    `;
+    panel.appendChild(item);
   });
 }
 
 function contractCondition(c) {
-  if (c.completion_type === "immediate") return "now";
-  if (c.completion_type === "location")  return `@${c.completion_target}`;
-  if (c.completion_type === "harvest")   return `⛏${c.required_spice}`;
-  if (c.completion_type === "acquire_card") return `buy`;
+  if (c.completion_type === "immediate") return "immediate";
+  if (c.completion_type === "location")  return `visit: ${c.completion_target}`;
+  if (c.completion_type === "harvest")   return `harvest ≥${c.required_spice} spice`;
+  if (c.completion_type === "acquire_card") return `buy a card`;
   return c.completion_type || "";
 }
 
@@ -296,12 +307,20 @@ function renderBoardSpace(sp, s) {
     div.insertBefore(marker, div.firstChild);
   }
 
+  // Spice bonus (accumulated on maker spaces)
+  if (sp.spice_bonus > 0) {
+    const bonus = el("div","sp-spice-bonus");
+    bonus.innerHTML = `<i class="efx spice"></i> +${sp.spice_bonus}`;
+    div.appendChild(bonus);
+  }
+
   // Occupant
   if (sp.occupied_by) {
     const pidx = s.players.findIndex(p => p.player_id === sp.occupied_by);
-    const name = s.players[pidx]?.name || "?";
-    const occ = el("span", `sp-occupant occ-${Math.max(pidx,0)}`);
-    occ.textContent = "🧍" + name[0];
+    const pobj = s.players[pidx];
+    const name = pobj?.name || "?";
+    const occ = el("div", `sp-occupant occ-${Math.max(pidx,0)}`);
+    occ.textContent = pobj?.is_human ? `YOU` : `BOT-${name[0]}`;
     div.appendChild(occ);
   }
 
@@ -397,6 +416,21 @@ function renderPlayerArea(s) {
   const persuasion = aa.persuasion_left || 0;
 
   document.getElementById("your-name-label").textContent = (human.name || "").toUpperCase();
+
+  // Resources bar
+  const resBar = document.getElementById("player-resources");
+  if (resBar) {
+    const aa2 = s.available_actions || {};
+    const agentsStr = `${human.agents_available}/${human.total_available_agents}`;
+    resBar.innerHTML = `
+      <span class="res-chip"><i class="efx vp">⭐</i><span class="rc-val">${human.victory_points}</span></span>
+      <span class="res-chip"><i class="efx solari"></i><span class="rc-val">${human.solari}</span></span>
+      <span class="res-chip"><i class="efx spice"></i><span class="rc-val">${human.spice}</span></span>
+      <span class="res-chip">💧<span class="rc-val">${human.water}</span></span>
+      <span class="res-chip">🏰<span class="rc-val">${human.troops_in_garrison}</span>garrison</span>
+      <span class="res-chip">📍<span class="rc-val">${agentsStr}</span>agents</span>
+    `;
+  }
 
   const pbadge = document.getElementById("persuasion-display");
   if (inAcq && persuasion > 0) {
@@ -691,7 +725,16 @@ function describeEffectHTML(e) {
   }
   if (t === "influence") return `<i class="efx influence"></i> ${factionLabel(e.target||"")}`;
   if (t === "victory_point") return `⭐×${amt}`;
-  if (t === "choice") return `Choose: ${(e.options||[]).slice(0,2).map(o=>o.id||"").join("/")}`;
+  if (t === "choice") {
+    const parts = (e.options||[]).slice(0,3).map(o => {
+      const rw = o.reward || [];
+      const cost = o.cost || [];
+      const rwStr = formatRewardsText(rw);
+      if (cost.length) return `(${formatRewardsText(cost)}→${rwStr})`;
+      return rwStr || o.id || "?";
+    });
+    return `Choose: ${parts.join(" / ")}`;
+  }
   if (t === "conditional") return `Optional bonus`;
   if (t === "trash") return `<i class="efx trash"></i>×${amt}`;
   if (t === "accept") return `<i class="efx contract"></i> contract`;

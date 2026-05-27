@@ -452,16 +452,25 @@ class GameSession:
         # acquire_card / acquire_contract / play_intrigue: no advance needed
 
     def _run_bots_agent_phase(self) -> None:
-        """Run bots in turn until it's the human's turn again (or all revealed)."""
-        for player in self.game.players:
-            if player.player_id == self.human_player_id:
-                continue
-            if player.has_revealed_this_round:
-                continue
-            if player.agents_available <= 0:
-                self._bot_auto_reveal(player)
-            else:
-                self._bot_take_turn(player)
+        """Run bots in turn order until ALL bots have revealed."""
+        # Loop repeatedly so bots with multiple agents each get all their turns.
+        # A single pass only moves each bot once; we keep going until every
+        # non-human player has revealed (or a safety limit is hit).
+        max_passes = 15  # safety: no player should ever need more than ~3 agents
+        for _ in range(max_passes):
+            any_pending = False
+            for player in self.game.players:
+                if player.player_id == self.human_player_id:
+                    continue
+                if player.has_revealed_this_round:
+                    continue
+                any_pending = True
+                if player.agents_available <= 0:
+                    self._bot_auto_reveal(player)
+                else:
+                    self._bot_take_turn(player)
+            if not any_pending:
+                break
 
         # Auto-reveal human if they have no agents left
         human = self.human_player
