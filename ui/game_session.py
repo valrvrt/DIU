@@ -385,6 +385,8 @@ class GameSession:
                 self.log("deploy_troops", player=self.human_player.name,
                          count=num, location=self._pending_troop_deployment.get("location_name"))
             self._pending_troop_deployment = None
+            # After deploying, complete the turn (auto-reveal if no agents left)
+            self._run_bots_agent_phase()
         return result
 
     def _do_reveal(self, d: Dict) -> Dict:
@@ -561,11 +563,16 @@ class GameSession:
                     if player.agents_available <= 0 and not player.has_revealed_this_round:
                         self._bot_auto_reveal(player)
 
-        # Auto-reveal the human if they have no agents left (e.g., started with 1).
-        if not human.has_revealed_this_round and human.agents_available <= 0:
+        # Auto-reveal the human if they have no agents left.
+        # Skip if troop deployment is still pending — it will trigger another
+        # call to this function after the player responds to the picker.
+        if (not human.has_revealed_this_round
+                and human.agents_available <= 0
+                and not self._pending_troop_deployment):
             self._human_auto_reveal()
 
     def _human_auto_reveal(self) -> None:
+        self._pending_troop_deployment = None  # can't deploy after auto-reveal
         action_exec = self.managers["action_executor"]
         result = action_exec.execute_reveal(RevealAction(player_id=self.human_player_id))
         if result.get("success"):
