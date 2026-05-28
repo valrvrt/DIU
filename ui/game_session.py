@@ -496,6 +496,10 @@ class GameSession:
         except Exception as e:
             return {"error": str(e), **self.snapshot()}
 
+        # If this was an accept_contract choice, consume the pending token
+        if choice_data.get("type") == "accept_contract":
+            self._pending_contract_accepts = max(0, self._pending_contract_accepts - 1)
+
         self._clear_pending_choice()
         if not self.pending_choice:
             self._post_action_advance("resolve_choice")
