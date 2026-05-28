@@ -408,7 +408,7 @@ class GameSession:
         action_exec = self.managers["action_executor"]
         human = self.human_player
         card_id = d.get("card_id", "")
-        source = d.get("source", "row")
+        source = d.get("source", "row") or "row"
 
         # Find card in imperium_row or reserve
         card = next((c for c in self.game.board.imperium_row if c.id == card_id), None)

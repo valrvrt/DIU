@@ -508,8 +508,9 @@ class EffectResolver:
 
             if player.spies_available < amount:
                 return {
-                    "success": False,
-                    "error": f"Not enough spies available (have {player.spies_available}, need {amount})"
+                    "success": True,
+                    "applied": {"type": "play", "unit": "spy", "skipped": True,
+                                "reason": f"Not enough spies (have {player.spies_available}, need {amount})"}
                 }
 
             # Check if observation posts exist
