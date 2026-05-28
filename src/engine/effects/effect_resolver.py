@@ -4286,7 +4286,6 @@ class EffectResolver:
                 "reward": [{"type": "resource", "resource": "victory_point", "amount": 1}]
             }
         """
-        player = self.state.get_player_by_id(player_id)
         costs = effect.get("cost", [])
         rewards = effect.get("reward", [])
 
@@ -4302,30 +4301,32 @@ class EffectResolver:
                 "error": "No rewards specified for trade"
             }
 
-        # Check if player can afford the costs
+        # A trade is OPTIONAL: the player MAY pay the cost for the reward.
+        # If they can't afford it, skip silently so the rest of the agent's
+        # effects still resolve (matches _handle_conditional behaviour).
         cost_check = self._check_costs(player_id, costs)
         if not cost_check.get("success"):
-            return cost_check
-
-        # Apply costs
-        cost_result = self.apply_costs(player_id, costs)
-        if not cost_result.get("success"):
-            return cost_result
-
-        # Apply rewards
-        reward_result = self.resolve_effects(player_id, rewards, {**context, "monitor_triggers": False})
-
-        if reward_result.get("success"):
             return {
                 "success": True,
-                "effects_applied": ["Trade completed"] + reward_result.get("effects_applied", [])
+                "applied": {
+                    "type": "trade",
+                    "declined": True,
+                    "reason": "Cannot afford cost"
+                }
             }
-        else:
-            # Rollback costs if reward failed (though this shouldn't happen)
-            return {
-                "success": False,
-                "error": "Trade reward failed"
+
+        # Affordable: present the optional accept/decline choice. We reuse the
+        # "conditional" choice type since it has the same accept/decline shape
+        # and is already handled by both the human UI and the bot resolver.
+        return {
+            "success": True,
+            "choice_required": True,
+            "choice_data": {
+                "type": "conditional",
+                "costs": costs,
+                "rewards": rewards
             }
+        }
 
     def _handle_acquire_card(
         self,
