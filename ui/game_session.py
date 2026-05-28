@@ -868,6 +868,7 @@ class GameSession:
     def _start_next_round(self) -> None:
         """Increment round, draw new conflict, reset acquisition flag."""
         if self._check_game_end():
+            self._apply_endgame_scoring()
             self.game.current_phase = GamePhase.GAME_OVER
             return
 
@@ -888,3 +889,31 @@ class GameSession:
         if self.game.current_round >= 10:
             return True
         return False
+
+    def _apply_endgame_scoring(self) -> None:
+        """Resolve end-of-game VP from intrigue cards still held by players.
+
+        Cards like CHOAM Profits, Secure Spice Trade and Shadow Alliance carry
+        an ``endgame_condition`` effect that grants VP if a condition is met at
+        game end. These are never triggered during normal play, so we score
+        them here before flipping to GAME_OVER.
+        """
+        effect_resolver = self.managers["effect_resolver"]
+        for player in self.game.players:
+            for card in list(getattr(player, "intrigue_cards", [])):
+                for effect in getattr(card, "effects", []) or []:
+                    if not isinstance(effect, dict):
+                        continue
+                    if effect.get("type") != "endgame_condition":
+                        continue
+                    try:
+                        result = effect_resolver.resolve_effects(
+                            player.player_id, [effect],
+                            context={"phase": "endgame", "card": card.name},
+                        )
+                    except Exception as e:
+                        self.log("error", msg=f"Endgame scoring error: {e}")
+                        continue
+                    if result.get("success"):
+                        self.log("endgame_score", player=player.name,
+                                 card=card.name)

@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pytest
 
 from ui.game_session import GameSession
-from ui.serializer import serialize_state
+from ui.serializer import serialize_state, _game_over_data
+from src.loaders.card_loader import load_intrigue_cards
 
 
 def test_session_constructs_with_three_players():
@@ -160,3 +161,52 @@ def test_player_resources_present_in_view():
     # Influence has four factions
     for faction in ("fremen", "bene_gesserit", "spacing_guild", "emperor"):
         assert faction in human["influence"]
+
+
+def _endgame_card(name):
+    for c in load_intrigue_cards():
+        if c.name == name:
+            return c
+    raise AssertionError(f"intrigue card not found: {name}")
+
+
+def test_endgame_scoring_awards_vp_when_condition_met():
+    session = GameSession.new(player_count=3, human_name="Hero")
+    human = session.human_player
+    # Shadow Alliance: any faction influence >= 4 -> +1 VP
+    human.intrigue_cards.append(_endgame_card("Shadow Alliance"))
+    # CHOAM Profits: 4 contracts completed -> +1 VP
+    human.intrigue_cards.append(_endgame_card("CHOAM Profits"))
+    human.fremen_influence = 5
+    human.contracts_completed = ["c1", "c2", "c3", "c4"]
+
+    vp_before = human.victory_points
+    session._apply_endgame_scoring()
+    assert human.victory_points == vp_before + 2
+
+
+def test_endgame_scoring_skips_when_condition_unmet():
+    session = GameSession.new(player_count=3, human_name="Hero")
+    human = session.human_player
+    human.intrigue_cards.append(_endgame_card("Shadow Alliance"))
+    human.fremen_influence = 2  # below the required 4
+
+    vp_before = human.victory_points
+    session._apply_endgame_scoring()
+    assert human.victory_points == vp_before
+
+
+def test_game_over_ranking_breaks_vp_tie_by_spice():
+    class _G:
+        current_round = 8
+    players = [
+        {"player_id": "p0", "name": "A", "victory_points": 7, "spice": 1,
+         "solari": 1, "water": 0, "troops_in_garrison": 0, "is_human": True},
+        {"player_id": "p1", "name": "B", "victory_points": 7, "spice": 5,
+         "solari": 0, "water": 0, "troops_in_garrison": 0, "is_human": False},
+    ]
+    data = _game_over_data(_G(), players)
+    # B wins the VP tie on spice; it is NOT a shared win.
+    assert data["ranked_players"][0]["name"] == "B"
+    assert data["winner_names"] == ["B"]
+    assert data["is_human_winner"] is False

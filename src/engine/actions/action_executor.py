@@ -721,16 +721,18 @@ class ActionExecutor:
                     action.card.cost
                 )
             elif action.source == "prepare":
+                # Use the card's own cost so the charged price always matches
+                # what the UI displays and what execute_reveal validated against.
                 result = self.deck_manager.acquire_reserve_card(
                     action.player_id,
                     "prepare_the_way",
-                    2  # Standard cost
+                    action.card.cost
                 )
             elif action.source == "spice":
                 result = self.deck_manager.acquire_reserve_card(
                     action.player_id,
                     "spice_must_flow",
-                    9  # Standard cost
+                    action.card.cost
                 )
             else:
                 return {"success": False, "error": f"Unknown source: {action.source}"}

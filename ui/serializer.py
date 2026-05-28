@@ -236,9 +236,20 @@ def _player_private(player: Player) -> Dict[str, Any]:
 
 def _game_over_data(game: Game, players_serialized: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Build final score / ranking data shown on the game-over overlay."""
-    # Sort players by VP descending, then by name for tie-breaking display
-    ranked = sorted(players_serialized, key=lambda p: -p.get("victory_points", 0))
-    winners = [p["name"] for p in ranked if p.get("victory_points", 0) == ranked[0].get("victory_points", 0)]
+    # Official tiebreaker order: VP → Spice → Solari → Water → Garrison Troops.
+    def _rank_key(p: Dict[str, Any]):
+        return (
+            p.get("victory_points", 0),
+            p.get("spice", 0),
+            p.get("solari", 0),
+            p.get("water", 0),
+            p.get("troops_in_garrison", 0),
+        )
+
+    ranked = sorted(players_serialized, key=_rank_key, reverse=True)
+    top_key = _rank_key(ranked[0]) if ranked else ()
+    # A true tie requires every tiebreaker to match, not just VP.
+    winners = [p["name"] for p in ranked if _rank_key(p) == top_key]
     return {
         "ranked_players": [
             {
@@ -247,13 +258,15 @@ def _game_over_data(game: Game, players_serialized: List[Dict[str, Any]]) -> Dic
                 "vp": p.get("victory_points", 0),
                 "solari": p.get("solari", 0),
                 "spice": p.get("spice", 0),
+                "water": p.get("water", 0),
+                "garrison": p.get("troops_in_garrison", 0),
                 "is_human": p.get("is_human", False),
             }
             for p in ranked
         ],
         "winner_names": winners,
         "is_human_winner": any(p.get("is_human") for p in ranked
-                                if p.get("victory_points", 0) == ranked[0].get("victory_points", 0)),
+                                if _rank_key(p) == top_key),
         "total_rounds": game.current_round,
     }
 
