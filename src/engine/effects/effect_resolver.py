@@ -621,6 +621,11 @@ class EffectResolver:
         Requires player choice of which contract (row refills automatically).
         """
         amount = effect.get("amount", 1)
+        player = self.state.get_player_by_id(player_id)
+
+        # Cannot accept if already at cap (2 active contracts)
+        if player and len(getattr(player, "contracts_active", [])) >= 2:
+            return {"success": True, "applied": {"type": "accept", "skipped": True}}
 
         # Get available contracts from row
         if not hasattr(self.game.board, 'contract_row') or not self.game.board.contract_row:
@@ -644,7 +649,8 @@ class EffectResolver:
             "choice_data": {
                 "type": "accept_contract",
                 "amount": amount,
-                "available_contracts": available_contracts
+                "available_contracts": available_contracts,
+                "can_skip": True,
             }
         }
 
@@ -2626,6 +2632,14 @@ class EffectResolver:
             # In either case, look up the live contract from the board.
             available_contracts = choice_data.get("available_contracts", [])
             player = self.state.get_player_by_id(player_id)
+
+            # Allow skipping contract acceptance
+            if str(selected_option_id) in ("skip", "none", ""):
+                return {"success": True, "applied": {"type": "accept", "skipped": True}}
+
+            # Enforce 2-contract cap
+            if len(getattr(player, "contracts_active", [])) >= 2:
+                return {"success": True, "applied": {"type": "accept", "skipped": True}}
 
             # Determine the selected contract ID
             selected_cid = None

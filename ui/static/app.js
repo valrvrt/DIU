@@ -735,7 +735,11 @@ function getChoiceItems(choice) {
   if (ctype==="trash_card"||ctype==="discard_card"||ctype==="trash_to_acquire") {
     return (choice.available_cards||[]).map(item=>{const c=item.card||item;return{label:`${c.name} (${item.source||"hand"})`,value:c.id};});
   }
-  if (ctype==="accept_contract") return (choice.available_contracts||[]).map(c=>({label:`${c.name} — ${contractCondition(c)}`,value:c.id}));
+  if (ctype==="accept_contract") {
+    const items = (choice.available_contracts||[]).map(c=>({label:`${c.name} — ${contractCondition(c)}`,value:c.id}));
+    if (choice.can_skip) items.push({label:"Skip (don't accept)",value:"skip"});
+    return items;
+  }
   if (ctype==="steal_intrigue"||ctype==="choose_opponent_discard") return (choice.valid_targets||[]).map(t=>({label:`${t.player_name} (${t.intrigue_count??t.hand_size})`,value:t.player_id}));
   if (ctype==="recall_agent") {
     const spaces=G.state?.board?.spaces||[];
