@@ -783,9 +783,7 @@
         "type": "discard",
         "deck": "hand",
         "amount": 1
-      }
-    ],
-    "reveal_effects": [
+      },
       {
         "type": "conditional",
         "check": [
@@ -801,7 +799,9 @@
             "amount": 2
           }
         ]
-      },
+      }
+    ],
+    "reveal_effects": [
       {
         "type": "resource",
         "resource": "persuasion",
