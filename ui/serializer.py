@@ -235,6 +235,7 @@ def _player_public(player: Player) -> Dict[str, Any]:
 
         # Turn state
         "has_revealed_this_round": player.has_revealed_this_round,
+        "has_high_council_sit": player.has_high_council_sit,
         "combat_strength": (
             player.troops_in_conflict * 2
             + player.sandworms_in_conflict * 3

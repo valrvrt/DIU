@@ -741,7 +741,7 @@ function renderPlayerArea(s) {
   const intEl = document.getElementById("intrigue-cards");
   intEl.innerHTML = "";
   (human.intrigue_cards || []).forEach(c => {
-    const div = buildIntrigueCard(c, aa.phase);
+    const div = buildIntrigueCard(c, aa.phase, human);
     intEl.appendChild(div);
   });
 
@@ -1124,7 +1124,33 @@ function buildCard(card, extraClass, inAcquisition, persuasion) {
   return div;
 }
 
-function buildIntrigueCard(card, currentPhase) {
+// Returns true if the player meets all check conditions for an effect.
+function meetChecks(checks, player) {
+  if (!checks || !checks.length || !player) return true;
+  for (const chk of checks) {
+    const t = chk.type;
+    if (t === "council_seat") {
+      if (!!player.has_high_council_sit !== !!chk.value) return false;
+    } else if (t === "influence") {
+      const fac = chk.target;
+      const cur = (player.influence || {})[fac] || 0;
+      if (cur < (chk.amount || 0)) return false;
+    }
+    // Other check types not evaluated on the frontend — assume true
+  }
+  return true;
+}
+
+// Returns true if ALL the action-effect checks on a card are met.
+function intrigueConditionsMet(effects, player) {
+  if (!player) return true;
+  for (const e of (effects || [])) {
+    if (e.check && e.check.length && !meetChecks(e.check, player)) return false;
+  }
+  return true;
+}
+
+function buildIntrigueCard(card, currentPhase, player) {
   const div = el("div","card intrigue-card");
 
   // Header: name + phase tags
@@ -1162,9 +1188,19 @@ function buildIntrigueCard(card, currentPhase) {
   const isCombat = phases.includes("combat");
   const playableNow = (currentPhase === "agent_turn" && isPlot)
                    || (currentPhase === "combat" && isCombat);
+  const condsMet = intrigueConditionsMet(effects, player);
+
   if (playableNow) {
-    div.classList.add("selectable");
-    div.addEventListener("click", () => postAction({type:"play_intrigue",card_id:card.id}));
+    if (condsMet) {
+      div.classList.add("selectable");
+      div.addEventListener("click", () => postAction({type:"play_intrigue",card_id:card.id}));
+    } else {
+      // Playable phase but conditions not met — dim and show tooltip
+      div.style.opacity = ".6";
+      div.title = "Conditions for this card's effects are not currently met. Playing it will discard it with no benefit.";
+      div.classList.add("selectable", "intrigue-cond-fail");
+      div.addEventListener("click", () => postAction({type:"play_intrigue",card_id:card.id}));
+    }
   } else {
     div.style.opacity = ".55";
   }
@@ -1202,11 +1238,16 @@ function describeIntrigueEffect(e) {
     return parts.join(`<span style="color:var(--gold-dim);font-size:8px;margin:0 3px">OR</span>`);
   }
 
-  // Action with cost → reward
+  // Action with cost → reward (and optional check condition)
   if (t === "action" || (e.cost && e.reward)) {
     const costHTML = (e.cost||[]).map(x => describeEffectHTML(x)).join("") || "";
     const rwHTML   = (e.reward||[]).map(x => describeEffectHTML(x)).join(" ") || "";
-    return costHTML ? `<span class="ef-cost">${costHTML}&thinsp;→</span> ${rwHTML}` : rwHTML;
+    let mainHTML = costHTML ? `<span class="ef-cost">${costHTML}&thinsp;→</span> ${rwHTML}` : rwHTML;
+    if (e.check && e.check.length) {
+      const cond = e.check.map(describeCheckShort).join(" & ");
+      mainHTML = `<span class="ef-if">if ${cond}:</span> ${mainHTML}`;
+    }
+    return mainHTML;
   }
 
   // Conditional reward
@@ -1552,6 +1593,7 @@ function evClass(t) {
   if (["contract_completed"].includes(t)) return "contract";
   if (["new_round"].includes(t)) return "round";
   if (["bot_action","reveal"].includes(t)) return "bot";
+  if (t === "warning") return "warning";
   return "";
 }
 
@@ -1577,6 +1619,7 @@ function describeEvent(ev) {
   if (t === "recall")         return `${ev.player} recalls`;
   if (t === "new_round")      return `═══ Round ${ev.round} ═══`;
   if (t === "new_conflict")   return `Conflict: ${ev.conflict}`;
+  if (t === "warning")        return `⚠ ${ev.msg}`;
   return `${t}`;
 }
 

@@ -661,6 +661,16 @@ body {
 }
 .spy-dot.spy-occupied { border:none; }
 
+/* ─────── INTRIGUE CONDITION FAIL (playable but check not met) ─────── */
+.intrigue-cond-fail { border-color:rgba(200,140,40,.4) !important; }
+.intrigue-cond-fail::after {
+  content:"⚠"; position:absolute; top:3px; right:4px;
+  font-size:9px; color:#e0a040; pointer-events:none;
+}
+
+/* ─────── WARNING EVENT IN LOG ─────── */
+.event-log .ev.ev-warning { color:#e0a040; font-style:italic; }
+
 /* ─────── CONFLICT TAG BADGE ─────── */
 .cf-tag-badge {
   display:inline-block; font-size:9px; font-weight:700; letter-spacing:.4px;
