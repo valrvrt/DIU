@@ -157,7 +157,7 @@ body {
   background:var(--bg3); border:1px solid var(--border); border-radius:5px;
   padding:8px 10px; cursor:pointer; position:relative;
   transition:border-color .12s, background .12s;
-  width:100%; min-height:60px;
+  width:100%; min-height:60px; overflow:hidden;
 }
 .board-space:hover { border-color:#5a4a38; }
 .board-space.valid-target { border-color:#5ab030 !important; background:#0e1e08 !important; }
@@ -197,16 +197,16 @@ body {
   border-top:1px solid rgba(255,255,255,.08);
 }
 .sp-reward-row {
-  display:flex; gap:6px; align-items:center; flex-wrap:wrap;
-  font-size:15px; color:var(--text);
+  display:flex; gap:5px; align-items:center; flex-wrap:wrap;
+  font-size:12px; color:var(--text);
 }
 .sp-or {
-  font-size:10px; font-weight:700; color:var(--gold-dim);
+  font-size:9px; font-weight:700; color:var(--gold-dim);
   letter-spacing:2px; text-align:center;
 }
 .sp-choice-option {
-  display:flex; align-items:center; gap:5px; flex-wrap:wrap;
-  font-size:15px; color:var(--text);
+  display:flex; align-items:center; gap:4px; flex-wrap:wrap;
+  font-size:12px; color:var(--text);
 }
 .sp-occupant {
   display:inline-block; font-size:9px; font-weight:700; padding:1px 5px; border-radius:3px;
@@ -235,13 +235,13 @@ body {
 /* ─────── CENTER ─────── */
 .board-center { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; overflow:hidden; padding:4px; border-right:1px solid var(--border); }
 
-.center-row { display:flex; gap:4px; flex:1; min-height:0; }
+.center-row { display:flex; gap:4px; flex:1; min-height:0; overflow:hidden; }
 .landsraad-row { flex:7; }
 .center-row:not(.desert-combat-row):not(.landsraad-row):not(.faction-row) { flex:3; }
-.desert-combat-row { flex:3; }
+.desert-combat-row { flex:4; }
 .faction-row { flex:5; }
 
-.neutral-group { background:var(--bg2); border-radius:5px; padding:4px 6px; min-width:0; flex:1; display:flex; flex-direction:column; }
+.neutral-group { background:var(--bg2); border-radius:5px; padding:4px 6px; min-width:0; flex:1; display:flex; flex-direction:column; overflow:hidden; }
 .neutral-group.full-width { flex:1; }
 .shipping-aside { flex:0 0 220px; display:flex; flex-direction:column; overflow:hidden; }
 /* Trade spaces size to their content; contracts panel takes the rest and scrolls */
@@ -305,8 +305,8 @@ body {
 /* ─────── COMBAT ZONE (compact) ─────── */
 .combat-zone {
   background:var(--bg2); border:1px solid #501010; border-radius:4px;
-  padding:4px 6px; flex:1; display:flex; flex-direction:column; gap:3px;
-  overflow-y:auto; min-width:130px; max-width:200px;
+  padding:4px 6px; flex:0 0 185px; display:flex; flex-direction:column; gap:3px;
+  overflow-y:auto; min-width:130px;
 }
 .conflict-display { font-size:9px; }
 .conflict-display .cf-name { color:#e06050; font-weight:700; font-size:10px; margin-bottom:2px; }
