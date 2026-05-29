@@ -1716,14 +1716,29 @@ class EffectResolver:
         if not options:
             return {"success": False, "error": "Choice effect missing 'options' field"}
 
+        # Only "endgame" phase options need special gating.
+        # During normal play (any non-endgame context), endgame options are
+        # hidden.  During the endgame scoring pass (context phase = "endgame"),
+        # only endgame options are shown.
+        # Options with no "phase" field are always available in normal contexts.
+        is_endgame_ctx = (context or {}).get("phase") == "endgame"
+
         # Evaluate each option for availability
         available_options = []
 
         for option in options:
             option_id = option.get("id", "unknown")
+            option_phase = option.get("phase")  # None means "available always"
             checks = option.get("check", [])
             costs = option.get("cost", [])
             rewards = option.get("reward", [])
+
+            # Phase gating: hide endgame options during normal play and
+            # hide non-endgame options during endgame scoring.
+            if is_endgame_ctx and option_phase != "endgame":
+                continue
+            if not is_endgame_ctx and option_phase == "endgame":
+                continue
 
             # Check if option is available (check conditions)
             is_available = True
@@ -1749,6 +1764,15 @@ class EffectResolver:
                 "costs": costs,
                 "rewards": rewards
             })
+
+        # If no options remain after phase filtering, the card has nothing to
+        # offer in this phase context — resolve silently with no effect.
+        if not available_options:
+            return {
+                "success": True,
+                "applied": {"type": "choice", "skipped": True,
+                            "reason": f"No options for phase '{ctx_phase}'"}
+            }
 
         # Return choice requirement
         return {
@@ -2344,6 +2368,28 @@ class EffectResolver:
                     return {
                         "success": False,
                         "error": f"Requires {amount} spies on board (have {spies_count})"
+                    }
+
+            elif check_type == "flip_conflict":
+                # Check if the player has seen a conflict with a matching tag resolved.
+                # Used by endgame intrigue cards (Crysknife, Desert Mouse, Ornithopter).
+                # tag is a list like ["crysknife", "?"] — first element is the tag name,
+                # "?" means wildcard/any additional constraint (ignored for now).
+                # Data files use underscores; conflict cards use hyphens — normalise both.
+                tags = check.get("tag", [])
+                tag_name = tags[0] if tags else ""
+                required_count = check.get("amount", 1)
+                tag_norm = tag_name.lower().replace("_", "-")
+
+                resolved = getattr(self.game.board, "resolved_conflicts", [])
+                matched = sum(
+                    1 for c in resolved
+                    if getattr(c, "tag", "").lower().replace("_", "-") == tag_norm
+                )
+                if matched < required_count:
+                    return {
+                        "success": False,
+                        "error": f"Requires {required_count} resolved '{tag_norm}' conflict(s) (found {matched})"
                     }
 
             elif check_type == "always":

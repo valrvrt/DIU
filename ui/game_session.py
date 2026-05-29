@@ -19,6 +19,7 @@ from src.engine.actions.action_executor import (
 from src.engine.effects.effect_resolver import EffectResolver
 from src.models.game import Game, GamePhase
 from src.models.player import Player
+from src.models.card import IntriguePhase
 from src.bots import HeuristicBot
 
 from .serializer import serialize_state, _imperium_card, _intrigue_card, _contract_card
@@ -86,6 +87,9 @@ class GameSession:
         self._pending_troop_deployment: Optional[Dict[str, Any]] = None
         # History of resolved conflicts for UI display
         self._conflict_history: List[Dict[str, Any]] = []
+        # Set to True when game end is detected but human still has endgame
+        # intrigue choices to resolve before GAME_OVER is shown.
+        self._pending_game_over: bool = False
 
     # ──────── construction ────────
 
@@ -502,7 +506,12 @@ class GameSession:
 
         self._clear_pending_choice()
         if not self.pending_choice:
-            self._post_action_advance("resolve_choice")
+            if self._pending_game_over:
+                # All endgame intrigue choices resolved — now show game over.
+                self._pending_game_over = False
+                self.game.current_phase = GamePhase.GAME_OVER
+            else:
+                self._post_action_advance("resolve_choice")
         return self.snapshot()
 
     # ──────── post-action game flow ────────
@@ -510,6 +519,11 @@ class GameSession:
     def _post_action_advance(self, action_type: str) -> None:
         """Advance the game after a human action that raised no pending choices."""
         if action_type in ("place_agent", "reveal", "resolve_choice"):
+            # If the human just placed at a combat space, wait until they've
+            # deployed troops before running bots — otherwise bots act twice
+            # (once here and once from _do_deploy_troops).
+            if self._pending_troop_deployment:
+                return
             # Run bots' agent turns (they place agents or reveal)
             self._run_bots_agent_phase()
             # Do NOT auto-advance past human acquisition:
@@ -869,7 +883,12 @@ class GameSession:
         """Increment round, draw new conflict, reset acquisition flag."""
         if self._check_game_end():
             self._apply_endgame_scoring()
-            self.game.current_phase = GamePhase.GAME_OVER
+            if self.pending_choice:
+                # Human has endgame intrigue choices to resolve first.
+                # Defer GAME_OVER until the queue is drained.
+                self._pending_game_over = True
+            else:
+                self.game.current_phase = GamePhase.GAME_OVER
             return
 
         self.game.current_round += 1
@@ -893,27 +912,70 @@ class GameSession:
     def _apply_endgame_scoring(self) -> None:
         """Resolve end-of-game VP from intrigue cards still held by players.
 
-        Cards like CHOAM Profits, Secure Spice Trade and Shadow Alliance carry
-        an ``endgame_condition`` effect that grants VP if a condition is met at
-        game end. These are never triggered during normal play, so we score
-        them here before flipping to GAME_OVER.
+        Two categories are handled:
+
+        1. ``endgame_condition`` effects (CHOAM Profits, Secure Spice Trade,
+           Shadow Alliance): automatic VP if a game-state condition is met.
+
+        2. Dual-phase intrigue cards (Crysknife, Desert Mouse, Ornithopter):
+           have a ``choice`` effect where one option is tagged ``phase:
+           "endgame"``.  Bots auto-pick the best available endgame option;
+           the human queues a choice and plays it before GAME_OVER is shown.
         """
         effect_resolver = self.managers["effect_resolver"]
+        endgame_ctx = {"phase": "endgame"}
+
         for player in self.game.players:
             for card in list(getattr(player, "intrigue_cards", [])):
-                for effect in getattr(card, "effects", []) or []:
+                effects = getattr(card, "effects", []) or []
+                has_endgame = (
+                    IntriguePhase.END_GAME in getattr(card, "phases", [])
+                )
+                if not has_endgame:
+                    continue
+
+                for effect in effects:
                     if not isinstance(effect, dict):
                         continue
-                    if effect.get("type") != "endgame_condition":
-                        continue
-                    try:
-                        result = effect_resolver.resolve_effects(
-                            player.player_id, [effect],
-                            context={"phase": "endgame", "card": card.name},
-                        )
-                    except Exception as e:
-                        self.log("error", msg=f"Endgame scoring error: {e}")
-                        continue
-                    if result.get("success"):
-                        self.log("endgame_score", player=player.name,
-                                 card=card.name)
+                    etype = effect.get("type")
+                    if etype == "endgame_condition":
+                        try:
+                            result = effect_resolver.resolve_effects(
+                                player.player_id, [effect],
+                                context={**endgame_ctx, "card": card.name},
+                            )
+                        except Exception as e:
+                            self.log("error",
+                                     msg=f"Endgame scoring error ({card.name}): {e}")
+                            continue
+                        if result.get("success"):
+                            self.log("endgame_score", player=player.name,
+                                     card=card.name)
+
+                    elif etype == "choice":
+                        # Dual-phase card: resolve with endgame context so only
+                        # the "endgame" option is visible.
+                        ctx = {**endgame_ctx, "card": card.name}
+                        try:
+                            result = effect_resolver.resolve_effects(
+                                player.player_id, [effect], context=ctx,
+                            )
+                        except Exception as e:
+                            self.log("error",
+                                     msg=f"Endgame choice error ({card.name}): {e}")
+                            continue
+
+                        if not result.get("success"):
+                            continue
+
+                        choices = result.get("choices_required", [])
+                        if not choices:
+                            continue
+
+                        if getattr(player, "is_human", False):
+                            # Queue for human to resolve via the UI (same path
+                            # as any other in-game choice).
+                            self._queue_choices(choices)
+                        else:
+                            # Bot: auto-pick first available endgame option.
+                            self._bot_resolve_choices(player, choices)
