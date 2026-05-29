@@ -152,11 +152,16 @@ class GameSession:
 
         game.current_phase = GamePhase.PLAYER_TURNS
         game.current_round = 1
+        # Round 1 first player is the Desert Mouse objective holder (set at setup).
+        game.current_player_index = game.first_player_index
         if game.board.conflict_deck:
             game.board.current_conflict = game.board.conflict_deck.pop(0)
 
-        return cls(game=game, managers=managers, bots=bots,
-                   human_player_id=human_player.player_id)
+        session = cls(game=game, managers=managers, bots=bots,
+                      human_player_id=human_player.player_id)
+        # Run bots that act before the human in round 1's turn order.
+        session._run_bots_before_human()
+        return session
 
     # ──────── properties ────────
 
@@ -893,13 +898,46 @@ class GameSession:
 
         self.game.current_round += 1
         self._human_acquisition_done = False
-        self.log("new_round", round=self.game.current_round)
+
+        # Pass the first-player token clockwise (to the next player) each round.
+        # Round 1's first player is the Desert Mouse objective holder (set at setup).
+        n = len(self.game.players)
+        self.game.first_player_index = (self.game.first_player_index + 1) % n
+        self.game.current_player_index = self.game.first_player_index
+
+        self.log("new_round", round=self.game.current_round,
+                 first_player=self.game.players[self.game.first_player_index].name)
 
         if self.game.board.conflict_deck:
             self.game.board.current_conflict = self.game.board.conflict_deck.pop(0)
             self.log("new_conflict",
                      conflict=self.game.board.current_conflict.name
                      if self.game.board.current_conflict else "")
+
+        # Run any bots that act before the human in this round's turn order.
+        self._run_bots_before_human()
+
+    def _run_bots_before_human(self) -> None:
+        """Run bot turns that precede the human in the round's turn order.
+
+        Turn order starts at first_player_index and proceeds clockwise. Bots
+        seated before the human take their first turn now, so the human is not
+        always the first to act.
+        """
+        n = len(self.game.players)
+        fp = self.game.first_player_index
+        for offset in range(n):
+            player = self.game.players[(fp + offset) % n]
+            if player.player_id == self.human_player_id:
+                break  # reached the human — they act next
+            if player.has_revealed_this_round:
+                continue
+            if player.agents_available <= 0:
+                self._bot_auto_reveal(player)
+            else:
+                self._bot_take_turn(player)
+                if player.agents_available <= 0 and not player.has_revealed_this_round:
+                    self._bot_auto_reveal(player)
 
     def _check_game_end(self) -> bool:
         for player in self.game.players:

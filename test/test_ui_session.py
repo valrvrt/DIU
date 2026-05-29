@@ -133,6 +133,7 @@ def test_board_serializes_spaces():
 
 def test_event_log_drains_on_snapshot():
     session = GameSession.new(player_count=3)
+    session.snapshot()  # drain any round-1 setup events (bots before the human)
     session.log("test_event", message="hello")
     snap1 = session.snapshot()
     assert len(snap1["events"]) == 1

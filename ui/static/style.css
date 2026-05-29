@@ -102,6 +102,7 @@ body {
 .opponent-chip { display:flex; align-items:center; gap:5px; background:var(--bg3); border:1px solid var(--border); padding:2px 7px; border-radius:10px; white-space:nowrap; font-size:10px; }
 .opponent-chip .chip-color { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
 .opponent-chip .chip-vp { color:var(--vp); font-weight:700; }
+.first-player-badge { background:var(--gold); color:#000; font-size:8px; font-weight:700; padding:0 4px; border-radius:6px; }
 .opponent-chip .chip-sol { color:var(--solari); }
 .opponent-chip .chip-spi { color:var(--spice); }
 .top-right { margin-left:auto; display:flex; gap:4px; }

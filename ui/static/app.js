@@ -183,8 +183,10 @@ function renderTopBar(s) {
     if (p.player_id === s.viewer_player_id) return;
     const chip = el("div","opponent-chip");
     const leaderName = p.leader?.name ? ` (${p.leader.name})` : "";
+    const firstMark = i === s.first_player_index ? `<span class="first-player-badge" title="First player this round">1st</span>` : "";
     chip.innerHTML = `
       <span class="chip-color" style="background:var(--${G.playerColors[i]})"></span>
+      ${firstMark}
       <span>${shortName(p.name)}${leaderName}</span>
       <span class="chip-vp">⭐${p.victory_points}</span>
       <span class="chip-sol" style="color:var(--solari)">●${p.solari}</span>
@@ -579,7 +581,9 @@ function renderPlayerArea(s) {
   const persuasion = aa.persuasion_left || 0;
 
   const leaderStr = human.leader?.name ? ` · ${human.leader.name}` : "";
-  document.getElementById("your-name-label").textContent = (human.name || "").toUpperCase() + leaderStr;
+  const humanIdx = s.players.findIndex(p => p.player_id === s.viewer_player_id);
+  const firstStr = humanIdx === s.first_player_index ? " 🥇1st" : "";
+  document.getElementById("your-name-label").textContent = (human.name || "").toUpperCase() + leaderStr + firstStr;
 
   // Resources bar
   const resBar = document.getElementById("player-resources");
