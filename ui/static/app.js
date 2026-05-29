@@ -840,7 +840,9 @@ function getChoiceItems(choice) {
     return [{label:`✓ Pay ${costs} → ${rewards}`,value:"accept"},{label:"✗ Skip",value:"decline"}];
   }
   if (ctype==="trash_card"||ctype==="discard_card"||ctype==="trash_to_acquire") {
-    return (choice.available_cards||[]).map(item=>{const c=item.card||item;return{label:`${c.name} (${item.source||"hand"})`,value:c.id};});
+    const items = (choice.available_cards||[]).map(item=>{const c=item.card||item;return{label:`${c.name} (${item.source||"hand"})`,value:c.id};});
+    if (choice.can_skip) items.push({label: choice.skip_label||"Skip", value:"skip"});
+    return items;
   }
   if (ctype==="accept_contract") {
     const items = (choice.available_contracts||[]).map(c=>({label:`${c.name} — ${contractCondition(c)}`,value:c.id}));
