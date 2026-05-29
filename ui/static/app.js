@@ -76,6 +76,19 @@ document.getElementById("start-btn").addEventListener("click", async () => {
   }
 });
 
+// ─────────────── keyboard shortcuts ─────────
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  const phase = G.state?.available_actions?.phase;
+  if (e.key === "r" || e.key === "R") {
+    if (phase === "agent_turn") { e.preventDefault(); doReveal(); }
+  } else if (e.key === "d" || e.key === "D") {
+    if (phase === "acquisition") { e.preventDefault(); endAcquisition(); }
+  } else if (e.key === "Escape") {
+    clearSelectedCard();
+  }
+});
+
 // ─────────────── objective modal ────────────
 function showObjective() {
   if (!G.objective) return;
@@ -138,6 +151,8 @@ function render() {
   renderImperiumRow(s);
   renderPlayerArea(s);
   updateActionButtons(s);
+  renderActionHint(s);
+  updatePhaseStyling(s);
 }
 
 // Build lookup: space name → { postId, postName, ownerIdx (null if empty) }
@@ -572,12 +587,12 @@ function renderPlayerArea(s) {
     const aa2 = s.available_actions || {};
     const agentsStr = `${human.agents_available}/${human.total_available_agents}`;
     resBar.innerHTML = `
-      <span class="res-chip"><i class="efx vp">⭐</i><span class="rc-val">${human.victory_points}</span></span>
-      <span class="res-chip"><i class="efx solari"></i><span class="rc-val">${human.solari}</span></span>
-      <span class="res-chip"><i class="efx spice"></i><span class="rc-val">${human.spice}</span></span>
-      <span class="res-chip">💧<span class="rc-val">${human.water}</span></span>
-      <span class="res-chip">🏰<span class="rc-val">${human.troops_in_garrison}</span>garrison</span>
-      <span class="res-chip">📍<span class="rc-val">${agentsStr}</span>agents</span>
+      <span class="res-chip res-vp"   title="Victory Points"><i class="efx vp">⭐</i><span class="rc-val">${human.victory_points}</span><span class="rc-lbl">VP</span></span>
+      <span class="res-chip res-sol"  title="Solari"><i class="efx solari"></i><span class="rc-val">${human.solari}</span><span class="rc-lbl">Sol</span></span>
+      <span class="res-chip res-spi"  title="Spice"><i class="efx spice"></i><span class="rc-val">${human.spice}</span><span class="rc-lbl">Spice</span></span>
+      <span class="res-chip res-wat"  title="Water">💧<span class="rc-val">${human.water}</span><span class="rc-lbl">Water</span></span>
+      <span class="res-chip res-trp"  title="Troops in garrison">🗡<span class="rc-val">${human.troops_in_garrison}</span><span class="rc-lbl">Troops</span></span>
+      <span class="res-chip res-agt"  title="Agents available">📍<span class="rc-val">${agentsStr}</span><span class="rc-lbl">Agents</span></span>
     `;
   }
 
@@ -662,6 +677,50 @@ function updateActionButtons(s) {
 
 function doReveal() { postAction({ type: "reveal" }); clearSelectedCard(); }
 function endAcquisition() { postAction({ type: "end_acquisition" }); }
+
+// ─────────────── ACTION HINT ─────────────
+function renderActionHint(s) {
+  const el_ = document.getElementById("action-hint");
+  if (!el_) return;
+  const aa = s.available_actions || {};
+  const phase = aa.phase || s.phase;
+  const effectivePhase = (phase === "choice" && aa.underlying_phase) ? aa.underlying_phase : phase;
+
+  let hint = "";
+  if (effectivePhase === "agent_turn") {
+    const playable = aa.playable_cards || [];
+    const hasSelectable = playable.some(e => e.valid_location_ids?.length > 0);
+    if (G.selectedCard) {
+      hint = "Click a <span class='hint-green'>green space</span> to send your agent there";
+    } else if (hasSelectable) {
+      hint = "Select a card from your hand, then click a <span class='hint-green'>green space</span>";
+    } else {
+      hint = "No agent spots available — press <kbd>R</kbd> to reveal your hand";
+    }
+  } else if (effectivePhase === "acquisition") {
+    const pts = aa.persuasion_left || 0;
+    hint = pts > 0
+      ? `Spend your <span class='hint-gold'>${pts} persuasion</span> on Imperium Row cards, then press <kbd>D</kbd>`
+      : `No persuasion left — press <kbd>D</kbd> to end your turn`;
+  } else if (phase === "choice") {
+    hint = "Make a choice above ↑";
+  }
+  el_.innerHTML = hint;
+  el_.style.display = hint ? "" : "none";
+}
+
+// ─────────────── PHASE STYLING ───────────
+function updatePhaseStyling(s) {
+  const aa = s.available_actions || {};
+  const phase = aa.phase || s.phase;
+  const badge = document.getElementById("phase-badge");
+  const playerArea = document.querySelector(".player-area");
+
+  // Color the phase badge and player area glow by phase
+  badge.className = "phase-badge phase-" + (phase || "other");
+  const isMyTurn = phase === "agent_turn" || phase === "acquisition";
+  playerArea?.classList.toggle("player-turn-active", isMyTurn);
+}
 
 // ─────────────── CARD SELECTION / PLACEMENT ─────────────
 function selectCard(card, validLocations) {

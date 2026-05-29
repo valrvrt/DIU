@@ -93,7 +93,11 @@ body {
 .top-bar { background:var(--bg2); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 8px; gap:10px; }
 .round-info { display:flex; align-items:center; gap:6px; min-width:160px; }
 #round-label { color:var(--gold); font-weight:700; font-size:12px; }
-.phase-badge { background:var(--bg3); border:1px solid var(--gold-dim); color:var(--gold); padding:1px 6px; border-radius:8px; font-size:9px; white-space:nowrap; }
+.phase-badge { background:var(--bg3); border:1px solid var(--gold-dim); color:var(--gold); padding:1px 6px; border-radius:8px; font-size:9px; white-space:nowrap; transition:background .2s, color .2s, border-color .2s; }
+.phase-badge.phase-agent_turn  { background:#1a1400; border-color:var(--gold); color:var(--gold); }
+.phase-badge.phase-acquisition { background:#081820; border-color:#3090e0; color:#60b8f0; }
+.phase-badge.phase-combat      { background:#1a0808; border-color:#e04040; color:#f07070; }
+.phase-badge.phase-choice      { background:#120818; border-color:#9040d8; color:#c080f0; }
 .opponents-bar { display:flex; gap:8px; flex:1; align-items:center; overflow-x:auto; }
 .opponent-chip { display:flex; align-items:center; gap:5px; background:var(--bg3); border:1px solid var(--border); padding:2px 7px; border-radius:10px; white-space:nowrap; font-size:10px; }
 .opponent-chip .chip-color { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
@@ -464,24 +468,55 @@ body {
 
 /* ─────── PLAYER AREA ─────── */
 .player-area {
-  background:var(--bg2); border-top:1px solid var(--border);
+  background:var(--bg2); border-top:2px solid var(--border);
   display:grid; grid-template-columns:1fr 130px 180px;
   overflow:hidden; padding:5px 6px; gap:6px;
+  transition:border-color .3s;
 }
-.player-area-left { display:flex; flex-direction:column; gap:3px; overflow:hidden; }
+.player-area.player-turn-active { border-top-color:var(--gold); }
+
+.player-area-left { display:flex; flex-direction:column; gap:2px; overflow:hidden; }
 .hand-header { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .hand-header span { font-size:10px; font-weight:700; color:var(--gold); }
+
+/* Action hint line */
+.action-hint {
+  font-size:9px; color:var(--text-dim); padding:1px 2px;
+  min-height:13px; line-height:1.4;
+}
+.action-hint .hint-green { color:#70e040; font-weight:600; }
+.action-hint .hint-gold  { color:var(--gold); font-weight:600; }
+.action-hint kbd {
+  background:var(--bg3); border:1px solid var(--border); border-radius:2px;
+  padding:0 3px; font-size:8px; font-family:monospace; color:var(--text);
+}
+
 .player-resources-bar {
-  display:flex; gap:8px; padding:2px 1px; font-size:10px; flex-wrap:wrap;
-  border-bottom:1px solid var(--border); padding-bottom:3px;
+  display:flex; gap:6px; padding:1px; font-size:9px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); padding-bottom:3px; align-items:center;
 }
 .res-chip { color:var(--text-dim); display:flex; align-items:center; gap:2px; }
-.res-chip .rc-val { color:var(--text); font-weight:700; }
+.res-chip .rc-val { color:var(--text); font-weight:700; font-size:10px; }
+.res-chip .rc-lbl { font-size:8px; color:var(--text-dim); }
+
 .persuasion-badge {
   background:#182808; border:1px solid #355018; color:#70d030;
   padding:1px 7px; border-radius:8px; font-size:10px; font-weight:700;
 }
 .persuasion-badge.hidden { display:none; }
+
+/* Primary action buttons (Reveal / Done) */
+.btn-phase-action {
+  padding:3px 10px; border-radius:4px; cursor:pointer; font-size:10px; font-weight:700;
+  background:var(--bg3); border:1.5px solid var(--gold); color:var(--gold);
+  letter-spacing:.3px;
+}
+.btn-phase-action:hover { background:var(--gold-dim); color:#fff; }
+.btn-phase-action.acq  { border-color:#3090e0; color:#60b8f0; }
+.btn-phase-action.acq:hover { background:#082030; }
+.btn-phase-action.hidden { display:none; }
+
+/* Legacy btn-action kept for other uses */
 .btn-action {
   padding:2px 8px; border-radius:3px; cursor:pointer; font-size:10px;
   background:var(--bg3); border:1px solid var(--gold-dim); color:var(--gold);

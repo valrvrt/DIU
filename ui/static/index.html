@@ -193,10 +193,11 @@
       <div class="hand-header">
         <span id="your-name-label">YOUR HAND</span>
         <span id="persuasion-display" class="persuasion-badge hidden"></span>
-        <button id="reveal-btn" class="btn-action hidden" onclick="doReveal()">👁 Reveal</button>
-        <button id="end-acq-btn" class="btn-action hidden" onclick="endAcquisition()">✓ Done</button>
+        <button id="reveal-btn" class="btn-phase-action hidden" onclick="doReveal()" title="Reveal hand (R)">👁 Reveal</button>
+        <button id="end-acq-btn" class="btn-phase-action acq hidden" onclick="endAcquisition()" title="End acquisition (D)">✓ Done</button>
         <button id="obj-btn" class="btn-icon" onclick="showObjective()" title="Objective">🎯</button>
       </div>
+      <div id="action-hint" class="action-hint"></div>
       <div id="player-resources" class="player-resources-bar"></div>
       <div id="hand-cards" class="hand-cards"></div>
     </div>
