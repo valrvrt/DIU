@@ -2,9 +2,7 @@
   {
     "id": 1,
     "name": "Reconnaissance",
-    "agent_icon": [
-      "blue"
-    ],
+    "agent_icon": ["blue"],
     "starting_deck": true,
     "amount": 1,
     "reveal_effects": [
@@ -33,9 +31,7 @@
     "name": "Dagger",
     "starting_deck": true,
     "amount": 2,
-    "agent_icon": [
-      "green"
-    ],
+    "agent_icon": ["green"],
     "reveal_effects": [
       {
         "type": "resource",
@@ -49,12 +45,7 @@
     "name": "Diplomacy",
     "starting_deck": true,
     "amount": 1,
-    "agent_icon": [
-      "fremen",
-      "spacing_guild",
-      "bene_gesserit",
-      "emperor"
-    ],
+    "agent_icon": ["fremen", "spacing_guild", "bene_gesserit", "emperor"],
     "reveal_effects": [
       {
         "type": "resource",
@@ -66,9 +57,7 @@
   {
     "id": 5,
     "name": "Dune, the Desert Planet",
-    "agent_icon": [
-      "yellow"
-    ],
+    "agent_icon": ["yellow"],
     "starting_deck": true,
     "amount": 2,
     "reveal_effects": [
@@ -82,12 +71,7 @@
   {
     "id": 6,
     "name": "Seek Allies",
-    "agent_icon": [
-      "fremen",
-      "spacing_guild",
-      "bene_gesserit",
-      "emperor"
-    ],
+    "agent_icon": ["fremen", "spacing_guild", "bene_gesserit", "emperor"],
     "starting_deck": true,
     "amount": 1,
     "agent_effects": [
@@ -100,11 +84,7 @@
   {
     "id": 61,
     "name": "Signet Ring",
-    "agent_icon": [
-      "blue",
-      "yellow",
-      "green"
-    ],
+    "agent_icon": ["blue", "yellow", "green"],
     "starting_deck": true,
     "amount": 1,
     "agent_effects": [
@@ -161,10 +141,7 @@
     "id": 8,
     "name": "Branching Paths",
     "faction": "Bene Gesserit",
-    "agent_icon": [
-      "bene_gesserit",
-      "blue"
-    ],
+    "agent_icon": ["bene_gesserit", "blue"],
     "cost": 3,
     "quantity": 3,
     "agent_effects": [
@@ -204,9 +181,7 @@
     "id": 9,
     "name": "Calculus of Power",
     "faction": "Emperor",
-    "agent_icon": [
-      "spy"
-    ],
+    "agent_icon": ["spy"],
     "cost": 3,
     "quantity": 3,
     "agent_effects": [
@@ -254,10 +229,7 @@
   {
     "id": 10,
     "name": "Captured Mentat",
-    "agent_icon": [
-      "green",
-      "yellow"
-    ],
+    "agent_icon": ["green", "yellow"],
     "cost": 5,
     "quantity": 2,
     "agent_effects": [
@@ -265,10 +237,7 @@
         "type": "cost",
         "payment": {
           "type": "discard",
-          "deck": [
-            "hand",
-            "played"
-          ],
+          "deck": ["hand", "played"],
           "amount": 1
         },
         "reward": [
@@ -312,11 +281,7 @@
     "id": 11,
     "name": "Cargo Runner",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "green",
-      "blue",
-      "yellow"
-    ],
+    "agent_icon": ["green", "blue", "yellow"],
     "cost": 3,
     "quantity": 3,
     "agent_effects": [
@@ -365,11 +330,7 @@
     "id": 12,
     "name": "Chani, Clever Tactician",
     "faction": "Fremen",
-    "agent_icon": [
-      "fremen",
-      "blue",
-      "yellow"
-    ],
+    "agent_icon": ["fremen", "blue", "yellow"],
     "cost": 5,
     "quantity": 2,
     "agent_effects": [
@@ -430,10 +391,7 @@
     "id": 13,
     "name": "Corrinth City",
     "faction": "Emperor",
-    "agent_icon": [
-      "emperor",
-      "green"
-    ],
+    "agent_icon": ["emperor", "green"],
     "cost": 6,
     "quantity": 2,
     "agent_effects": [
@@ -502,9 +460,7 @@
   {
     "id": 14,
     "name": "Covert Operation",
-    "agent_icon": [
-      "spy"
-    ],
+    "agent_icon": ["spy"],
     "cost": 3,
     "quantity": 3,
     "agent_effects": [
@@ -525,10 +481,7 @@
   {
     "id": 15,
     "name": "Dangerous Rhetoric",
-    "agent_icon": [
-      "green",
-      "spy"
-    ],
+    "agent_icon": ["green", "spy"],
     "cost": 3,
     "quantity": 3,
     "agent_effects": [
@@ -559,9 +512,7 @@
     "id": 16,
     "name": "Delivery Agreement",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "blue"
-    ],
+    "agent_icon": ["blue"],
     "cost": 5,
     "quantity": 2,
     "agent_effects": [
@@ -626,9 +577,7 @@
     "id": 17,
     "name": "Desert Power",
     "faction": "Fremen",
-    "agent_icon": [
-      "yellow"
-    ],
+    "agent_icon": ["yellow"],
     "cost": 6,
     "quantity": 2,
     "agent_effects": [
@@ -637,9 +586,7 @@
         "check": [
           {
             "type": "sent_an_agent_on",
-            "target": [
-              "maker"
-            ]
+            "target": ["maker"]
           }
         ],
         "reward": []
@@ -689,18 +636,13 @@
     "id": 18,
     "name": "Desert Survival",
     "faction": "Fremen",
-    "agent_icon": [
-      "yellow"
-    ],
+    "agent_icon": ["yellow"],
     "cost": 2,
     "quantity": 3,
     "agent_effects": [
       {
         "type": "trash",
-        "deck": [
-          "hand",
-          "played"
-        ],
+        "deck": ["hand", "played"],
         "amount": 1
       }
     ],
@@ -720,15 +662,8 @@
   {
     "id": 19,
     "name": "Double Agent",
-    "faction": [
-      "Emperor",
-      "Spacing Guild"
-    ],
-    "agent_icon": [
-      "green",
-      "blue",
-      "yellow"
-    ],
+    "faction": ["Emperor", "Spacing Guild"],
+    "agent_icon": ["green", "blue", "yellow"],
     "cost": 3,
     "quantity": 3,
     "agent_effects": [
@@ -758,10 +693,7 @@
     "id": 20,
     "name": "Ecological Testing Station",
     "faction": "Fremen",
-    "agent_icon": [
-      "fremen",
-      "blue"
-    ],
+    "agent_icon": ["fremen", "blue"],
     "cost": 3,
     "quantity": 3,
     "agent_effects": [
@@ -810,9 +742,7 @@
     "id": 21,
     "name": "Fedaykin Stilltent",
     "faction": "Fremen",
-    "agent_icon": [
-      "yellow"
-    ],
+    "agent_icon": ["yellow"],
     "cost": 2,
     "quantity": 3,
     "agent_effects": [
@@ -821,9 +751,7 @@
         "check": [
           {
             "type": "sent_an_agent_on",
-            "target": [
-              "maker"
-            ]
+            "target": ["maker"]
           }
         ],
         "reward": [
@@ -847,12 +775,7 @@
     "id": 22,
     "name": "Guild Envoy",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "emperor",
-      "bene_gesserit",
-      "spacing_guild",
-      "fremen"
-    ],
+    "agent_icon": ["emperor", "bene_gesserit", "spacing_guild", "fremen"],
     "cost": 3,
     "quantity": 3,
     "agent_effects": [
@@ -890,9 +813,7 @@
     "id": 23,
     "name": "Guild Spy",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "spy"
-    ],
+    "agent_icon": ["spy"],
     "cost": 3,
     "quantity": 3,
     "on_acquire_effects": [
@@ -949,12 +870,7 @@
           {
             "type": "multiple",
             "per": "spy",
-            "target": [
-              "bene_gesserit",
-              "spacing_guild",
-              "emperor",
-              "fremen"
-            ],
+            "target": ["bene_gesserit", "spacing_guild", "emperor", "fremen"],
             "reward": [
               {
                 "type": "influence",
@@ -971,9 +887,7 @@
     "id": 24,
     "name": "Hidden Missive",
     "faction": "Bene Gesserit",
-    "agent_icon": [
-      "green"
-    ],
+    "agent_icon": ["green"],
     "cost": 2,
     "quantity": 3,
     "agent_effects": [
@@ -1017,10 +931,7 @@
     "id": 25,
     "name": "Imperial Spymaster",
     "faction": "Emperor",
-    "agent_icon": [
-      "emperor",
-      "spy"
-    ],
+    "agent_icon": ["emperor", "spy"],
     "cost": 2,
     "quantity": 3,
     "agent_effects": [
@@ -1058,10 +969,7 @@
     "id": 26,
     "name": "In High Places",
     "faction": "Bene Gesserit",
-    "agent_icon": [
-      "bene_gesserit",
-      "emperor"
-    ],
+    "agent_icon": ["bene_gesserit", "emperor"],
     "cost": 5,
     "quantity": 2,
     "on_acquire_effects": [
@@ -1116,11 +1024,7 @@
     "id": 27,
     "name": "Interstellar Trade",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "green",
-      "blue",
-      "yellow"
-    ],
+    "agent_icon": ["green", "blue", "yellow"],
     "cost": 7,
     "quantity": 2,
     "agent_effects": [
@@ -1147,11 +1051,7 @@
     "id": 28,
     "name": "Junction Headquarters",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "green",
-      "blue",
-      "yellow"
-    ],
+    "agent_icon": ["green", "blue", "yellow"],
     "cost": 6,
     "quantity": 2,
     "agent_effects": [
@@ -1205,10 +1105,7 @@
     "id": 29,
     "name": "Leadership",
     "faction": "Fremen",
-    "agent_icon": [
-      "fremen",
-      "yellow"
-    ],
+    "agent_icon": ["fremen", "yellow"],
     "cost": 5,
     "quantity": 2,
     "agent_effects": [
@@ -1252,10 +1149,7 @@
     "id": 30,
     "name": "Long Live the Fighters",
     "faction": "Fremen",
-    "agent_icon": [
-      "fremen",
-      "blue"
-    ],
+    "agent_icon": ["fremen", "blue"],
     "cost": 7,
     "quantity": 2,
     "agent_effects": [
@@ -1294,14 +1188,8 @@
   {
     "id": 31,
     "name": "Maker Keeper",
-    "faction": [
-      "Bene Gesserit",
-      "Fremen"
-    ],
-    "agent_icon": [
-      "blue",
-      "yellow"
-    ],
+    "faction": ["Bene Gesserit", "Fremen"],
+    "agent_icon": ["blue", "yellow"],
     "cost": 2,
     "quantity": 3,
     "agent_effects": [
@@ -1352,10 +1240,7 @@
     "id": 32,
     "name": "Maula Pistol",
     "faction": "Fremen",
-    "agent_icon": [
-      "blue",
-      "yellow"
-    ],
+    "agent_icon": ["blue", "yellow"],
     "cost": 3,
     "quantity": 3,
     "agent_effects": [
@@ -1382,9 +1267,7 @@
     "id": 33,
     "name": "Northern Watermaster",
     "faction": "Fremen",
-    "agent_icon": [
-      "blue"
-    ],
+    "agent_icon": ["blue"],
     "cost": 3,
     "quantity": 3,
     "agent_effects": [
@@ -1421,12 +1304,7 @@
     "id": 34,
     "name": "Overthrow",
     "faction": "Emperor",
-    "agent_icon": [
-      "fremen",
-      "bene_gesserit",
-      "spacing_guild",
-      "emperor"
-    ],
+    "agent_icon": ["fremen", "bene_gesserit", "spacing_guild", "emperor"],
     "cost": 8,
     "quantity": 1,
     "on_acquire_effects": [
@@ -1464,9 +1342,7 @@
   {
     "id": 35,
     "name": "Paracompass",
-    "agent_icon": [
-      "blue"
-    ],
+    "agent_icon": ["blue"],
     "cost": 4,
     "quantity": 3,
     "agent_effects": [
@@ -1518,14 +1394,8 @@
   {
     "id": 36,
     "name": "Price is No Object",
-    "faction": [
-      "Emperor",
-      "Bene Gesserit"
-    ],
-    "agent_icon": [
-      "emperor",
-      "bene_gesserit"
-    ],
+    "faction": ["Emperor", "Bene Gesserit"],
+    "agent_icon": ["emperor", "bene_gesserit"],
     "cost": 6,
     "quantity": 2,
     "on_acquire_effects": [
@@ -1557,11 +1427,7 @@
     "id": 37,
     "name": "Priority Contracts",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "spice",
-      "solari",
-      "intrigue"
-    ],
+    "agent_icon": ["spice", "solari", "intrigue"],
     "cost": 6,
     "quantity": 2,
     "agent_effects": [
@@ -1610,9 +1476,7 @@
     "id": 38,
     "name": "Public Spectacle",
     "faction": "Emperor",
-    "agent_icon": [
-      "spy"
-    ],
+    "agent_icon": ["spy"],
     "cost": 4,
     "quantity": 2,
     "agent_effects": [
@@ -1650,9 +1514,7 @@
     "id": 39,
     "name": "Rebel Supplier",
     "faction": "Fremen",
-    "agent_icon": [
-      "blue"
-    ],
+    "agent_icon": ["blue"],
     "cost": 3,
     "quantity": 3,
     "agent_effects": [
@@ -1690,9 +1552,7 @@
     "id": 40,
     "name": "Reliable Informant",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "spacing_guild"
-    ],
+    "agent_icon": ["spacing_guild"],
     "cost": 2,
     "quantity": 2,
     "agent_effects": [
@@ -1700,11 +1560,7 @@
         "type": "play",
         "unit": "spy",
         "amount": 1,
-        "target": [
-          "emperor",
-          "bene_gesserit",
-          "spacing_guild"
-        ]
+        "target": ["emperor", "bene_gesserit", "spacing_guild"]
       }
     ],
     "reveal_effects": [
@@ -1724,10 +1580,7 @@
     "id": 41,
     "name": "Sardaukar Coordination",
     "faction": "Emperor",
-    "agent_icon": [
-      "emperor",
-      "green"
-    ],
+    "agent_icon": ["emperor", "green"],
     "cost": 4,
     "quantity": 2,
     "agent_effects": [
@@ -1759,9 +1612,7 @@
     "id": 42,
     "name": "Sardaukar Soldier",
     "faction": "Emperor",
-    "agent_icon": [
-      "blue"
-    ],
+    "agent_icon": ["blue"],
     "cost": 1,
     "quantity": 3,
     "on_trash_effects": [
@@ -1788,10 +1639,7 @@
     "id": 43,
     "name": "Shishakli",
     "faction": "Fremen",
-    "agent_icon": [
-      "blue",
-      "yellow"
-    ],
+    "agent_icon": ["blue", "yellow"],
     "cost": 4,
     "quantity": 2,
     "agent_effects": [
@@ -1800,10 +1648,7 @@
         "cost": [
           {
             "type": "trash",
-            "deck": [
-              "hand",
-              "played"
-            ],
+            "deck": ["hand", "played"],
             "amount": 1
           }
         ],
@@ -1835,9 +1680,7 @@
     "id": 44,
     "name": "Smuggler's Harvester",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "yellow"
-    ],
+    "agent_icon": ["yellow"],
     "cost": 1,
     "quantity": 3,
     "agent_effects": [
@@ -1846,9 +1689,7 @@
         "check": [
           {
             "type": "sent_an_agent_on",
-            "target": [
-              "maker"
-            ]
+            "target": ["maker"]
           }
         ],
         "reward": [
@@ -1872,10 +1713,7 @@
     "id": 45,
     "name": "Smuggler's Haven",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "spacing_guild",
-      "yellow"
-    ],
+    "agent_icon": ["spacing_guild", "yellow"],
     "cost": 4,
     "quantity": 2,
     "agent_effects": [
@@ -1924,14 +1762,8 @@
   {
     "id": 46,
     "name": "Southern Elders",
-    "faction": [
-      "Bene Gesserit",
-      "Fremen"
-    ],
-    "agent_icon": [
-      "bene_gesserit",
-      "fremen"
-    ],
+    "faction": ["Bene Gesserit", "Fremen"],
+    "agent_icon": ["bene_gesserit", "fremen"],
     "cost": 4,
     "quantity": 2,
     "agent_effects": [
@@ -1971,9 +1803,7 @@
     "id": 47,
     "name": "Space-time Folding",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "spacing_guild"
-    ],
+    "agent_icon": ["spacing_guild"],
     "cost": 1,
     "quantity": 3,
     "agent_effects": [
@@ -2023,10 +1853,7 @@
     "id": 48,
     "name": "Spacing Guild's Favor",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "spacing_guild",
-      "yellow"
-    ],
+    "agent_icon": ["spacing_guild", "yellow"],
     "cost": 5,
     "quantity": 2,
     "on_discard_effects": [
@@ -2071,10 +1898,7 @@
   {
     "id": 49,
     "name": "Spy Network",
-    "faction": [
-      "Emperor",
-      "Spacing Guild"
-    ],
+    "faction": ["Emperor", "Spacing Guild"],
     "cost": 2,
     "quantity": 2,
     "on_acquire_effects": [
@@ -2122,12 +1946,7 @@
     "id": 50,
     "name": "Steersman",
     "faction": "Spacing Guild",
-    "agent_icon": [
-      "spacing_guild",
-      "green",
-      "blue",
-      "yellow"
-    ],
+    "agent_icon": ["spacing_guild", "green", "blue", "yellow"],
     "cost": 8,
     "quantity": 1,
     "on_acquire_effects": [
@@ -2166,11 +1985,7 @@
     "id": 51,
     "name": "Stilgar, the Devoted",
     "faction": "Fremen",
-    "agent_icon": [
-      "fremen",
-      "blue",
-      "yellow"
-    ],
+    "agent_icon": ["fremen", "blue", "yellow"],
     "cost": 6,
     "quantity": 1,
     "agent_effects": [
@@ -2197,9 +2012,7 @@
   {
     "id": 52,
     "name": "Strike Fleet",
-    "agent_icon": [
-      "spy"
-    ],
+    "agent_icon": ["spy"],
     "cost": 5,
     "quantity": 2,
     "on_acquire_effects": [
@@ -2243,9 +2056,7 @@
   {
     "id": 53,
     "name": "Subversive Advisor",
-    "agent_icon": [
-      "reveal"
-    ],
+    "agent_icon": ["reveal"],
     "cost": 5,
     "quantity": 2,
     "on_acquire_effects": [
@@ -2261,12 +2072,7 @@
         "check": [
           {
             "type": "sent_an_agent_on",
-            "target": [
-              "fremen",
-              "bene_gesserit",
-              "emperor",
-              "spacing_guild"
-            ]
+            "target": ["fremen", "bene_gesserit", "emperor", "spacing_guild"]
           }
         ],
         "reward": [
@@ -2294,12 +2100,7 @@
     "id": 54,
     "name": "Treacherous Maneuver",
     "faction": "Emperor",
-    "agent_icon": [
-      "emperor",
-      "spacing_guild",
-      "bene_gesserit",
-      "fremen"
-    ],
+    "agent_icon": ["emperor", "spacing_guild", "bene_gesserit", "fremen"],
     "cost": 5,
     "quantity": 2,
     "agent_effects": [
@@ -2341,11 +2142,7 @@
     "id": 55,
     "name": "Tread in Darkness",
     "faction": "Bene Gesserit",
-    "agent_icon": [
-      "green",
-      "blue",
-      "yellow"
-    ],
+    "agent_icon": ["green", "blue", "yellow"],
     "cost": 4,
     "quantity": 2,
     "agent_effects": [
@@ -2360,10 +2157,7 @@
         "reward": [
           {
             "type": "trash",
-            "deck": [
-              "hand",
-              "played"
-            ]
+            "deck": ["hand", "played"]
           },
           {
             "type": "draw",
@@ -2390,12 +2184,7 @@
     "id": 56,
     "name": "Truthtrance",
     "faction": "Bene Gesserit",
-    "agent_icon": [
-      "emperor",
-      "spacing_guild",
-      "bene_gesserit",
-      "fremen"
-    ],
+    "agent_icon": ["emperor", "spacing_guild", "bene_gesserit", "fremen"],
     "cost": 4,
     "quantity": 2,
     "reveal_effects": [
@@ -2409,15 +2198,8 @@
   {
     "id": 57,
     "name": "Undercover Asset",
-    "faction": [
-      "Emperor",
-      "Spacing Guild"
-    ],
-    "agent_icon": [
-      "green",
-      "blue",
-      "yellow"
-    ],
+    "faction": ["Emperor", "Spacing Guild"],
+    "agent_icon": ["green", "blue", "yellow"],
     "cost": 2,
     "quantity": 2,
     "agent_effects": [
@@ -2481,10 +2263,7 @@
     "id": 59,
     "name": "Weirding Woman",
     "faction": "Bene Gesserit",
-    "agent_icon": [
-      "blue",
-      "yellow"
-    ],
+    "agent_icon": ["blue", "yellow"],
     "cost": 1,
     "quantity": 3,
     "agent_effects": [
@@ -2521,13 +2300,8 @@
   {
     "id": 60,
     "name": "Wheels Within Wheels",
-    "faction": [
-      "Emperor",
-      "Spacing Guild"
-    ],
-    "agent_icon": [
-      "spy"
-    ],
+    "faction": ["Emperor", "Spacing Guild"],
+    "agent_icon": ["spy"],
     "cost": 2,
     "quantity": 2,
     "agent_effects": [
@@ -2584,7 +2358,7 @@
     "name": "Prepare the Way",
     "reserve": true,
     "reserve_pile": "prepare_the_way",
-    "quantity": 4,
+    "quantity": 10,
     "cost": 2,
     "factions": ["bene_gesserit"],
     "agent_icons": ["blue", "green"],
@@ -2594,9 +2368,7 @@
         "check": [
           { "type": "influence", "target": "bene_gesserit", "amount": 2 }
         ],
-        "reward": [
-          { "type": "draw", "deck": "deck", "amount": 1 }
-        ]
+        "reward": [{ "type": "draw", "deck": "deck", "amount": 1 }]
       }
     ],
     "reveal_effects": [
@@ -2612,7 +2384,7 @@
     "name": "The Spice Must Flow",
     "reserve": true,
     "reserve_pile": "spice_must_flow",
-    "quantity": 2,
+    "quantity": 8,
     "cost": 9,
     "agent_icons": [],
     "agent_effects": [],
