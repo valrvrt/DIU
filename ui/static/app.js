@@ -135,6 +135,7 @@ function render() {
   renderNeutralSpaces(s);
   renderCombatZone(s);
   renderImperiumRow(s);
+  renderObservationPosts(s);
   renderPlayerArea(s);
   updateActionButtons(s);
 }
@@ -519,6 +520,50 @@ function renderImperiumRow(s) {
     if (inAcq) div.addEventListener("click", () => tryAcquireCard(card, src));
     resEl.appendChild(div);
   });
+}
+
+// ─────────────── OBSERVATION POSTS (spy panel) ────────────
+function renderObservationPosts(s) {
+  const panel = document.getElementById("obs-posts-panel");
+  if (!panel) return;
+  const posts = s.board?.observation_posts || [];
+  if (!posts.length) { panel.innerHTML = ""; return; }
+
+  const human = s.players.find(p => p.player_id === s.viewer_player_id);
+  const humanSpies = new Set(human?.spies_placed || []);
+
+  // Build map: post_id → player who has spy there
+  const spyOwners = {};
+  s.players.forEach((p, i) => {
+    (p.spies_placed || []).forEach(pid => { spyOwners[pid] = { name: p.name, idx: i }; });
+  });
+
+  panel.innerHTML = "";
+  const hdr = el("div","spy-panel-header"); hdr.textContent = "🕵 SPIES";
+  panel.appendChild(hdr);
+
+  const listEl = el("div","obs-posts");
+  posts.forEach(post => {
+    const owner = spyOwners[post.id];
+    const isMine = humanSpies.has(post.id);
+    const div = el("div","obs-post" + (owner ? " has-spy" : ""));
+    const nameEl = el("span","obs-post-name"); nameEl.textContent = post.name;
+    div.appendChild(nameEl);
+    if (owner) {
+      const spyEl = el("span","obs-post-spy");
+      spyEl.style.color = `var(--${G.playerColors[owner.idx]})`;
+      spyEl.textContent = isMine ? "YOU" : owner.name[0];
+      div.appendChild(spyEl);
+      if (isMine) {
+        const spacesEl = el("span","obs-post-spaces");
+        spacesEl.textContent = post.connected_locations.join(", ");
+        spacesEl.title = "Spaces you can access via this spy";
+        div.appendChild(spacesEl);
+      }
+    }
+    listEl.appendChild(div);
+  });
+  panel.appendChild(listEl);
 }
 
 // ─────────────── PLAYER AREA ────────────────

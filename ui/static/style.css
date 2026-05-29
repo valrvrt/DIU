@@ -226,7 +226,7 @@ body {
 
 .neutral-group { background:var(--bg2); border-radius:5px; padding:4px 6px; min-width:0; flex:1; display:flex; flex-direction:column; }
 .neutral-group.full-width { flex:1; }
-.shipping-aside { flex:0 0 220px; display:flex; flex-direction:column; }
+.shipping-aside { flex:0 0 220px; display:flex; flex-direction:column; overflow-y:auto; }
 /* Landsraad group fills remaining row space */
 .landsraad-row > .neutral-group:not(.shipping-aside) { flex:1; }
 
@@ -508,10 +508,10 @@ body {
 
 /* ─────── EVENT LOG ─────── */
 .event-log {
-  position:fixed; bottom:158px; right:182px;
-  width:190px; max-height:220px; overflow-y:auto;
+  flex:1; min-height:0; overflow-y:auto;
   background:rgba(15,12,10,.92); border:1px solid var(--border); border-radius:4px;
-  padding:3px 5px; font-size:9px; color:var(--text-dim); z-index:100;
+  padding:3px 5px; font-size:9px; color:var(--text-dim);
+  margin-top:4px;
 }
 .event-log .ev { padding:2px 0; border-bottom:1px solid rgba(255,255,255,.04); }
 .event-log .ev.ev-combat   { color:#e05050; }
@@ -566,3 +566,16 @@ body {
 
 /* ─────── SELECTED CARD IN HAND ─────── */
 .card.card-selected { border-color:#80e040 !important; box-shadow:0 0 10px rgba(80,200,40,.5) !important; transform:translateY(-3px); }
+
+/* ─────── OBSERVATION POSTS (spy panel) ─────── */
+.spy-panel-header { font-size:8px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.4px; margin-top:4px; margin-bottom:2px; padding-top:4px; border-top:1px solid var(--border); }
+.obs-posts { display:flex; flex-direction:column; gap:2px; }
+.obs-post {
+  display:flex; align-items:center; gap:4px;
+  background:var(--bg3); border:1px solid var(--border); border-radius:3px;
+  padding:2px 5px; font-size:8px;
+}
+.obs-post.has-spy { border-color:#4060a0; background:#080c18; }
+.obs-post-name { flex:1; color:var(--text-dim); }
+.obs-post-spy { font-size:8px; font-weight:700; }
+.obs-post-spaces { font-size:7px; color:var(--text-dim); font-style:italic; }

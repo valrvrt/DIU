@@ -151,6 +151,14 @@ def _board(board: Board) -> Dict[str, Any]:
         ),
         "conflict_deck_size": len(board.conflict_deck),
         "shield_active": board.shield_active,
+        "observation_posts": [
+            {
+                "id": str(post.id),
+                "name": post.name,
+                "connected_locations": post.connected_locations,
+            }
+            for post in board.observation_posts
+        ],
     }
 
 

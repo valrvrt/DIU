@@ -265,7 +265,7 @@ class ActionGenerator:
 
         # Check each observation post where player has a spy
         for post in self.game.board.observation_posts:
-            if post.id in player.spies_placed:
+            if str(post.id) in player.spies_placed:
                 # Player has a spy at this post
                 # Add all locations controlled by this post
                 for location_name in post.connected_locations:
@@ -298,7 +298,7 @@ class ActionGenerator:
         for post in self.game.board.observation_posts:
             if location_id in post.connected_locations:
                 # Does player have a spy at this post?
-                if post.id in player.spies_placed:
+                if str(post.id) in player.spies_placed:
                     return True
 
         return False
@@ -534,7 +534,7 @@ class ActionGenerator:
             # Check if post is already occupied
             occupied = False
             for p in self.game.players:
-                if post.id in p.spies_placed:
+                if str(post.id) in p.spies_placed:
                     occupied = True
                     break
 
