@@ -925,9 +925,10 @@ function describeIntrigueEffect(e) {
 
   // Conditional reward
   if (t === "conditional_reward") {
-    const cond = e.condition?.type || "?";
-    const rwHTML = (e.reward||[]).map(x => describeEffectHTML(x)).join(" ") || "";
-    return `❓<em style="color:var(--text-dim);font-size:8px">${cond}</em>: ${rwHTML}`;
+    const cond = e.condition ? describeCheckShort(e.condition)
+               : (e.check || []).map(describeCheckShort).join(" & ");
+    const rwHTML = _rewardOf(e).map(describeEffectHTML).join(" ") || "";
+    return `<span class="ef-if">if ${cond || "…"}:</span> ${rwHTML}`;
   }
 
   return describeEffectHTML(e) || t;
@@ -964,6 +965,9 @@ const CHECK_NAMES = {
   recalled_spy:"you recalled a spy", alliance:"you hold an alliance",
   cards_in_deck:"cards in your deck", swordmaster:"you are a Swordmaster",
   spying:"you are spying", spies_on_board:"your spies on the board",
+  buy_imperium:"you bought an Imperium Row card", deploy_units:"units you deploy",
+  flip_conflict:"conflicts you have won", spice_must_flow_tokens:"your Spice Must Flow cards",
+  recall:"agents you recall", gained_resource_this_turn:"resources you gained this turn",
 };
 
 function _plural(amt, word) { return amt === 1 ? word : word + "s"; }
@@ -979,10 +983,52 @@ function _asArr(v) { return Array.isArray(v) ? v : (v ? [v] : []); }
 function _costOf(e)   { return _asArr(e.cost || e.costs); }
 function _rewardOf(e) { return _asArr(e.reward || e.rewards); }
 
+// Short faction labels for compact inline condition text.
+const FACTION_SHORT = {fremen:"Fremen", bene_gesserit:"Bene Gesserit",
+  spacing_guild:"Guild", emperor:"Emperor"};
+// Concise inline phrasing for conditional `check` clauses (shown on the card).
+const CHECK_SHORT = {
+  spies_placed:"spies placed", cards_in_play:"cards in play",
+  contracts_completed:"contracts done", units_in_conflict:"units in Conflict",
+  faction_bond:"faction card", fremen_bond:"Fremen card",
+  council_seat:"Council seat", sent_an_agent_on:"agent sent there",
+  maker_hook:"Maker hook", discarded_faction_card:"discarded faction card",
+  acquired_card:"card acquired", influence:"influence",
+  recalled_spy:"recalled spy", alliance:"alliance",
+  cards_in_deck:"cards in deck", swordmaster:"Swordmaster",
+  spying:"spying", spies_on_board:"spies on board",
+  buy_imperium:"card bought", deploy_units:"units deployed",
+  flip_conflict:"conflicts won", spice_must_flow_tokens:"Spice Must Flow cards",
+  recall:"agents recalled", gained_resource_this_turn:"resource gained",
+};
+
+function _checkFaction(chk) {
+  const f = chk.faction || (chk.type === "influence" ? chk.target : null);
+  if (!f) return null;
+  return String(f).toLowerCase();
+}
+
 function describeCheckText(chk) {
   if (!chk || typeof chk !== "object") return String(chk || "");
-  const base = CHECK_NAMES[chk.type] || String(chk.type || "").replace(/_/g, " ");
+  let base = CHECK_NAMES[chk.type] || String(chk.type || "").replace(/_/g, " ");
+  const fac = _checkFaction(chk);
+  if (fac && FACTION_NAMES[fac]) {
+    if (chk.type === "influence") base = `your influence with ${FACTION_NAMES[fac]}`;
+    else if (chk.type === "discarded_faction_card") base = `you discarded a ${FACTION_SHORT[fac] || fac} card`;
+  }
   return chk.amount != null ? `${base} ≥ ${chk.amount}` : base;
+}
+
+/** Concise inline condition label, e.g. "Bene Gesserit influence ≥2". */
+function describeCheckShort(chk) {
+  if (!chk || typeof chk !== "object") return String(chk || "");
+  let base = CHECK_SHORT[chk.type] || String(chk.type || "").replace(/_/g, " ");
+  const fac = _checkFaction(chk);
+  if (fac && FACTION_SHORT[fac]) {
+    if (chk.type === "influence") base = `${FACTION_SHORT[fac]} influence`;
+    else if (chk.type === "discarded_faction_card") base = `discarded ${FACTION_SHORT[fac]} card`;
+  }
+  return chk.amount != null ? `${base} ≥${chk.amount}` : base;
 }
 
 function describeOptionText(o) {
@@ -1063,8 +1109,10 @@ function describeEffectText(e, asCost) {
       if (cost && rew) return `${cost} → ${rew}`;
       return rew || cost || _prettyType(t);
     }
-    case "conditional": {
-      const checks = (e.check || []).map(describeCheckText).join(" and ");
+    case "conditional": case "conditional_reward": {
+      const checks = e.condition
+        ? describeCheckText(e.condition)
+        : (e.check || []).map(describeCheckText).join(" and ");
       const rew = joinRew(_rewardOf(e));
       return checks ? `If ${checks}: ${rew}` : rew;
     }
@@ -1122,8 +1170,9 @@ function describeEffectHTML(e) {
     return costHTML ? `<span class="ef-cost">${costHTML}&thinsp;→</span> ${rwHTML}` : rwHTML;
   }
   if (t === "conditional") {
+    const conds = (e.check || []).map(describeCheckShort).join(" & ");
     const rwHTML = _rewardOf(e).map(describeEffectHTML).filter(Boolean).join(" ");
-    return `<span class="ef-if">if…</span> ${rwHTML}`;
+    return `<span class="ef-if">if ${conds || "…"}:</span> ${rwHTML}`;
   }
   if (t === "multiple") {
     const rwHTML = _rewardOf(e).map(describeEffectHTML).filter(Boolean).join(" ");
