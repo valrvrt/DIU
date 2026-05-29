@@ -1427,7 +1427,7 @@
     "id": 37,
     "name": "Priority Contracts",
     "faction": "Spacing Guild",
-    "agent_icon": ["spice", "solari", "intrigue"],
+    "agent_icon": ["green", "yellow"],
     "cost": 6,
     "quantity": 2,
     "agent_effects": [
