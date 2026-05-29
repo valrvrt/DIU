@@ -820,6 +820,7 @@ function buildCard(card, extraClass, inAcquisition, persuasion) {
             efDiv.appendChild(orLine);
           }
           const line = el("div","effect-line");
+          line.title = describeOptionText(opt);
           const bullet = el("span","ef-bullet"); bullet.textContent = "→";
           const text = el("span","ef-text");
           text.innerHTML = formatOptionRewardsHTML(opt);
@@ -887,6 +888,7 @@ function buildIntrigueCard(card, isAgentPhase) {
 function intrigueEffectLine(e) {
   // Intrigue effects have varied shapes; render a human-readable summary
   const line = el("div","effect-line");
+  line.title = describeEffectText(e);   // hover for full plain-English text
   const bullet = el("span","ef-bullet"); bullet.textContent = "·";
   const text = el("span","ef-text");
   text.innerHTML = describeIntrigueEffect(e);
@@ -934,8 +936,146 @@ function describeIntrigueEffect(e) {
 // ─────────────── EFFECT RENDERING ───────────
 const FACTION_ICONS = {fremen:"🌵", bene_gesserit:"🔮", spacing_guild:"🚀", emperor:"👑"};
 
+// Short readable names shown inline next to icons.
+const RES_WORDS = {
+  solari:"Solari", spice:"Spice", water:"Water", persuasion:"Persuasion",
+  sword:"Sword", troop:"Troops", troops:"Troops", victory_point:"VP",
+  agent:"Agent", worm:"Sandworm",
+};
+// Full names for plain-English tooltips.
+const RES_NAMES = {
+  solari:"Solari", spice:"Spice", water:"Water", persuasion:"Persuasion",
+  sword:"combat strength (sword)", troop:"troop", troops:"troops",
+  victory_point:"victory point", agent:"agent", worm:"sandworm",
+};
+const FACTION_NAMES = {
+  fremen:"the Fremen", bene_gesserit:"the Bene Gesserit",
+  spacing_guild:"the Spacing Guild", emperor:"the Emperor",
+  any:"a faction of your choice", agent:"a faction where you have an agent",
+};
+// Plain-English phrasing for conditional `check` clauses.
+const CHECK_NAMES = {
+  spies_placed:"you have spies placed", cards_in_play:"the number of cards you have in play",
+  contracts_completed:"contracts you have completed", units_in_conflict:"your units in the Conflict",
+  faction_bond:"you have a matching faction card", fremen_bond:"you have a Fremen card",
+  council_seat:"you hold the High Council seat", sent_an_agent_on:"you sent an agent to that space",
+  maker_hook:"you have a Maker hook", discarded_faction_card:"you discarded a faction card",
+  acquired_card:"you acquired a card this turn", influence:"your influence",
+  recalled_spy:"you recalled a spy", alliance:"you hold an alliance",
+  cards_in_deck:"cards in your deck", swordmaster:"you are a Swordmaster",
+  spying:"you are spying", spies_on_board:"your spies on the board",
+};
+
+function _plural(amt, word) { return amt === 1 ? word : word + "s"; }
+function _cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+function _prettyType(t) { return _cap(String(t || "").replace(/_/g, " ")); }
+function _fmtDeck(d) {
+  if (Array.isArray(d)) return d.join("/");
+  return {hand:"hand", played:"played cards", deck:"deck",
+          discard:"discard pile", self:"this card", imperium:"Imperium Row"}[d] || d;
+}
+// cost/reward fields are sometimes a single object instead of a list.
+function _asArr(v) { return Array.isArray(v) ? v : (v ? [v] : []); }
+function _costOf(e)   { return _asArr(e.cost || e.costs); }
+function _rewardOf(e) { return _asArr(e.reward || e.rewards); }
+
+function describeCheckText(chk) {
+  if (!chk || typeof chk !== "object") return String(chk || "");
+  const base = CHECK_NAMES[chk.type] || String(chk.type || "").replace(/_/g, " ");
+  return chk.amount != null ? `${base} ≥ ${chk.amount}` : base;
+}
+
+function describeOptionText(o) {
+  const cost = _costOf(o).map(x => describeEffectText(x, true)).filter(Boolean).join(", ");
+  const rew  = _rewardOf(o).map(describeEffectText).filter(Boolean).join(", ");
+  let s = cost ? `${cost} → ${rew}` : rew;
+  if (o.condition && o.condition.type) s += ` (if ${describeCheckText(o.condition)})`;
+  return s || o.id || "—";
+}
+
+/**
+ * Full plain-English description of any effect. Used as hover tooltip.
+ * `asCost` phrases resource/influence/VP as a payment (no "Gain" verb).
+ */
+function describeEffectText(e, asCost) {
+  if (!e || typeof e !== "object") return String(e || "");
+  if (e.description) return e.description;        // authoritative when present
+  const t = e.type || "";
+  const amt = e.amount != null ? e.amount : 1;
+  const gain = asCost ? "" : "Gain ";        // cost clauses omit the verb
+  const joinRew = arr => _asArr(arr).map(x => describeEffectText(x)).filter(Boolean).join(", ");
+
+  switch (t) {
+    case "resource": {
+      const r = e.resource || "";
+      if (r === "victory_point") return `${gain}${amt} ${_plural(amt,"victory point")}`;
+      if (r === "troop" || r === "troops") return `${gain}${amt} ${_plural(amt,"troop")}`;
+      return `${gain}${amt} ${RES_NAMES[r] || r}`;
+    }
+    case "draw":
+      if (e.deck === "intrigue") return `Draw ${amt} Intrigue ${_plural(amt,"card")}`;
+      if (e.deck === "imperium") return `Draw ${amt} ${_plural(amt,"card")} from the Imperium Row`;
+      return `Draw ${amt} ${_plural(amt,"card")}`;
+    case "influence":
+      return `${gain}${amt} influence with ${FACTION_NAMES[e.target] || e.target || "a faction"}`;
+    case "victory_point": return `${gain}${amt} ${_plural(amt,"victory point")}`;
+    case "persuasion":    return `${gain}${amt} Persuasion`;
+    case "combat_strength": return `Add ${amt} combat strength (sword)`;
+    case "deploy_troops": return `Deploy ${amt} ${_plural(amt,"troop")} to the Conflict`;
+    case "retreat":       return `Retreat ${amt} ${_plural(amt,"troop")} from the Conflict`;
+    case "trash":
+      if (e.deck === "self") return `Trash this card`;
+      return `Trash ${amt} ${_plural(amt,"card")}${e.deck ? ` from your ${_fmtDeck(e.deck)}` : ""}`;
+    case "trash_intrigue":return `Trash ${amt} Intrigue ${_plural(amt,"card")}`;
+    case "discard":       return `Discard ${amt} ${_plural(amt,"card")}${e.deck ? ` from your ${_fmtDeck(e.deck)}` : ""}`;
+    case "opponent_discard": return `Each opponent discards ${amt} ${_plural(amt,"card")}`;
+    case "play":          return e.unit === "spy" ? `Place ${amt} ${_plural(amt,"spy")}` : `Play ${amt} ${e.unit || "unit"}`;
+    case "spy":           return `Place ${amt} ${_plural(amt,"spy")}`;
+    case "recall":        return `Recall ${amt} ${e.unit === "spy" ? _plural(amt,"spy") : _plural(amt, e.unit || "unit")}`;
+    case "recall_agent":  return `Recall one of your agents`;
+    case "council_seat":  return `Take the High Council seat`;
+    case "signet":        return `Trigger your leader's Signet ability`;
+    case "accept":        return `Sign a Contract`;
+    case "control":       return `Take control of ${e.location === "current" ? "this location" : (e.location || "a location")}`;
+    case "acquire_with_solari": return `You may acquire an Imperium Row card by paying Solari equal to its cost`;
+    case "maker_hooks":   return `Gain a Maker hook`;
+    case "steal":         return `Steal resources from an opponent`;
+    case "return_to_hand":return `Return this card from play to your hand`;
+    case "shield_wall":   return `Shield Wall effect`;
+    case "restrict":      return `A restriction applies to this turn`;
+    case "bypass_influence_requirment_rule": return `Ignore influence requirements when placing your agent this turn`;
+    case "bypass_troops_deployment_rule":    return `You may deploy any troops you recruit this turn to the Conflict`;
+    case "deck_manipulation": {
+      const bits = [];
+      if (e.look)    bits.push(`look at the top ${e.look} ${_plural(e.look,"card")} of your deck`);
+      if (e.draw)    bits.push(`draw ${e.draw}`);
+      if (e.trash)   bits.push(`trash ${e.trash}`);
+      if (e.discard) bits.push(`discard ${e.discard}`);
+      return bits.length ? _cap(bits.join(", ")) : "Manipulate your deck";
+    }
+    case "choice":
+      return "Choose one — " + (e.options || []).map(describeOptionText).join("  OR  ");
+    case "multiple":
+      return `${joinRew(_rewardOf(e))} for each ${e.per || "unit"}`;
+    case "action": case "exchange": case "trade": case "cost": {
+      const cost = _costOf(e).map(x => describeEffectText(x, true)).filter(Boolean).join(", ");
+      const rew  = _rewardOf(e).map(describeEffectText).filter(Boolean).join(", ");
+      if (cost && rew) return `${cost} → ${rew}`;
+      return rew || cost || _prettyType(t);
+    }
+    case "conditional": {
+      const checks = (e.check || []).map(describeCheckText).join(" and ");
+      const rew = joinRew(_rewardOf(e));
+      return checks ? `If ${checks}: ${rew}` : rew;
+    }
+    default:
+      return _prettyType(t);
+  }
+}
+
 function effectLine(e) {
   const line = el("div","effect-line");
+  line.title = describeEffectText(e);   // hover for full plain-English text
   const bullet = el("span","ef-bullet"); bullet.textContent = "·";
   const text = el("span","ef-text");
   text.innerHTML = describeEffectHTML(e);
@@ -944,44 +1084,72 @@ function effectLine(e) {
   return line;
 }
 
+/** Compact inline rendering: icon + short word, so the card is self-explanatory. */
 function describeEffectHTML(e) {
   if (!e || typeof e !== "object") return String(e || "");
   const t = e.type || "";
   const amt = e.amount != null ? e.amount : 1;
+  const word = w => `<span class="ef-word">${w}</span>`;
+  const qty  = `+${amt} `;
 
   if (t === "resource") {
-    const iconH = resourceIconHTML(e.resource || "");
-    return amt !== 1 ? `+${amt}${iconH}` : `${iconH}`;
+    const r = e.resource || "";
+    return `${qty}${resourceIconHTML(r)}${word(RES_WORDS[r] || r)}`;
   }
   if (t === "draw") {
     const icon = e.deck === "intrigue"
-      ? `<i class="efx intrigue-draw"></i>`
-      : `<i class="efx card-draw"></i>`;
-    return amt !== 1 ? `+${amt}${icon}` : icon;
+      ? `<i class="efx intrigue-draw"></i>` : `<i class="efx card-draw"></i>`;
+    const lbl = e.deck === "intrigue" ? "Intrigue"
+              : e.deck === "imperium" ? "from Row" : "Draw";
+    return `${qty}${icon}${word(lbl)}`;
   }
   if (t === "influence") {
     const fIcon = FACTION_ICONS[e.target] || "★";
-    return `↑${fIcon}`;
+    return `${qty}${fIcon}${word("Influence")}`;
   }
-  if (t === "victory_point") return `+${amt}⭐`;
+  if (t === "victory_point") return `${qty}⭐${word("VP")}`;
+  if (t === "persuasion")    return `${qty}<i class="efx persuasion"></i>${word("Persuasion")}`;
+  if (t === "combat_strength") return `${qty}⚔${word("Sword")}`;
+  if (t === "deploy_troops")  return `${qty}🗡${word("Deploy")}`;
+  if (t === "retreat")        return `−${amt}🗡${word("Retreat")}`;
   if (t === "choice") {
-    // Inline context (intrigue card body): show options separated by OR
     const parts = (e.options || []).map(o => formatOptionRewardsHTML(o));
-    return parts.join(`<span style="color:var(--gold-dim);font-size:8px;margin:0 3px">OR</span>`);
+    return parts.join(`<span class="ef-or">OR</span>`);
   }
-  if (t === "conditional") return `❓`;
-  if (t === "trash")          return `🗑${amt > 1 ? `×${amt}` : ""}`;
-  if (t === "accept")         return `📋`;
-  if (t === "council_seat")   return `🪑`;
-  if (t === "maker_hooks")    return `🪝`;
-  if (t === "recall_agent")   return `↩`;
-  if (t === "restrict")       return `⚠`;
-  if (t === "deploy_troops")  return `🗡+${amt}`;
-  if (t === "combat_strength") return `⚔+${amt}`;
-  if (t === "spy")            return `🕵`;
-  if (t === "steal")          return `⚡`;
-  if (t === "shield_wall")    return `🛡`;
-  return t;
+  if (t === "action" || t === "exchange" || t === "trade" || t === "cost") {
+    const costHTML = _costOf(e).map(describeEffectHTML).filter(Boolean).join(" ");
+    const rwHTML   = _rewardOf(e).map(describeEffectHTML).filter(Boolean).join(" ");
+    return costHTML ? `<span class="ef-cost">${costHTML}&thinsp;→</span> ${rwHTML}` : rwHTML;
+  }
+  if (t === "conditional") {
+    const rwHTML = _rewardOf(e).map(describeEffectHTML).filter(Boolean).join(" ");
+    return `<span class="ef-if">if…</span> ${rwHTML}`;
+  }
+  if (t === "multiple") {
+    const rwHTML = _rewardOf(e).map(describeEffectHTML).filter(Boolean).join(" ");
+    return `${rwHTML}${word("per " + (e.per || "unit"))}`;
+  }
+  if (t === "trash")          return `🗑${word(amt > 1 ? `Trash ×${amt}` : "Trash")}`;
+  if (t === "trash_intrigue") return `🗑${word("Trash Intrigue")}`;
+  if (t === "discard")        return `📤${word(amt > 1 ? `Discard ×${amt}` : "Discard")}`;
+  if (t === "opponent_discard") return `📤${word("Opponents discard")}`;
+  if (t === "accept")         return `📋${word("Sign Contract")}`;
+  if (t === "council_seat")   return `🪑${word("Council seat")}`;
+  if (t === "maker_hooks")    return `🪝${word("Maker hook")}`;
+  if (t === "recall_agent")   return `↩${word("Recall agent")}`;
+  if (t === "recall")         return `↩${word("Recall " + (e.unit || "spy"))}`;
+  if (t === "play" || t === "spy") return `🕵${word(e.unit === "spy" || t === "spy" ? "Place spy" : "Play")}`;
+  if (t === "signet")         return `💍${word("Signet")}`;
+  if (t === "control")        return `🚩${word("Control space")}`;
+  if (t === "acquire_with_solari") return `🛒${word("Buy w/ Solari")}`;
+  if (t === "deck_manipulation") return `🃏${word("Sift deck")}`;
+  if (t === "return_to_hand") return `↩${word("Return to hand")}`;
+  if (t === "restrict")       return `⚠${word("Restriction")}`;
+  if (t === "steal")          return `⚡${word("Steal")}`;
+  if (t === "shield_wall")    return `🛡${word("Shield Wall")}`;
+  if (t === "bypass_influence_requirment_rule") return `⚙${word("Ignore influence req.")}`;
+  if (t === "bypass_troops_deployment_rule")    return `⚙${word("Free deploy")}`;
+  return word(_prettyType(t));
 }
 
 function resourceIconHTML(res) {
