@@ -372,6 +372,17 @@ body {
 .icon-pip.green  { background:#081808; color:#50c050;     border:1px solid #205020; }
 .icon-pip.spy    { background:#101020; color:#7070d0;     border:1px solid #303080; }
 
+/* Faction badge(s) on cards */
+.card-factions { display:flex; gap:3px; flex-wrap:wrap; margin-bottom:1px; }
+.card-faction-tag {
+  font-size:8px; font-weight:700; padding:1px 5px; border-radius:8px;
+  letter-spacing:.2px; white-space:nowrap; border:1px solid currentColor;
+}
+.card-faction-tag.fremen        { background:var(--fremen-bg);        color:var(--fremen); }
+.card-faction-tag.bene_gesserit { background:var(--bene_gesserit-bg); color:var(--bene_gesserit); }
+.card-faction-tag.spacing_guild { background:var(--spacing_guild-bg); color:var(--spacing_guild); }
+.card-faction-tag.emperor       { background:var(--emperor-bg);       color:var(--emperor); }
+
 .card-section-label { font-size:7px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.2px; margin-top:1px; }
 .card-effects { display:flex; flex-direction:column; gap:2px; }
 .effect-line { font-size:10px; display:flex; gap:3px; align-items:center; cursor:help; }

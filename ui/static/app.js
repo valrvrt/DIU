@@ -889,6 +889,19 @@ function buildCard(card, extraClass, inAcquisition, persuasion) {
 
   const body = el("div","card-body");
 
+  // Faction badge(s) — show which faction(s) this card belongs to
+  if (card.factions?.length) {
+    const fRow = el("div","card-factions");
+    card.factions.forEach(f => {
+      const tag = el("span",`card-faction-tag ${f}`);
+      const ico = FACTION_ICONS[f] || "";
+      const nm  = FACTION_SHORT[f] || _prettyType(f);
+      tag.textContent = `${ico} ${nm}`.trim();
+      fRow.appendChild(tag);
+    });
+    body.appendChild(fRow);
+  }
+
   // Agent icons
   if (card.agent_icons?.length) {
     const iconRow = el("div","card-icons");
