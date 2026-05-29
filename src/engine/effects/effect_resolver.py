@@ -326,10 +326,16 @@ class EffectResolver:
             # Add spy to available pool
             player.spies_available += total_amount
         elif resource == "worm" or resource == "sandworm":
-            # Add sandworms (used in combat)
+            # Sandworms go directly into the current Conflict, where they add
+            # combat strength (+3 each) and double that player's combat rewards.
+            # There is no "deploy worm" step — gaining a worm places it in the
+            # conflict immediately (matching the physical game's sandworm tokens).
+            if not hasattr(player, "sandworms_in_conflict"):
+                player.sandworms_in_conflict = 0
+            player.sandworms_in_conflict += total_amount
+            # Keep the available pool defined for any legacy callers.
             if not hasattr(player, "sandworms_available"):
                 player.sandworms_available = 0
-            player.sandworms_available += total_amount
             # Muad'Dib passive: gaining a sandworm triggers an intrigue draw
             self._trigger_muaddib_sandworm_passive(player_id, total_amount)
         elif resource == "intrigue":
@@ -472,23 +478,16 @@ class EffectResolver:
         amount = effect.get("amount", 0)
 
         if unit_type == "sandworm":
-            # Handle sandworm placement (to conflict)
+            # Place sandworm(s) directly into the current Conflict. Worms come
+            # from the player's supply (not the resource pool), so this always
+            # succeeds — they add +3 combat strength each and double rewards.
             player = self.state.get_player_by_id(player_id)
 
-            if not hasattr(player, 'sandworms_available'):
-                player.sandworms_available = 0
-
-            if player.sandworms_available < amount:
-                return {
-                    "success": False,
-                    "error": f"Not enough sandworms available (have {player.sandworms_available}, need {amount})"
-                }
-
-            # Move sandworms to conflict
-            player.sandworms_available -= amount
             if not hasattr(player, 'sandworms_in_conflict'):
                 player.sandworms_in_conflict = 0
             player.sandworms_in_conflict += amount
+            # Gaining a sandworm triggers Muad'Dib's passive intrigue draw.
+            self._trigger_muaddib_sandworm_passive(player_id, amount)
 
             return {
                 "success": True,
