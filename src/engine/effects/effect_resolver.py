@@ -1447,21 +1447,19 @@ class EffectResolver:
 
         phase = context.get("phase", "agent")
 
-        # During agent phase, signet does nothing (agent placement handles it)
-        if phase == "agent":
-            return {
-                "success": True,
-                "effect_type": "signet",
-                "effects_applied": ["Signet agent placed"]
-            }
-
-        # During reveal phase, trigger leader's signet ability
-        if phase == "reveal":
+        # The Signet Ring ability fires whenever a card carrying the Signet
+        # effect resolves — that's the agent phase (playing the Signet Ring
+        # card to send an agent) and, for cards that list it as a reveal
+        # effect, the reveal phase.  Both trigger the leader's ability.
+        if phase in ("agent", "reveal"):
             # Get player's leader
             if not hasattr(player, 'leader') or not player.leader:
+                # No leader to trigger — succeed quietly so agent placement
+                # (which carries the signet effect) doesn't fail.
                 return {
-                    "success": False,
-                    "error": "Player has no leader"
+                    "success": True,
+                    "effect_type": "signet",
+                    "effects_applied": ["No leader signet ability"]
                 }
 
             leader = player.leader

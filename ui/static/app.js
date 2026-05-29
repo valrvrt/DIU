@@ -106,6 +106,80 @@ function closeObjective() {
   document.getElementById("objective-modal").classList.add("hidden");
 }
 
+// ─────────────── leader modal ───────────────
+function showLeader() {
+  const human = G.state?.players?.find(p => p.player_id === G.state.viewer_player_id);
+  const leader = human?.leader;
+  if (!leader) return;
+
+  document.getElementById("leader-title").textContent = `👑 ${leader.name || "Your Leader"}`;
+  const content = document.getElementById("leader-content");
+
+  // ── Signet ability (current effects for the leader's training-track level) ──
+  const signetFx = leader.signet_effects && leader.signet_effects.length
+    ? leader.signet_effects
+    : (Array.isArray(leader.signet) ? leader.signet : []);
+  const signetHTML = leaderEffectsHTML(signetFx,
+    "No signet effect at your current training-track position.");
+
+  // ── Passive ability ──
+  const passive = leader.passive;
+  let passiveHTML;
+  if (passive) {
+    const pName = passive.name ? `<div class="leader-ability-name">${passive.name}</div>` : "";
+    const when  = passive.phase ? `<span class="leader-when">Triggers: ${_cap(passive.phase)} phase</span>` : "";
+    const desc  = passive.description ? `<div class="leader-desc">${passive.description}</div>` : "";
+    const cost  = _asArr(passive.cost);
+    const rew   = _asArr(passive.reward);
+    let effLine = "";
+    if (cost.length || rew.length) {
+      const costTxt = cost.map(x => describeEffectText(x, true)).filter(Boolean).join(", ");
+      const rewTxt  = rew.map(x => describeEffectText(x)).filter(Boolean).join(", ");
+      effLine = `<div class="leader-eff">${costTxt ? `${costTxt} → ` : ""}${rewTxt || ""}</div>`;
+    }
+    passiveHTML = `${pName}${desc}${effLine}${when}`;
+    if (!passiveHTML.trim()) passiveHTML = `<div class="leader-empty">See card.</div>`;
+  } else {
+    passiveHTML = `<div class="leader-empty">This leader has no passive ability.</div>`;
+  }
+
+  content.innerHTML = `
+    <div class="leader-section">
+      <div class="leader-section-title">💍 Signet Ring Ability</div>
+      <div class="leader-hint">Triggered when you play the <b>Signet Ring</b> card.</div>
+      ${signetHTML}
+    </div>
+    <div class="leader-section">
+      <div class="leader-section-title">✦ Passive Ability</div>
+      ${passiveHTML}
+    </div>
+  `;
+  document.getElementById("leader-modal").classList.remove("hidden");
+}
+
+function closeLeader() {
+  document.getElementById("leader-modal").classList.add("hidden");
+}
+
+/** Render a list of leader effects as readable lines, expanding choices into OR rows. */
+function leaderEffectsHTML(effects, emptyMsg) {
+  const arr = _asArr(effects);
+  if (!arr.length) return `<div class="leader-empty">${emptyMsg || "—"}</div>`;
+  const rows = [];
+  arr.forEach(e => {
+    if (e && e.type === "choice") {
+      const opts = (e.options || []).map(o => `<div class="leader-eff">${describeOptionText(o)}</div>`);
+      rows.push(`<div class="leader-eff-choice">Choose one:</div>` + opts.join(`<div class="leader-or">— OR —</div>`));
+    } else if (e && (e.type === "conditional_multi" || e.type === "conditional_bonuses")) {
+      const opts = (e.options || []).map(o => `<div class="leader-eff">${o.description || describeOptionText(o)}</div>`);
+      rows.push(opts.join(""));
+    } else {
+      rows.push(`<div class="leader-eff">${describeEffectText(e)}</div>`);
+    }
+  });
+  return rows.join("");
+}
+
 // ─────────────── api helpers ────────────────
 async function api(method, url, body) {
   try {

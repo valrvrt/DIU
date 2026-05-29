@@ -85,6 +85,19 @@ body {
 .objective-name { font-size:14px; font-weight:700; color:var(--gold); margin-bottom:6px; }
 .objective-desc { color:var(--text-dim); font-size:11px; }
 
+/* Leader abilities modal */
+.leader-content { display:flex; flex-direction:column; gap:12px; margin-bottom:14px; min-width:300px; }
+.leader-section { background:var(--bg3); border:1px solid var(--border); border-radius:5px; padding:10px 12px; }
+.leader-section-title { font-size:13px; font-weight:700; color:var(--gold); margin-bottom:4px; }
+.leader-hint { font-size:9px; color:var(--text-dim); margin-bottom:7px; font-style:italic; }
+.leader-ability-name { font-size:12px; font-weight:700; color:var(--text); margin-bottom:4px; }
+.leader-desc { font-size:11px; color:var(--text); margin-bottom:5px; line-height:1.4; }
+.leader-eff { font-size:11px; color:#80d060; padding:2px 0; line-height:1.4; }
+.leader-eff-choice { font-size:10px; color:var(--text-dim); font-weight:700; margin-bottom:2px; }
+.leader-or { font-size:9px; color:var(--gold-dim); font-weight:700; text-align:center; padding:1px 0; letter-spacing:1px; }
+.leader-when { font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.3px; }
+.leader-empty { font-size:10px; color:var(--text-dim); font-style:italic; }
+
 /* ─────── LAYOUT ─────── */
 .game { display:grid; grid-template-rows:30px 1fr 158px; height:100vh; overflow:hidden; }
 .game.hidden { display:none; }
