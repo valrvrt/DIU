@@ -546,6 +546,8 @@ body {
 .btn-phase-action:hover { background:var(--gold-dim); color:#fff; }
 .btn-phase-action.acq  { border-color:#3090e0; color:#60b8f0; }
 .btn-phase-action.acq:hover { background:#082030; }
+.btn-phase-action.combat { border-color:#e04040; color:#f07070; }
+.btn-phase-action.combat:hover { background:#2a0808; }
 .btn-phase-action.hidden { display:none; }
 
 /* Legacy btn-action kept for other uses */

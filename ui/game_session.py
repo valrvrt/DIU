@@ -90,6 +90,9 @@ class GameSession:
         # Set to True when game end is detected but human still has endgame
         # intrigue choices to resolve before GAME_OVER is shown.
         self._pending_game_over: bool = False
+        # Set to True while the human may play COMBAT intrigue cards, before the
+        # current conflict is resolved.
+        self._awaiting_combat_intrigue: bool = False
 
     # ──────── construction ────────
 
@@ -206,6 +209,16 @@ class GameSession:
             return {"phase": "choice", "underlying_phase": underlying,
                     "pending_choice": self.pending_choice}
 
+        if self._awaiting_combat_intrigue:
+            # Combat window: human may play COMBAT intrigues, then resolve combat.
+            combat_ids = [c.id for c in human.intrigue_cards
+                          if IntriguePhase.COMBAT in getattr(c, "phases", [])]
+            return {
+                "phase": "combat",
+                "can_end_combat": True,
+                "combat_intrigue_ids": combat_ids,
+            }
+
         if phase == "player_turns" and not human.has_revealed_this_round:
             # Agent turn: can place agent or reveal
             playable = []
@@ -307,6 +320,7 @@ class GameSession:
             "acquire_contract": self._do_acquire_contract,
             "play_intrigue": self._do_play_intrigue,
             "end_acquisition": self._do_end_acquisition,
+            "end_combat": self._do_end_combat,
         }
         handler = dispatch.get(action_type)
         if handler is None:
@@ -537,10 +551,32 @@ class GameSession:
 
         elif action_type == "end_acquisition":
             self._run_bot_acquisitions()
-            self._run_automated_phases()
-            self._start_next_round()
+            # If there's a conflict and the human holds COMBAT intrigue cards,
+            # pause for them to play those before the conflict resolves.
+            if self.game.board.current_conflict and self._human_has_combat_intrigue():
+                self._awaiting_combat_intrigue = True
+                self.game.current_phase = GamePhase.COMBAT
+            else:
+                self._run_automated_phases()
+                self._start_next_round()
 
         # acquire_card / acquire_contract / play_intrigue: no advance needed
+
+    def _human_has_combat_intrigue(self) -> bool:
+        """True if the human holds an intrigue card playable in the combat phase."""
+        return any(
+            IntriguePhase.COMBAT in getattr(c, "phases", [])
+            for c in self.human_player.intrigue_cards
+        )
+
+    def _do_end_combat(self, d: Dict) -> Dict:
+        """Human finished playing combat intrigues; resolve the conflict."""
+        if not self._awaiting_combat_intrigue:
+            return {"success": False, "error": "Not in the combat phase"}
+        self._awaiting_combat_intrigue = False
+        self._run_automated_phases()
+        self._start_next_round()
+        return {"success": True, "choices_required": []}
 
     def _run_bots_agent_phase(self) -> None:
         """Run bots in turn order.
@@ -898,6 +934,8 @@ class GameSession:
 
         self.game.current_round += 1
         self._human_acquisition_done = False
+        # Back to agent placement for the new round (combat window set COMBAT).
+        self.game.current_phase = GamePhase.PLAYER_TURNS
 
         # Pass the first-player token clockwise (to the next player) each round.
         # Round 1's first player is the Desert Mouse objective holder (set at setup).

@@ -84,6 +84,8 @@ document.addEventListener("keydown", e => {
     if (phase === "agent_turn") { e.preventDefault(); doReveal(); }
   } else if (e.key === "d" || e.key === "D") {
     if (phase === "acquisition") { e.preventDefault(); endAcquisition(); }
+  } else if (e.key === "c" || e.key === "C") {
+    if (phase === "combat") { e.preventDefault(); endCombat(); }
   } else if (e.key === "Escape") {
     clearSelectedCard();
   }
@@ -200,7 +202,7 @@ function renderTopBar(s) {
 function phaseLabel(phase, underlying) {
   const map = {
     agent_turn:"Agent Phase", acquisition:"Acquisition", player_turns:"Playing",
-    combat:"Combat", recall:"Recall", game_over:"GAME OVER",
+    combat:"⚔ Combat", recall:"Recall", game_over:"GAME OVER",
     choice:"Choose…",
   };
   if (phase === "choice" && underlying) return (map[underlying] || underlying) + " — Choose";
@@ -643,7 +645,7 @@ function renderPlayerArea(s) {
   const intEl = document.getElementById("intrigue-cards");
   intEl.innerHTML = "";
   (human.intrigue_cards || []).forEach(c => {
-    const div = buildIntrigueCard(c, aa.phase === "agent_turn");
+    const div = buildIntrigueCard(c, aa.phase);
     intEl.appendChild(div);
   });
 
@@ -677,10 +679,12 @@ function updateActionButtons(s) {
   const effectivePhase = (aa.phase === "choice" && aa.underlying_phase) ? aa.underlying_phase : aa.phase;
   document.getElementById("reveal-btn").classList.toggle("hidden", effectivePhase !== "agent_turn");
   document.getElementById("end-acq-btn").classList.toggle("hidden", effectivePhase !== "acquisition");
+  document.getElementById("end-combat-btn").classList.toggle("hidden", effectivePhase !== "combat");
 }
 
 function doReveal() { postAction({ type: "reveal" }); clearSelectedCard(); }
 function endAcquisition() { postAction({ type: "end_acquisition" }); }
+function endCombat() { postAction({ type: "end_combat" }); }
 
 // ─────────────── ACTION HINT ─────────────
 function renderActionHint(s) {
@@ -706,6 +710,11 @@ function renderActionHint(s) {
     hint = pts > 0
       ? `Spend your <span class='hint-gold'>${pts} persuasion</span> on Imperium Row cards, then press <kbd>D</kbd>`
       : `No persuasion left — press <kbd>D</kbd> to end your turn`;
+  } else if (effectivePhase === "combat") {
+    const n = (aa.combat_intrigue_ids || []).length;
+    hint = n > 0
+      ? `Play your <span class='hint-gold'>${n} combat intrigue${n>1?"s":""}</span> if you wish, then press <kbd>C</kbd> to resolve the conflict`
+      : `Press <kbd>C</kbd> to resolve the conflict`;
   } else if (phase === "choice") {
     hint = "Make a choice above ↑";
   }
@@ -953,7 +962,7 @@ function buildCard(card, extraClass, inAcquisition, persuasion) {
   return div;
 }
 
-function buildIntrigueCard(card, isAgentPhase) {
+function buildIntrigueCard(card, currentPhase) {
   const div = el("div","card intrigue-card");
 
   // Header: name + phase tags
@@ -984,14 +993,18 @@ function buildIntrigueCard(card, isAgentPhase) {
   }
   div.appendChild(body);
 
-  // Interactivity
+  // Interactivity — Plot intrigues play during the agent turn, Combat
+  // intrigues during the combat window.
   const phases = (card.phases||[]).map(p=>String(p).toLowerCase());
   const isPlot = phases.length === 0 || phases.includes("plot");
-  if (isAgentPhase && isPlot) {
+  const isCombat = phases.includes("combat");
+  const playableNow = (currentPhase === "agent_turn" && isPlot)
+                   || (currentPhase === "combat" && isCombat);
+  if (playableNow) {
     div.classList.add("selectable");
     div.addEventListener("click", () => postAction({type:"play_intrigue",card_id:card.id}));
   } else {
-    div.style.opacity = isPlot ? "1" : ".5";
+    div.style.opacity = ".55";
   }
   return div;
 }
