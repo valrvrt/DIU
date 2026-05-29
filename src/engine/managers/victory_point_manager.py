@@ -90,6 +90,9 @@ class VictoryPointManager:
         vp_diff = tag_vp - old_tag_vp
 
         player.victory_points += vp_diff
+        player.vp_sources["Matching conflict cards"] = (
+            player.vp_sources.get("Matching conflict cards", 0) + vp_diff
+        )
         player.tag_pair_vp = tag_vp  # Track for future updates
 
         return {

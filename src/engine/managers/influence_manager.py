@@ -53,6 +53,7 @@ class InfluenceManager:
         vp_gained = 0
         if old_influence < 2 <= new_influence:
             player.victory_points += 1
+            player.vp_sources["Influence"] = player.vp_sources.get("Influence", 0) + 1
             vp_gained = 1
 
         # Check for alliance (4+ influence AND more than others)
@@ -63,12 +64,14 @@ class InfluenceManager:
             alliance_gained, alliance_lost_by = self._check_alliance(player_id, faction)
             if alliance_gained:
                 player.victory_points += 1
+                player.vp_sources["Alliances"] = player.vp_sources.get("Alliances", 0) + 1
                 vp_gained += 1
             # Players who lost their alliance also lose the VP
             for loser_id in alliance_lost_by:
                 loser = self.state.get_player_by_id(loser_id)
                 if loser:
                     loser.victory_points = max(0, loser.victory_points - 1)
+                    loser.vp_sources["Alliances"] = loser.vp_sources.get("Alliances", 0) - 1
 
         return {
             "success": True,

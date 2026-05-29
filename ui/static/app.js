@@ -592,8 +592,9 @@ function renderPlayerArea(s) {
   if (resBar) {
     const aa2 = s.available_actions || {};
     const agentsStr = `${human.agents_available}/${human.total_available_agents}`;
+    const vpTip = vpBreakdownText(human);
     resBar.innerHTML = `
-      <span class="res-chip res-vp"   title="Victory Points"><i class="efx vp">⭐</i><span class="rc-val">${human.victory_points}</span><span class="rc-lbl">VP</span></span>
+      <span class="res-chip res-vp" title="${vpTip}"><i class="efx vp">⭐</i><span class="rc-val">${human.victory_points}</span><span class="rc-lbl">VP</span></span>
       <span class="res-chip res-sol"  title="Solari"><i class="efx solari"></i><span class="rc-val">${human.solari}</span><span class="rc-lbl">Sol</span></span>
       <span class="res-chip res-spi"  title="Spice"><i class="efx spice"></i><span class="rc-val">${human.spice}</span><span class="rc-lbl">Spice</span></span>
       <span class="res-chip res-wat"  title="Water">💧<span class="rc-val">${human.water}</span><span class="rc-lbl">Water</span></span>
@@ -1496,9 +1497,23 @@ function showError(msg) {
   setTimeout(() => toast.remove(), 3500);
 }
 
+// Build a plain-text VP breakdown by source for tooltips / stats.
+function vpBreakdownText(p) {
+  const src = p.vp_sources || {};
+  const lines = Object.entries(src).filter(([,v]) => v).map(([k,v]) => `  ${k}: ${v}`);
+  if (!lines.length) return `Victory Points: ${p.victory_points} (no sources yet)`;
+  return `Victory Points: ${p.victory_points}\n` + lines.join("\n");
+}
+
 function showFullState() {
   if (!G.state) return;
   const h = G.state.players.find(p => p.player_id === G.state.viewer_player_id);
   if (!h) return;
-  alert(`VP:${h.victory_points} Sol:${h.solari} Spi:${h.spice} Wat:${h.water}\nTroops: ${h.troops_in_garrison} garrison / ${h.troops_in_conflict} conflict\nAgents: ${h.agents_available}/${h.total_available_agents}\nInfluence: Fr${h.influence?.fremen} BG${h.influence?.bene_gesserit} GU${h.influence?.spacing_guild} EM${h.influence?.emperor}`);
+  alert(
+    `${vpBreakdownText(h)}\n\n` +
+    `Sol:${h.solari} Spi:${h.spice} Wat:${h.water}\n` +
+    `Troops: ${h.troops_in_garrison} garrison / ${h.troops_in_conflict} conflict\n` +
+    `Agents: ${h.agents_available}/${h.total_available_agents}\n` +
+    `Influence: Fr${h.influence?.fremen} BG${h.influence?.bene_gesserit} GU${h.influence?.spacing_guild} EM${h.influence?.emperor}`
+  );
 }

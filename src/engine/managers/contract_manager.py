@@ -303,6 +303,7 @@ class ContractManager:
                     player.water += amount
                 elif resource == "victory_point":
                     player.victory_points += amount
+                    player.vp_sources["Contracts"] = player.vp_sources.get("Contracts", 0) + amount
                 elif resource == "troop":
                     troops_to_add = min(amount, player.troops_in_reserve)
                     player.troops_in_reserve -= troops_to_add
@@ -334,6 +335,7 @@ class ContractManager:
 
             elif rtype == "victory_point":
                 player.victory_points += amount
+                player.vp_sources["Contracts"] = player.vp_sources.get("Contracts", 0) + amount
                 results["rewards_applied"].append({"reward": "victory_point", "amount": amount})
 
         return results

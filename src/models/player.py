@@ -81,6 +81,9 @@ class Player:
     # Victory Points tracking
     tag_pair_vp: int = 0  # VP from conflict/objective tag pairs (tracked separately)
     objectives: List = field(default_factory=list)  # Objective cards distributed at setup
+    # VP attributed by source for the breakdown display, e.g.
+    # {"Influence": 2, "Alliances": 1, "Conflicts": 3, "Contracts": 1, "Cards": 2}
+    vp_sources: dict = field(default_factory=dict)
 
     # Combat strength calculation
     @property

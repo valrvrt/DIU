@@ -178,6 +178,7 @@ def _player_public(player: Player) -> Dict[str, Any]:
         "spice": player.spice,
         "water": player.water,
         "victory_points": player.victory_points,
+        "vp_sources": {k: v for k, v in (getattr(player, "vp_sources", None) or {}).items() if v},
 
         # Troops
         "troops_in_garrison": player.troops_in_garrison,

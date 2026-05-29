@@ -318,6 +318,17 @@ class EffectResolver:
             player.temp_persuasion += total_amount
         elif resource == "victory_point":
             player.victory_points += total_amount
+            # Attribute the VP to a source for the breakdown display.
+            ctx = context or {}
+            if ctx.get("phase") == "combat":
+                src = "Conflicts"
+            elif ctx.get("intrigue"):
+                src = "Intrigue cards"
+            else:
+                src = "Cards"
+            if not hasattr(player, "vp_sources") or player.vp_sources is None:
+                player.vp_sources = {}
+            player.vp_sources[src] = player.vp_sources.get(src, 0) + total_amount
         elif resource == "agent":
             # Permanent agent increase
             player.total_available_agents += total_amount
