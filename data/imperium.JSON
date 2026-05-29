@@ -2588,18 +2588,24 @@
     "reserve_pile": "prepare_the_way",
     "quantity": 4,
     "cost": 2,
+    "factions": ["bene_gesserit"],
+    "agent_icons": ["blue", "green"],
     "agent_effects": [
       {
-        "type": "resource",
-        "resource": "troop",
-        "amount": 1
+        "type": "conditional",
+        "check": [
+          { "type": "influence", "target": "bene_gesserit", "amount": 2 }
+        ],
+        "reward": [
+          { "type": "draw", "deck": "deck", "amount": 1 }
+        ]
       }
     ],
     "reveal_effects": [
       {
         "type": "resource",
         "resource": "persuasion",
-        "amount": 1
+        "amount": 2
       }
     ]
   },
@@ -2609,20 +2615,17 @@
     "reserve": true,
     "reserve_pile": "spice_must_flow",
     "quantity": 2,
-    "cost": 8,
-    "agent_effects": [
+    "cost": 9,
+    "agent_icons": [],
+    "agent_effects": [],
+    "reveal_effects": [
       {
         "type": "resource",
         "resource": "spice",
         "amount": 1
       }
     ],
-    "reveal_effects": [
-      {
-        "type": "resource",
-        "resource": "persuasion",
-        "amount": 2
-      },
+    "on_acquire_effects": [
       {
         "type": "resource",
         "resource": "victory_point",
