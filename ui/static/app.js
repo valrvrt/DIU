@@ -534,13 +534,34 @@ function agentIconLabel(icon) {
 }
 
 // ─────────────── COMBAT ZONE ────────────────
+const TAG_ICONS = { crysknife:"🗡", "desert-mouse":"🐭", ornithopter:"✈" };
+const TAG_LABELS = { crysknife:"Crysknife", "desert-mouse":"Desert Mouse", ornithopter:"Ornithopter" };
+
+function tagBadgeHTML(tag, extraClass) {
+  if (!tag) return "";
+  const icon  = TAG_ICONS[tag]  || "🏷";
+  const label = TAG_LABELS[tag] || tag;
+  return `<span class="cf-tag-badge${extraClass ? " " + extraClass : ""}" title="Conflict tag: ${label} — matching tags form pairs worth 1 VP each">${icon} ${label}</span>`;
+}
+
 function renderCombatZone(s) {
   const conflict = s.board?.current_conflict;
+  const human    = s.players.find(p => p.player_id === s.viewer_player_id);
   const cfEl = document.getElementById("current-conflict");
   if (conflict) {
+    // Count how many of this tag the human already holds
+    const existingCount = (human?.conflict_cards_won || []).filter(c => c.tag === conflict.tag).length;
+    const pairHint = conflict.tag && existingCount > 0
+      ? `<span class="cf-pair-hint" title="You already have ${existingCount} ${conflict.tag} card${existingCount>1?"s":""}. Win this → ${existingCount + 1} card${existingCount+1>1?"s":""}">` +
+        `${existingCount + 1} ${TAG_LABELS[conflict.tag] || conflict.tag}${existingCount + 1 >= 2 ? ` → +${Math.floor((existingCount + 1) / 2)} VP` : ""}</span>`
+      : "";
     cfEl.innerHTML = `
       <div class="cf-name">⚔ ${conflict.name}</div>
-      <div class="cf-lvl">Lvl ${conflict.level}</div>
+      <div class="cf-meta">
+        <span class="cf-lvl">Lvl ${conflict.level}</span>
+        ${conflict.tag ? tagBadgeHTML(conflict.tag) : ""}
+      </div>
+      ${pairHint}
       <div class="cf-reward">${renderConflictRewards(conflict.rewards)}</div>
     `;
   } else {
@@ -733,7 +754,7 @@ function renderPlayerArea(s) {
     acEl.appendChild(chip);
   });
 
-  // Discard piles
+  // Discard piles + Won Conflicts
   const discardStrip = document.getElementById("discard-piles-strip");
   discardStrip.innerHTML = "";
   s.players.forEach((p, i) => {
@@ -744,6 +765,16 @@ function renderPlayerArea(s) {
     btn.addEventListener("click", () => showDiscard(p, s));
     discardStrip.appendChild(btn);
   });
+
+  // Won Conflicts button (only shown when the human has won at least one conflict)
+  const wonCount = (human.conflict_cards_won || []).length;
+  if (wonCount > 0) {
+    const wonBtn = el("button","discard-pile-btn won-conflicts-btn");
+    wonBtn.textContent = `⚔ Won (${wonCount})`;
+    wonBtn.title = "Your won conflict cards — matching tags form pairs worth 1 VP each";
+    wonBtn.addEventListener("click", () => showWonConflicts(human));
+    discardStrip.appendChild(wonBtn);
+  }
 }
 
 // ─────────────── ACTION BUTTONS ─────────────
@@ -957,6 +988,60 @@ function showDiscard(player, s) {
   modal.classList.remove("hidden");
 }
 function closeDiscard() { document.getElementById("discard-modal").classList.add("hidden"); }
+
+// ─────────────── WON CONFLICTS MODAL ────────
+function showWonConflicts(player) {
+  const cards = player.conflict_cards_won || [];
+  const modal = document.getElementById("won-conflicts-modal");
+  const title = document.getElementById("won-conflicts-title");
+  const body  = document.getElementById("won-conflicts-body");
+
+  // Count tags for pair summary
+  const tagCounts = {};
+  cards.forEach(c => { if (c.tag) tagCounts[c.tag] = (tagCounts[c.tag] || 0) + 1; });
+  const pairLines = Object.entries(tagCounts).map(([tag, n]) => {
+    const pairs = Math.floor(n / 2);
+    const icon  = TAG_ICONS[tag] || "🏷";
+    const label = TAG_LABELS[tag] || tag;
+    return `<span class="wcm-pair">${icon} ${label} ×${n}${pairs ? ` → <b>+${pairs} VP</b>` : ""}</span>`;
+  });
+
+  title.textContent = `⚔ Won Conflicts (${cards.length})`;
+  body.innerHTML = "";
+
+  if (pairLines.length) {
+    const summary = el("div","wcm-summary");
+    summary.innerHTML = `<span class="wcm-label">Tag pairs:</span> ` + pairLines.join(" &nbsp;·&nbsp; ");
+    body.appendChild(summary);
+  }
+
+  if (cards.length === 0) {
+    body.innerHTML += `<div style="color:var(--text-dim);padding:8px">No won conflicts yet.</div>`;
+  } else {
+    const grid = el("div","wcm-grid");
+    cards.forEach(c => grid.appendChild(buildConflictMini(c)));
+    body.appendChild(grid);
+  }
+
+  modal.classList.remove("hidden");
+}
+function closeWonConflicts() { document.getElementById("won-conflicts-modal").classList.add("hidden"); }
+
+function buildConflictMini(c) {
+  const div = el("div","conflict-mini");
+  const tag = c.tag || "";
+  const icon  = TAG_ICONS[tag]  || "";
+  const label = TAG_LABELS[tag] || tag;
+  div.innerHTML = `
+    <div class="cm-name">${c.name}</div>
+    <div class="cm-meta">
+      <span class="cf-tag-badge cm-tag">${icon ? icon + " " : ""}${label || "—"}</span>
+      <span class="cm-lvl">Lvl ${c.level}</span>
+    </div>
+    <div class="cm-rewards">${renderConflictRewards(c.rewards)}</div>
+  `;
+  return div;
+}
 
 // ─────────────── CARD BUILDER ───────────────
 function buildCard(card, extraClass, inAcquisition, persuasion) {

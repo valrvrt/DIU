@@ -241,6 +241,12 @@ def _player_public(player: Player) -> Dict[str, Any]:
             + getattr(player, "temp_swords", 0)
         ) if (player.troops_in_conflict > 0 or player.sandworms_in_conflict > 0) else 0,
         "temp_swords": getattr(player, "temp_swords", 0),
+
+        # Won conflict cards (needed for tag-pair VP display)
+        "conflict_cards_won": [
+            _conflict_card(c)
+            for c in getattr(player, "conflict_cards_won", [])
+        ],
     }
 
 
