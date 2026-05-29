@@ -235,7 +235,12 @@ def _player_private(player: Player) -> Dict[str, Any]:
     public["intrigue_cards"] = [_intrigue_card(c) for c in player.intrigue_cards]
     public["discard"] = [_imperium_card(c) for c in player.discard_pile.cards]
     public["temp_persuasion"] = getattr(player, "temp_persuasion", 0)
+    # Objectives are stored in player.objectives (list); fall back to the
+    # legacy single objective_card attribute if present.
     obj = getattr(player, "objective_card", None)
+    if obj is None:
+        objs = getattr(player, "objectives", None) or []
+        obj = objs[0] if objs else None
     public["objective"] = _objective_card(obj) if obj is not None else None
     return public
 

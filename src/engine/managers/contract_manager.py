@@ -98,7 +98,8 @@ class ContractManager:
     def check_location_contracts(
         self,
         player_id: str,
-        location_id: str
+        location_name: str,
+        location_id: str = None,
     ) -> Dict[str, Any]:
         """
         Check if player completes any location-based contracts by visiting a location.
@@ -107,7 +108,8 @@ class ContractManager:
 
         Args:
             player_id: Player who placed agent
-            location_id: Location ID they visited
+            location_name: Name of the location visited (contracts target names)
+            location_id: Optional location ID, also matched for robustness
 
         Returns:
             Dict with completed contracts
@@ -117,11 +119,14 @@ class ContractManager:
             return {"completed_contracts": []}
 
         completed = []
+        targets = {str(location_name)}
+        if location_id is not None:
+            targets.add(str(location_id))
 
         # Check each active contract
         for contract in player.contracts_active[:]:  # Copy list to modify during iteration
             if contract.completion_type == "location":
-                if contract.completion_target == location_id:
+                if str(contract.completion_target) in targets:
                     # Contract completed!
                     player.contracts_active.remove(contract)
                     player.contracts_completed.append(contract)

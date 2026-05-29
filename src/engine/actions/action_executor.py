@@ -408,6 +408,18 @@ class ActionExecutor:
         if not combined_results["success"]:
             return combined_results
 
+        # If the card trashed itself (e.g. Seek Allies "trash: self"), remove it
+        # from the play area so it goes to the trash pile instead of returning to
+        # the discard at end of round. The card was moved to played_cards_this_turn
+        # in Step 7 before effects resolved.
+        self_trashed = any(
+            isinstance(e, dict) and e.get("type") == "trash"
+            and e.get("source") == "self" and e.get("card") == action.card.name
+            for e in combined_results.get("effects_applied", [])
+        )
+        if self_trashed and action.card in player.played_cards_this_turn:
+            player.played_cards_this_turn.remove(action.card)
+
         # Split results for backward compatibility with return format
         card_agent_results = {
             "success": True,
@@ -437,10 +449,13 @@ class ActionExecutor:
                     "error": f"Not enough troops in garrison (have {player.troops_in_garrison}, need {action.troops_to_deploy})"
                 }
 
-        # Step 13: Check for contract completion (location-based)
+        # Step 13: Check for contract completion (location-based).
+        # Contracts store the target as a location NAME, so pass the name (the
+        # id never matched the name). Also pass the id for robustness.
         contract_results = self.contract_manager.check_location_contracts(
             action.player_id,
-            action.location.id
+            action.location.name,
+            location_id=action.location.id,
         )
 
         # Step 13b: Gather Intel bonus — if player had a spy at this location,
