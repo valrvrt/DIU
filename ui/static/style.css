@@ -219,14 +219,17 @@ body {
 .board-center { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; overflow:hidden; padding:4px; border-right:1px solid var(--border); }
 
 .center-row { display:flex; gap:4px; flex:1; min-height:0; }
-.landsraad-row { flex:3; }
+.landsraad-row { flex:4; }
 .center-row:not(.desert-combat-row):not(.landsraad-row):not(.faction-row) { flex:2; }
 .desert-combat-row { flex:2; }
 .faction-row { flex:4; }
 
 .neutral-group { background:var(--bg2); border-radius:5px; padding:4px 6px; min-width:0; flex:1; display:flex; flex-direction:column; }
 .neutral-group.full-width { flex:1; }
-.shipping-aside { flex:0 0 220px; display:flex; flex-direction:column; overflow-y:auto; }
+.shipping-aside { flex:0 0 220px; display:flex; flex-direction:column; overflow:hidden; }
+/* Cap the shipping space-grid so contracts are visible below it */
+.shipping-aside .space-grid  { flex:none; max-height:110px; overflow:hidden; }
+.shipping-aside .board-space { min-height:44px; }
 /* Landsraad group fills remaining row space */
 .landsraad-row > .neutral-group:not(.shipping-aside) { flex:1; }
 
@@ -236,7 +239,7 @@ body {
   letter-spacing:.4px; margin-top:5px; margin-bottom:3px;
   border-top:1px solid var(--border); padding-top:4px;
 }
-.contract-display-panel { display:flex; flex-direction:column; gap:3px; }
+.contract-display-panel { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:3px; }
 .contract-item {
   background:var(--bg3); border:1px solid #504020; border-radius:3px;
   padding:4px 6px; font-size:9px;
@@ -568,15 +571,10 @@ body {
 /* ─────── SELECTED CARD IN HAND ─────── */
 .card.card-selected { border-color:#80e040 !important; box-shadow:0 0 10px rgba(80,200,40,.5) !important; transform:translateY(-3px); }
 
-/* ─────── OBSERVATION POSTS (spy panel) ─────── */
-.spy-panel-header { font-size:8px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.4px; margin-top:4px; margin-bottom:2px; padding-top:4px; border-top:1px solid var(--border); }
-.obs-posts { display:flex; flex-direction:column; gap:2px; }
-.obs-post {
-  display:flex; align-items:center; gap:4px;
-  background:var(--bg3); border:1px solid var(--border); border-radius:3px;
-  padding:2px 5px; font-size:8px;
+/* ─────── SPY DOT (observation post indicator on board spaces) ─────── */
+.spy-dot {
+  width:7px; height:7px; border-radius:50%; flex-shrink:0;
+  border:1.5px solid rgba(140,120,60,.5); background:transparent;
+  cursor:default; margin-left:2px;
 }
-.obs-post.has-spy { border-color:#4060a0; background:#080c18; }
-.obs-post-name { flex:1; color:var(--text-dim); }
-.obs-post-spy { font-size:8px; font-weight:700; }
-.obs-post-spaces { font-size:7px; color:var(--text-dim); font-style:italic; }
+.spy-dot.spy-occupied { border:none; }

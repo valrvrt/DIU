@@ -129,15 +129,32 @@ function applySnapshot(snap) {
 function render() {
   const s = G.state;
   if (!s) return;
+  G.spyMap = buildSpyMap(s);
   renderTopBar(s);
   renderContractDisplay(s);
   renderFactionSpaces(s);
   renderNeutralSpaces(s);
   renderCombatZone(s);
   renderImperiumRow(s);
-  renderObservationPosts(s);
   renderPlayerArea(s);
   updateActionButtons(s);
+}
+
+// Build lookup: space name → { postId, postName, ownerIdx (null if empty) }
+function buildSpyMap(s) {
+  const map = {};
+  const posts = s.board?.observation_posts || [];
+  const spyOwners = {};
+  s.players.forEach((p, idx) => {
+    (p.spies_placed || []).forEach(pid => { spyOwners[String(pid)] = idx; });
+  });
+  posts.forEach(post => {
+    const ownerIdx = spyOwners[String(post.id)] !== undefined ? spyOwners[String(post.id)] : null;
+    (post.connected_locations || []).forEach(name => {
+      map[name] = { postId: post.id, postName: post.name, ownerIdx };
+    });
+  });
+  return map;
 }
 
 // ─────────────── TOP BAR ────────────────────
@@ -224,7 +241,7 @@ function renderFactionSpaces(s) {
     cont.innerHTML = "";
     const spaces = (s.board?.spaces || []).filter(sp => normFaction(sp.faction) === f);
     spaces.forEach(sp => {
-      const node = renderBoardSpace(sp, s);
+      const node = renderBoardSpace(sp, s, G.spyMap[sp.name]);
       node.classList.add(`space-${f}`);
       cont.appendChild(node);
     });
@@ -280,7 +297,7 @@ function renderNeutralSpaces(s) {
   neutral.forEach(sp => {
     const icon = sp.agent_icon?.toLowerCase() || "";
     const name = sp.name?.toLowerCase() || "";
-    const node = renderBoardSpace(sp, s);
+    const node = renderBoardSpace(sp, s, G.spyMap[sp.name]);
 
     if (icon === "green") {
       node.classList.add("space-landsraad");
@@ -299,17 +316,33 @@ function renderNeutralSpaces(s) {
 }
 
 // ─────────────── BOARD SPACE ────────────────
-function renderBoardSpace(sp, s) {
+function renderBoardSpace(sp, s, spyInfo) {
   const div = el("div","board-space");
 
   const isValid = G.selectedCard && G.selectedCard.validLocations.includes(String(sp.id));
   if (isValid) div.classList.add("valid-target");
   if (sp.occupied_by) div.classList.add("occupied");
 
-  // Header: name + cost badge
+  // Header: name + spy dot + cost badge
   const hdr = el("div","sp-header");
   const nameEl = el("span","sp-name"); nameEl.textContent = sp.name;
   hdr.appendChild(nameEl);
+
+  // Spy observation dot
+  if (spyInfo) {
+    const dot = el("div","spy-dot");
+    if (spyInfo.ownerIdx !== null) {
+      dot.classList.add("spy-occupied");
+      dot.style.background = `var(--${G.playerColors[spyInfo.ownerIdx]})`;
+      const ownerName = s.players[spyInfo.ownerIdx]?.name || "?";
+      const isHuman = s.players[spyInfo.ownerIdx]?.player_id === s.viewer_player_id;
+      dot.title = `🕵 ${spyInfo.postName} — ${isHuman ? "your spy" : ownerName}`;
+    } else {
+      dot.title = `Observation post: ${spyInfo.postName}`;
+    }
+    hdr.appendChild(dot);
+  }
+
   const costArr = sp.cost || [];
   if (costArr.length) {
     const costEl = el("span","sp-cost-badge");
@@ -520,50 +553,6 @@ function renderImperiumRow(s) {
     if (inAcq) div.addEventListener("click", () => tryAcquireCard(card, src));
     resEl.appendChild(div);
   });
-}
-
-// ─────────────── OBSERVATION POSTS (spy panel) ────────────
-function renderObservationPosts(s) {
-  const panel = document.getElementById("obs-posts-panel");
-  if (!panel) return;
-  const posts = s.board?.observation_posts || [];
-  if (!posts.length) { panel.innerHTML = ""; return; }
-
-  const human = s.players.find(p => p.player_id === s.viewer_player_id);
-  const humanSpies = new Set(human?.spies_placed || []);
-
-  // Build map: post_id → player who has spy there
-  const spyOwners = {};
-  s.players.forEach((p, i) => {
-    (p.spies_placed || []).forEach(pid => { spyOwners[pid] = { name: p.name, idx: i }; });
-  });
-
-  panel.innerHTML = "";
-  const hdr = el("div","spy-panel-header"); hdr.textContent = "🕵 SPIES";
-  panel.appendChild(hdr);
-
-  const listEl = el("div","obs-posts");
-  posts.forEach(post => {
-    const owner = spyOwners[post.id];
-    const isMine = humanSpies.has(post.id);
-    const div = el("div","obs-post" + (owner ? " has-spy" : ""));
-    const nameEl = el("span","obs-post-name"); nameEl.textContent = post.name;
-    div.appendChild(nameEl);
-    if (owner) {
-      const spyEl = el("span","obs-post-spy");
-      spyEl.style.color = `var(--${G.playerColors[owner.idx]})`;
-      spyEl.textContent = isMine ? "YOU" : owner.name[0];
-      div.appendChild(spyEl);
-      if (isMine) {
-        const spacesEl = el("span","obs-post-spaces");
-        spacesEl.textContent = post.connected_locations.join(", ");
-        spacesEl.title = "Spaces you can access via this spy";
-        div.appendChild(spacesEl);
-      }
-    }
-    listEl.appendChild(div);
-  });
-  panel.appendChild(listEl);
 }
 
 // ─────────────── PLAYER AREA ────────────────
