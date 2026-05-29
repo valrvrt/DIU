@@ -1795,28 +1795,26 @@
     "cost": 4,
     "quantity": 2,
     "agent_effects": [
-      [
-        {
-          "type": "exchange",
-          "cost": [
-            {
-              "type": "trash",
-              "deck": [
-                "hand",
-                "played"
-              ],
-              "amount": 1
-            }
-          ],
-          "reward": [
-            {
-              "type": "draw",
-              "deck": "deck",
-              "amount": 1
-            }
-          ]
-        }
-      ]
+      {
+        "type": "exchange",
+        "cost": [
+          {
+            "type": "trash",
+            "deck": [
+              "hand",
+              "played"
+            ],
+            "amount": 1
+          }
+        ],
+        "reward": [
+          {
+            "type": "draw",
+            "deck": "deck",
+            "amount": 1
+          }
+        ]
+      }
     ],
     "reveal_effects": [
       {

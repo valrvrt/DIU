@@ -418,12 +418,12 @@ function renderBoardSpace(sp, s, spyInfo) {
     if (req.children.length) div.appendChild(req);
   }
 
-  // Combat marker
+  // Combat marker — readable badge in the corner
   if (sp.is_combat_space) {
-    const marker = el("span","");
-    marker.innerHTML = "⚔ ";
-    marker.style.cssText = "font-size:9px;color:#e05050;position:absolute;top:3px;right:3px;";
-    div.style.position = "relative";
+    const marker = el("span","sp-combat-badge");
+    marker.innerHTML = "⚔ COMBAT";
+    marker.title = "Deploy troops here to fight in the Conflict";
+    div.classList.add("is-combat-space");
     div.appendChild(marker);
   }
 
@@ -808,8 +808,8 @@ function choiceTitle(ctype) {
 function getChoiceItems(choice) {
   const ctype = choice.type;
   if (ctype === "choice") return (choice.options||[]).map(o => {
-    const rw = o.rewards || o.reward || [];
-    const cost = o.costs || o.cost || [];
+    const rw = _rewardOf(o);
+    const cost = _costOf(o);
     let label;
     if (rw.length) {
       const rwStr = formatRewardsText(rw);
@@ -893,9 +893,10 @@ function buildCard(card, extraClass, inAcquisition, persuasion) {
   if (card.factions?.length) {
     const fRow = el("div","card-factions");
     card.factions.forEach(f => {
-      const tag = el("span",`card-faction-tag ${f}`);
-      const ico = FACTION_ICONS[f] || "";
-      const nm  = FACTION_SHORT[f] || _prettyType(f);
+      const fn = normFaction(f);   // data uses both "Fremen" and "fremen"
+      const tag = el("span",`card-faction-tag ${fn}`);
+      const ico = FACTION_ICONS[fn] || "";
+      const nm  = FACTION_SHORT[fn] || _prettyType(fn);
       tag.textContent = `${ico} ${nm}`.trim();
       fRow.appendChild(tag);
     });
@@ -1087,7 +1088,8 @@ function _fmtDeck(d) {
 // cost/reward fields are sometimes a single object instead of a list.
 function _asArr(v) { return Array.isArray(v) ? v : (v ? [v] : []); }
 function _costOf(e)   { return _asArr(e.cost || e.costs); }
-function _rewardOf(e) { return _asArr(e.reward || e.rewards); }
+// Choice options store their payload under `reward`, `rewards`, or `effects`.
+function _rewardOf(e) { return _asArr(e.reward || e.rewards || e.effects); }
 
 // Short faction labels for compact inline condition text.
 const FACTION_SHORT = {fremen:"Fremen", bene_gesserit:"Bene Gesserit",
@@ -1324,8 +1326,8 @@ function resourceIconHTML(res) {
 
 /** Render one choice option (reward ± cost) as HTML icons. */
 function formatOptionRewardsHTML(opt) {
-  const rewardArr = opt.reward || opt.rewards || [];
-  const costArr   = opt.cost   || opt.costs   || [];
+  const rewardArr = _rewardOf(opt);
+  const costArr   = _costOf(opt);
   const rewHTML = rewardArr.map(e => describeEffectHTML(e)).filter(Boolean).join(" ");
   if (costArr.length) {
     const costHTML = costArr.map(e => describeEffectHTML(e)).filter(Boolean).join("");

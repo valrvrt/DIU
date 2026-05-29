@@ -215,6 +215,15 @@ body {
   font-size:12px; color:#d09030; font-weight:700; margin-top:3px;
   display:flex; align-items:center; gap:2px;
 }
+/* Combat space badge */
+.board-space.is-combat-space { border-color:#7a2424; }
+.sp-combat-badge {
+  display:inline-block; margin-top:4px;
+  font-size:10px; font-weight:700; letter-spacing:.5px;
+  color:#f0a0a0; background:rgba(180,40,40,.18);
+  border:1px solid #a83838; border-radius:3px; padding:1px 6px;
+}
+
 .sp-checks { font-size:11px; color:#b07060; font-style:italic; margin-top:3px; letter-spacing:.2px; }
 .sp-check-inf { display:inline-block; }
 .sp-badges { display:none; }

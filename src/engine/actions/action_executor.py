@@ -642,9 +642,14 @@ class ActionExecutor:
                     elif resource == "sword":
                         temp_swords += amount
 
-        # Store temporary values for acquisition phase
-        player.temp_persuasion = total_persuasion
-        player.temp_swords = temp_swords
+        # Store temporary values for acquisition phase.
+        # temp_persuasion / temp_swords were ALREADY accumulated by the effect
+        # resolver as each effect was applied this turn — including persuasion
+        # gained earlier in the agent phase (e.g. Assembly Hall's +1 persuasion).
+        # Overwriting with just the revealed-card totals would discard those
+        # earlier gains, so keep the accumulated value instead.
+        player.temp_persuasion = getattr(player, "temp_persuasion", 0)
+        player.temp_swords = getattr(player, "temp_swords", 0)
 
         # Step 7: Notify PhaseManager (if present)
         if self.phase_manager:
