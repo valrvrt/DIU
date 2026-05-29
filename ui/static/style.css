@@ -143,17 +143,20 @@ body {
 .inf-pip.filled { border-color:transparent; }
 .alliance-star { font-size:7px; color:var(--gold); }
 
-/* Faction spaces: wrap horizontally */
-.faction-spaces { flex:1; display:flex; flex-direction:row; flex-wrap:wrap; gap:3px; padding:3px; overflow-y:auto; align-content:flex-start; }
-/* Faction board spaces fill available width */
-.faction-section-h .board-space { width:auto; min-width:120px; flex:1 1 130px; max-width:220px; }
+/* Faction spaces: fill the section width and height */
+.faction-spaces {
+  flex:1; display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
+  grid-auto-rows:1fr; gap:3px; padding:3px; overflow-y:auto; align-content:stretch;
+}
+.faction-section-h .board-space { width:auto; min-width:0; }
 
 /* ─────── BOARD SPACE ─────── */
 .board-space {
   background:var(--bg3); border:1px solid var(--border); border-radius:5px;
-  padding:6px 8px; cursor:pointer; position:relative;
+  padding:8px 10px; cursor:pointer; position:relative;
   transition:border-color .12s, background .12s;
-  width:100%; min-height:68px;
+  width:100%; min-height:60px;
 }
 .board-space:hover { border-color:#5a4a38; }
 .board-space.valid-target { border-color:#5ab030 !important; background:#0e1e08 !important; }
@@ -179,30 +182,30 @@ body {
 .board-space.space-emperor:not(.occupied):hover { border-color:var(--emperor); }
 
 .sp-header { display:flex; align-items:flex-start; gap:4px; }
-.sp-name { font-size:12px; font-weight:700; color:var(--text); flex:1; line-height:1.3; }
+.sp-name { font-size:14px; font-weight:700; color:var(--text); flex:1; line-height:1.25; }
 .sp-cost-badge {
-  font-size:11px; font-weight:700; color:#d06020; background:rgba(180,80,0,.18);
-  border:1px solid rgba(180,80,0,.4); border-radius:3px; padding:2px 5px;
+  font-size:13px; font-weight:700; color:#d06020; background:rgba(180,80,0,.18);
+  border:1px solid rgba(180,80,0,.4); border-radius:3px; padding:2px 6px;
   flex-shrink:0; white-space:nowrap; display:flex; align-items:center; gap:2px;
 }
-.sp-icon { font-size:10px; }
+.sp-icon { font-size:11px; }
 /* Rewards: column layout so OR choices stack cleanly */
 .sp-rewards {
   display:flex; flex-direction:column; gap:3px;
-  margin-top:4px; padding-top:4px;
+  margin-top:5px; padding-top:5px;
   border-top:1px solid rgba(255,255,255,.08);
 }
 .sp-reward-row {
   display:flex; gap:6px; align-items:center; flex-wrap:wrap;
-  font-size:13px; color:var(--text);
+  font-size:15px; color:var(--text);
 }
 .sp-or {
-  font-size:9px; font-weight:700; color:var(--gold-dim);
+  font-size:10px; font-weight:700; color:var(--gold-dim);
   letter-spacing:2px; text-align:center;
 }
 .sp-choice-option {
   display:flex; align-items:center; gap:5px; flex-wrap:wrap;
-  font-size:13px; color:var(--text);
+  font-size:15px; color:var(--text);
 }
 .sp-occupant {
   display:inline-block; font-size:9px; font-weight:700; padding:1px 5px; border-radius:3px;
@@ -212,7 +215,7 @@ body {
   font-size:12px; color:#d09030; font-weight:700; margin-top:3px;
   display:flex; align-items:center; gap:2px;
 }
-.sp-checks { font-size:9px; color:#b07060; font-style:italic; margin-top:2px; letter-spacing:.2px; }
+.sp-checks { font-size:11px; color:#b07060; font-style:italic; margin-top:3px; letter-spacing:.2px; }
 .sp-check-inf { display:inline-block; }
 .sp-badges { display:none; }
 
@@ -223,17 +226,17 @@ body {
 .board-center { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; overflow:hidden; padding:4px; border-right:1px solid var(--border); }
 
 .center-row { display:flex; gap:4px; flex:1; min-height:0; }
-.landsraad-row { flex:4; }
-.center-row:not(.desert-combat-row):not(.landsraad-row):not(.faction-row) { flex:2; }
-.desert-combat-row { flex:2; }
-.faction-row { flex:4; }
+.landsraad-row { flex:5; }
+.center-row:not(.desert-combat-row):not(.landsraad-row):not(.faction-row) { flex:3; }
+.desert-combat-row { flex:3; }
+.faction-row { flex:5; }
 
 .neutral-group { background:var(--bg2); border-radius:5px; padding:4px 6px; min-width:0; flex:1; display:flex; flex-direction:column; }
 .neutral-group.full-width { flex:1; }
 .shipping-aside { flex:0 0 220px; display:flex; flex-direction:column; overflow:hidden; }
 /* Cap the shipping space-grid so contracts are visible below it */
-.shipping-aside .space-grid  { flex:none; max-height:110px; overflow:hidden; }
-.shipping-aside .board-space { min-height:44px; }
+.shipping-aside .space-grid  { flex:none; max-height:92px; overflow:hidden; }
+.shipping-aside .board-space { min-height:42px; }
 /* Landsraad group fills remaining row space */
 .landsraad-row > .neutral-group:not(.shipping-aside) { flex:1; }
 
@@ -276,10 +279,14 @@ body {
 }
 
 .space-grid {
-  display:flex; flex-wrap:wrap; gap:3px;
-  align-content:flex-start; flex:1;
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(175px, 1fr));
+  grid-auto-rows:1fr;
+  gap:4px;
+  align-content:stretch;
+  flex:1; min-height:0;
 }
-.space-grid .board-space { width:var(--space-w); }
+.space-grid .board-space { width:auto; }
 
 /* ─────── COMBAT ZONE (compact) ─────── */
 .combat-zone {
