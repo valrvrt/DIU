@@ -138,8 +138,12 @@ class ActionGenerator:
                     if self._can_place_at_location(player, card, location):
                         valid_placements.append((location, icon))
 
-        # Check spy infiltration placements (different from spy agent icon)
-        if self._has_spy_infiltration_option(player):
+        # Check spy infiltration placements (placing on an OCCUPIED spy-connected
+        # space). Like the unoccupied spy-access path above, this requires the
+        # card to carry a "spy" agent icon — a card with no agent icon (e.g. a
+        # pure persuasion card like Convincing Argument) can never place an
+        # agent, infiltration included.
+        if "spy" in (card.agent_icons or []) and self._has_spy_infiltration_option(player):
             spy_locations = self._get_spy_infiltratable_locations(player)
 
             for location in spy_locations:

@@ -2693,6 +2693,30 @@ class EffectResolver:
                 }
             }
 
+        elif choice_type == "gather_intel":
+            # Optional Gather Intel: recall the spy from a connected post to
+            # draw 1 intrigue card, or keep the spy on the board.
+            player = self.state.get_player_by_id(player_id)
+            if selected_option_id == "skip":
+                return {"success": True, "applied": {"type": "gather_intel", "skipped": True}}
+            post_id = str(choice_data.get("post_id", ""))
+            if post_id not in player.spies_placed:
+                return {"success": False, "error": "No spy at that post"}
+            player.spies_placed.remove(post_id)
+            player.spies_available += 1
+            drawn = None
+            if self.game.board.intrigue_deck:
+                drawn = self.game.board.intrigue_deck.pop(0)
+                player.intrigue_cards.append(drawn)
+            return {
+                "success": True,
+                "applied": {
+                    "type": "gather_intel",
+                    "post": post_id,
+                    "card": getattr(drawn, "name", None),
+                }
+            }
+
         elif choice_type == "accept_contract":
             # Execute contract acceptance.
             # available_contracts may contain live ContractCard objects (bot path)

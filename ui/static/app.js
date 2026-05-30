@@ -937,7 +937,7 @@ function choiceTitle(ctype) {
     trash_card:"Trash a Card", trash_to_acquire:"Trash to Acquire",
     discard_card:"Discard a Card", steal_intrigue:"Steal Intrigue From",
     recall_agent:"Recall Agent From", recall_spy:"Recall Spy From",
-    accept_contract:"Accept a Contract",
+    gather_intel:"Gather Intel?", accept_contract:"Accept a Contract",
     acquire_card:"Acquire Card (Free)", choose_opponent_discard:"Force Discard",
     play_spy_on_space:"Plant Spy", conditional_multi_choice:"Optional Bonuses",
     reveal_passive_choice:"Leader Passive",
@@ -983,6 +983,12 @@ function getChoiceItems(choice) {
   if (ctype==="recall_spy") {
     const posts=G.state?.board?.observation_posts||[];
     return (choice.placed_posts||[]).map(pid=>{const p=posts.find(o=>String(o.id)===String(pid));return{label:p?.name||`Post ${pid}`,value:String(pid)};});
+  }
+  if (ctype==="gather_intel") {
+    return [
+      {label:`🔍 Recall spy from ${choice.post_name||"post"} → draw 1 Intrigue`, value:"draw"},
+      {label:"Keep spy on the board", value:"skip"},
+    ];
   }
   if (ctype==="spy_post"||ctype==="play_spy") return (choice.available_posts||[]).map(p=>({label:p.post_name||p.post_id||p,value:p.post_id||p}));
   if (ctype==="play_spy_on_space") return (choice.eligible_spaces||[]).map(sp=>({label:sp.space_name||sp.space_id,value:sp.space_id}));

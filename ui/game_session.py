@@ -737,6 +737,10 @@ class GameSession:
                 posts = choice_data.get("placed_posts", [])
                 if posts:
                     effect_resolver.execute_choice(player.player_id, choice_data, str(posts[0]))
+            elif ctype == "gather_intel":
+                # Bots take the intrigue draw (the executor normally auto-resolves
+                # this for bots, but handle it here too for safety).
+                effect_resolver.execute_choice(player.player_id, choice_data, "draw")
             elif ctype == "steal_intrigue":
                 targets = choice_data.get("valid_targets", [])
                 if targets:
