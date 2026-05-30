@@ -733,6 +733,10 @@ class GameSession:
                 locs = choice_data.get("placed_locations", [])
                 if locs:
                     effect_resolver.execute_choice(player.player_id, choice_data, locs[0])
+            elif ctype == "recall_spy":
+                posts = choice_data.get("placed_posts", [])
+                if posts:
+                    effect_resolver.execute_choice(player.player_id, choice_data, str(posts[0]))
             elif ctype == "steal_intrigue":
                 targets = choice_data.get("valid_targets", [])
                 if targets:
