@@ -717,3 +717,4 @@ body {
 .cm-tag { font-size:8px; }
 .cm-lvl { font-size:8px; color:var(--text-dim); }
 .cm-rewards { font-size:8px; color:var(--text-dim); }
+.conflict-mini-obj { border-color:rgba(80,140,200,.5); background:rgba(40,70,110,.18); }

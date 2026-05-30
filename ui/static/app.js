@@ -547,15 +547,30 @@ function tagBadgeHTML(tag, extraClass) {
   return `<span class="cf-tag-badge${extraClass ? " " + extraClass : ""}" title="Conflict tag: ${label} — matching tags form pairs worth 1 VP each">${icon} ${label}</span>`;
 }
 
+// Tag counts a player already holds toward the tag-pair VP mechanic.
+// Objective cards count as already-won conflict cards of their tag, so they
+// are included alongside actually-won conflict cards.
+function ownedTagCounts(player) {
+  const counts = {};
+  (player?.conflict_cards_won || []).forEach(c => {
+    if (c.tag) counts[c.tag] = (counts[c.tag] || 0) + 1;
+  });
+  (player?.objectives || []).forEach(o => {
+    if (o && o.tag) counts[o.tag] = (counts[o.tag] || 0) + 1;
+  });
+  return counts;
+}
+
 function renderCombatZone(s) {
   const conflict = s.board?.current_conflict;
   const human    = s.players.find(p => p.player_id === s.viewer_player_id);
   const cfEl = document.getElementById("current-conflict");
   if (conflict) {
-    // Count how many of this tag the human already holds
-    const existingCount = (human?.conflict_cards_won || []).filter(c => c.tag === conflict.tag).length;
+    // Count how many of this tag the human already holds (won conflicts +
+    // objective cards, which count as won conflicts of their tag).
+    const existingCount = ownedTagCounts(human)[conflict.tag] || 0;
     const pairHint = conflict.tag && existingCount > 0
-      ? `<span class="cf-pair-hint" title="You already have ${existingCount} ${conflict.tag} card${existingCount>1?"s":""}. Win this → ${existingCount + 1} card${existingCount+1>1?"s":""}">` +
+      ? `<span class="cf-pair-hint" title="You already have ${existingCount} ${conflict.tag} card${existingCount>1?"s":""} (won conflicts + objectives). Win this → ${existingCount + 1} card${existingCount+1>1?"s":""}">` +
         `${existingCount + 1} ${TAG_LABELS[conflict.tag] || conflict.tag}${existingCount + 1 >= 2 ? ` → +${Math.floor((existingCount + 1) / 2)} VP` : ""}</span>`
       : "";
     cfEl.innerHTML = `
@@ -769,12 +784,14 @@ function renderPlayerArea(s) {
     discardStrip.appendChild(btn);
   });
 
-  // Won Conflicts button (only shown when the human has won at least one conflict)
+  // Won Conflicts button — shown when the human has won a conflict OR holds a
+  // tagged objective (objectives count as won conflicts for tag pairs).
   const wonCount = (human.conflict_cards_won || []).length;
-  if (wonCount > 0) {
+  const taggedObjs = (human.objectives || []).filter(o => o && o.tag).length;
+  if (wonCount > 0 || taggedObjs > 0) {
     const wonBtn = el("button","discard-pile-btn won-conflicts-btn");
     wonBtn.textContent = `⚔ Won (${wonCount})`;
-    wonBtn.title = "Your won conflict cards — matching tags form pairs worth 1 VP each";
+    wonBtn.title = "Your won conflict cards + tagged objectives — matching tags form pairs worth 1 VP each";
     wonBtn.addEventListener("click", () => showWonConflicts(human));
     discardStrip.appendChild(wonBtn);
   }
@@ -1000,13 +1017,14 @@ function closeDiscard() { document.getElementById("discard-modal").classList.add
 // ─────────────── WON CONFLICTS MODAL ────────
 function showWonConflicts(player) {
   const cards = player.conflict_cards_won || [];
+  const objectives = (player.objectives || []).filter(o => o && o.tag);
   const modal = document.getElementById("won-conflicts-modal");
   const title = document.getElementById("won-conflicts-title");
   const body  = document.getElementById("won-conflicts-body");
 
-  // Count tags for pair summary
-  const tagCounts = {};
-  cards.forEach(c => { if (c.tag) tagCounts[c.tag] = (tagCounts[c.tag] || 0) + 1; });
+  // Count tags for pair summary — objectives count as won conflicts of
+  // their tag, so include them in the totals.
+  const tagCounts = ownedTagCounts(player);
   const pairLines = Object.entries(tagCounts).map(([tag, n]) => {
     const pairs = Math.floor(n / 2);
     const icon  = TAG_ICONS[tag] || "🏷";
@@ -1019,19 +1037,37 @@ function showWonConflicts(player) {
 
   if (pairLines.length) {
     const summary = el("div","wcm-summary");
-    summary.innerHTML = `<span class="wcm-label">Tag pairs:</span> ` + pairLines.join(" &nbsp;·&nbsp; ");
+    summary.innerHTML = `<span class="wcm-label">Tag pairs (incl. objectives):</span> ` + pairLines.join(" &nbsp;·&nbsp; ");
     body.appendChild(summary);
   }
 
-  if (cards.length === 0) {
-    body.innerHTML += `<div style="color:var(--text-dim);padding:8px">No won conflicts yet.</div>`;
+  if (cards.length === 0 && objectives.length === 0) {
+    body.innerHTML += `<div style="color:var(--text-dim);padding:8px">No won conflicts or tagged objectives yet.</div>`;
   } else {
     const grid = el("div","wcm-grid");
     cards.forEach(c => grid.appendChild(buildConflictMini(c)));
+    // Show tagged objectives as conflict-equivalent cards.
+    objectives.forEach(o => grid.appendChild(buildObjectiveMini(o)));
     body.appendChild(grid);
   }
 
   modal.classList.remove("hidden");
+}
+
+function buildObjectiveMini(o) {
+  const div = el("div","conflict-mini conflict-mini-obj");
+  const tag = o.tag || "";
+  const icon  = TAG_ICONS[tag]  || "";
+  const label = TAG_LABELS[tag] || tag;
+  div.innerHTML = `
+    <div class="cm-name">🎯 ${o.name}</div>
+    <div class="cm-meta">
+      <span class="cf-tag-badge cm-tag">${icon ? icon + " " : ""}${label || "—"}</span>
+      <span class="cm-lvl">Objective</span>
+    </div>
+    <div class="cm-rewards">Counts as a won conflict of this tag</div>
+  `;
+  return div;
 }
 function closeWonConflicts() { document.getElementById("won-conflicts-modal").classList.add("hidden"); }
 
