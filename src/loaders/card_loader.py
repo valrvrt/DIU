@@ -195,7 +195,8 @@ def load_contract_cards() -> List[ContractCard]:
 
         card = ContractCard(
             id=str(card_data['id']),
-            name=f"Contract #{card_data['id']}",  # Generate name from ID
+            name=_contract_name(completion_type, completion_target,
+                                check.get('amount', 0)),
             card_type=CardType.CONTRACT,
             type="Contract",
             completion_type=completion_type,
@@ -206,6 +207,21 @@ def load_contract_cards() -> List[ContractCard]:
         cards.append(card)
 
     return cards
+
+
+def _contract_name(completion_type: str, target, amount: int) -> str:
+    """Build a human-readable contract name from its completion condition.
+
+    The source data carries no names, so we derive one that tells the player
+    what they must do to fulfil the contract.
+    """
+    if completion_type == 'acquire_card' and target:
+        return f"Acquire: {target}"
+    if completion_type == 'location' and target:
+        return f"Dispatch to {target}"
+    if completion_type == 'harvest':
+        return f"Harvest {amount} Spice" if amount else "Spice Harvest"
+    return "Standing Order"
 
 
 def load_leaders() -> List[LeaderCard]:
