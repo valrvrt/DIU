@@ -1447,21 +1447,19 @@ class EffectResolver:
 
         phase = context.get("phase", "agent")
 
-        # During agent phase, signet does nothing (agent placement handles it)
-        if phase == "agent":
-            return {
-                "success": True,
-                "effect_type": "signet",
-                "effects_applied": ["Signet agent placed"]
-            }
-
-        # During reveal phase, trigger leader's signet ability
-        if phase == "reveal":
+        # The Signet Ring ability fires whenever a card carrying the Signet
+        # effect resolves — that's the agent phase (playing the Signet Ring
+        # card to send an agent) and, for cards that list it as a reveal
+        # effect, the reveal phase.  Both trigger the leader's ability.
+        if phase in ("agent", "reveal"):
             # Get player's leader
             if not hasattr(player, 'leader') or not player.leader:
+                # No leader to trigger — succeed quietly so agent placement
+                # (which carries the signet effect) doesn't fail.
                 return {
-                    "success": False,
-                    "error": "Player has no leader"
+                    "success": True,
+                    "effect_type": "signet",
+                    "effects_applied": ["No leader signet ability"]
                 }
 
             leader = player.leader
@@ -2551,6 +2549,10 @@ class EffectResolver:
             }
 
         elif choice_type == "trash_card":
+            # Player chose to skip an optional exchange (e.g. Shishakli).
+            if selected_option_id == "skip" and choice_data.get("can_skip"):
+                return {"success": True, "applied": {"type": "trash", "skipped": True}}
+
             # Execute card trashing.
             # NOTE: card_info["card"] may be a live ImperiumCard object (from bot path)
             # OR a plain dict (when serialised via _make_choice_json_safe for the human).
@@ -2600,7 +2602,7 @@ class EffectResolver:
             if hasattr(self.game, 'trash_pile'):
                 self.game.trash_pile.append(live_card)
 
-            return {
+            result = {
                 "success": True,
                 "applied": {
                     "type": "trash",
@@ -2608,6 +2610,15 @@ class EffectResolver:
                     "from_source": source
                 }
             }
+
+            # If this trash was the cost of an exchange, apply the pending reward now.
+            pending_reward = choice_data.get("pending_reward")
+            if pending_reward:
+                reward_result = self.resolve_effects(player_id, pending_reward, {})
+                if reward_result.get("success"):
+                    result["reward_applied"] = reward_result.get("effects_applied", [])
+
+            return result
 
         elif choice_type == "steal_intrigue":
             # Execute intrigue steal
@@ -4674,14 +4685,12 @@ class EffectResolver:
 
     def _handle_exchange(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Handle exchange pattern - pay a cost to get a reward (similar to cost).
+        Handle exchange pattern - pay a cost to get a reward.
 
-        Format:
-        {
-            "type": "exchange",
-            "cost": [{"type": "discard", "deck": "hand", "amount": 1}],
-            "reward": [{"type": "draw", "deck": "deck", "amount": 1}]
-        }
+        If the cost requires a player choice (e.g. trash a card), we defer the
+        reward: we attach it as "pending_reward" on the choice data and return
+        choice_required=True.  execute_choice() then applies the reward once the
+        player has made their selection.
         """
         player = self.state.get_player_by_id(player_id)
         if not player:
@@ -4689,19 +4698,38 @@ class EffectResolver:
 
         cost = effect.get('cost', [])
         reward = effect.get('reward', [])
+        optional = effect.get('optional', True)  # exchanges are MAY abilities by default
 
-        # Pay the cost
+        # Resolve cost effects.  If any require a player choice, we can't give
+        # the reward immediately — attach it to the pending choice instead.
         cost_result = self.resolve_effects(player_id, cost, context)
 
-        if cost_result.get('success'):
-            # If cost paid, give reward
-            reward_result = self.resolve_effects(player_id, reward, context)
+        if not cost_result.get('success'):
+            if optional:
+                return {"success": True, "effects_applied": []}
+            return {"success": False, "error": "Cost payment failed"}
+
+        pending_choices = cost_result.get('choices_required', [])
+        if pending_choices:
+            # Cost requires a player choice — defer the reward.
+            # Attach the pending reward + skip option to the first choice.
+            first_choice = pending_choices[0]
+            first_choice['pending_reward'] = reward
+            if optional:
+                first_choice['can_skip'] = True
+                first_choice['skip_label'] = "Skip (don't trash)"
             return {
                 "success": True,
-                "effects_applied": cost_result.get('effects_applied', []) + reward_result.get('effects_applied', [])
+                "choice_required": True,
+                "choice_data": first_choice,
             }
 
-        return {"success": False, "error": "Cost payment failed"}
+        # Cost paid immediately — apply reward now.
+        reward_result = self.resolve_effects(player_id, reward, context)
+        return {
+            "success": True,
+            "effects_applied": cost_result.get('effects_applied', []) + reward_result.get('effects_applied', []),
+        }
 
     def _handle_bypass_influence_requirement_rule(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """

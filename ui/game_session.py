@@ -499,6 +499,10 @@ class GameSession:
         ))
         if result.get("success"):
             self.log("play_intrigue", player=human.name, card=card.name)
+            # Warn if the card was discarded but no effects fired (conditions not met)
+            effects_applied = result.get("effects", {}).get("effects_applied", [])
+            if not effects_applied and not result.get("choices_required"):
+                self.log("warning", msg=f"{card.name}: no effects triggered — conditions were not met.")
         return result
 
     def _do_end_acquisition(self, d: Dict) -> Dict:

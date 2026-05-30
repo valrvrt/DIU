@@ -85,6 +85,19 @@ body {
 .objective-name { font-size:14px; font-weight:700; color:var(--gold); margin-bottom:6px; }
 .objective-desc { color:var(--text-dim); font-size:11px; }
 
+/* Leader abilities modal */
+.leader-content { display:flex; flex-direction:column; gap:12px; margin-bottom:14px; min-width:300px; }
+.leader-section { background:var(--bg3); border:1px solid var(--border); border-radius:5px; padding:10px 12px; }
+.leader-section-title { font-size:13px; font-weight:700; color:var(--gold); margin-bottom:4px; }
+.leader-hint { font-size:9px; color:var(--text-dim); margin-bottom:7px; font-style:italic; }
+.leader-ability-name { font-size:12px; font-weight:700; color:var(--text); margin-bottom:4px; }
+.leader-desc { font-size:11px; color:var(--text); margin-bottom:5px; line-height:1.4; }
+.leader-eff { font-size:11px; color:#80d060; padding:2px 0; line-height:1.4; }
+.leader-eff-choice { font-size:10px; color:var(--text-dim); font-weight:700; margin-bottom:2px; }
+.leader-or { font-size:9px; color:var(--gold-dim); font-weight:700; text-align:center; padding:1px 0; letter-spacing:1px; }
+.leader-when { font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.3px; }
+.leader-empty { font-size:10px; color:var(--text-dim); font-style:italic; }
+
 /* ─────── LAYOUT ─────── */
 .game { display:grid; grid-template-rows:30px 1fr 158px; height:100vh; overflow:hidden; }
 .game.hidden { display:none; }
@@ -157,7 +170,7 @@ body {
   background:var(--bg3); border:1px solid var(--border); border-radius:5px;
   padding:8px 10px; cursor:pointer; position:relative;
   transition:border-color .12s, background .12s;
-  width:100%; min-height:60px;
+  width:100%; min-height:60px; overflow:hidden;
 }
 .board-space:hover { border-color:#5a4a38; }
 .board-space.valid-target { border-color:#5ab030 !important; background:#0e1e08 !important; }
@@ -197,16 +210,16 @@ body {
   border-top:1px solid rgba(255,255,255,.08);
 }
 .sp-reward-row {
-  display:flex; gap:6px; align-items:center; flex-wrap:wrap;
-  font-size:15px; color:var(--text);
+  display:flex; gap:5px; align-items:center; flex-wrap:wrap;
+  font-size:12px; color:var(--text);
 }
 .sp-or {
-  font-size:10px; font-weight:700; color:var(--gold-dim);
+  font-size:9px; font-weight:700; color:var(--gold-dim);
   letter-spacing:2px; text-align:center;
 }
 .sp-choice-option {
-  display:flex; align-items:center; gap:5px; flex-wrap:wrap;
-  font-size:15px; color:var(--text);
+  display:flex; align-items:center; gap:4px; flex-wrap:wrap;
+  font-size:12px; color:var(--text);
 }
 .sp-occupant {
   display:inline-block; font-size:9px; font-weight:700; padding:1px 5px; border-radius:3px;
@@ -235,13 +248,13 @@ body {
 /* ─────── CENTER ─────── */
 .board-center { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; overflow:hidden; padding:4px; border-right:1px solid var(--border); }
 
-.center-row { display:flex; gap:4px; flex:1; min-height:0; }
+.center-row { display:flex; gap:4px; flex:1; min-height:0; overflow:hidden; }
 .landsraad-row { flex:7; }
 .center-row:not(.desert-combat-row):not(.landsraad-row):not(.faction-row) { flex:3; }
-.desert-combat-row { flex:3; }
+.desert-combat-row { flex:4; }
 .faction-row { flex:5; }
 
-.neutral-group { background:var(--bg2); border-radius:5px; padding:4px 6px; min-width:0; flex:1; display:flex; flex-direction:column; }
+.neutral-group { background:var(--bg2); border-radius:5px; padding:4px 6px; min-width:0; flex:1; display:flex; flex-direction:column; overflow:hidden; }
 .neutral-group.full-width { flex:1; }
 .shipping-aside { flex:0 0 220px; display:flex; flex-direction:column; overflow:hidden; }
 /* Trade spaces size to their content; contracts panel takes the rest and scrolls */
@@ -305,8 +318,8 @@ body {
 /* ─────── COMBAT ZONE (compact) ─────── */
 .combat-zone {
   background:var(--bg2); border:1px solid #501010; border-radius:4px;
-  padding:4px 6px; flex:1; display:flex; flex-direction:column; gap:3px;
-  overflow-y:auto; min-width:130px; max-width:200px;
+  padding:4px 6px; flex:0 0 185px; display:flex; flex-direction:column; gap:3px;
+  overflow-y:auto; min-width:130px;
 }
 .conflict-display { font-size:9px; }
 .conflict-display .cf-name { color:#e06050; font-weight:700; font-size:10px; margin-bottom:2px; }
@@ -647,3 +660,60 @@ body {
   cursor:default; margin-left:2px;
 }
 .spy-dot.spy-occupied { border:none; }
+
+/* ─────── INTRIGUE CONDITION FAIL (playable but check not met) ─────── */
+.intrigue-cond-fail { border-color:rgba(200,140,40,.4) !important; }
+.intrigue-cond-fail::after {
+  content:"⚠"; position:absolute; top:3px; right:4px;
+  font-size:9px; color:#e0a040; pointer-events:none;
+}
+
+/* ─────── WARNING EVENT IN LOG ─────── */
+.event-log .ev.ev-warning { color:#e0a040; font-style:italic; }
+
+/* ─────── CONFLICT TAG BADGE ─────── */
+.cf-tag-badge {
+  display:inline-block; font-size:9px; font-weight:700; letter-spacing:.4px;
+  padding:1px 5px; border-radius:10px;
+  background:rgba(180,120,40,.25); border:1px solid rgba(200,140,50,.4);
+  color:#d4a840; white-space:nowrap;
+}
+.cf-pair-hint {
+  font-size:8px; color:#80e040; font-weight:700; letter-spacing:.3px;
+  background:rgba(60,180,40,.12); border:1px solid rgba(60,180,40,.3);
+  border-radius:3px; padding:1px 4px; margin-top:2px; display:inline-block;
+}
+.cf-meta { display:flex; flex-direction:column; gap:2px; margin-top:3px; }
+
+/* ─────── WON CONFLICTS BUTTON ─────── */
+.won-conflicts-btn {
+  background:rgba(180,100,40,.2) !important;
+  border-color:rgba(200,120,50,.4) !important;
+  color:#d4903a !important;
+}
+.won-conflicts-btn:hover { background:rgba(180,100,40,.35) !important; }
+
+/* ─────── WON CONFLICTS MODAL ─────── */
+.wcm-summary {
+  display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+  padding:10px 0 8px; border-bottom:1px solid var(--border); margin-bottom:12px;
+}
+.wcm-label { font-size:11px; color:var(--text-dim); }
+.wcm-pair {
+  font-size:11px; font-weight:700; color:#80e040;
+  background:rgba(60,180,40,.12); border:1px solid rgba(60,180,40,.3);
+  border-radius:3px; padding:2px 7px;
+}
+.wcm-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(130px,1fr));
+  gap:8px;
+}
+.conflict-mini {
+  background:var(--bg3); border:1px solid var(--border); border-radius:5px;
+  padding:7px 9px; display:flex; flex-direction:column; gap:3px;
+}
+.cm-name { font-size:10px; font-weight:700; color:var(--text); }
+.cm-meta { display:flex; gap:5px; align-items:center; flex-wrap:wrap; }
+.cm-tag { font-size:8px; }
+.cm-lvl { font-size:8px; color:var(--text-dim); }
+.cm-rewards { font-size:8px; color:var(--text-dim); }

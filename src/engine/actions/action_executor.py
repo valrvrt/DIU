@@ -458,22 +458,26 @@ class ActionExecutor:
             location_id=action.location.id,
         )
 
-        # Step 13b: Gather Intel bonus — if player had a spy at this location,
-        # the spy is recalled and they draw 1 intrigue card (rules).
-        # This applies to both normal placement AND spy_infiltrate.
+        # Step 13b: Gather Intel bonus — if the player has a spy at an observation
+        # post connected to this location, recall it and draw 1 intrigue card.
+        # connected_locations stores space NAMES, so match by name (and id as fallback).
         gather_intel_card = None
-        loc_id_str = str(action.location.id)
-        placed_ids = [str(s) for s in player.spies_placed]
-        if action.placement_type != "spy_infiltrate" and loc_id_str in placed_ids:
-            # Remove the spy (recall it) — normalize to matching stored type
-            spy_to_remove = next((s for s in player.spies_placed if str(s) == loc_id_str), None)
-            if spy_to_remove is not None:
-                player.spies_placed.remove(spy_to_remove)
-            player.spies_available += 1
-            # Draw 1 intrigue card as the intel reward
-            if self.game.board.intrigue_deck:
-                gather_intel_card = self.game.board.intrigue_deck.pop(0)
-                player.intrigue_cards.append(gather_intel_card)
+        if action.placement_type != "spy_infiltrate":
+            location_name = action.location.name
+            location_id_str = str(action.location.id)
+            post_to_recall = None
+            for post_id in list(player.spies_placed):
+                post = self.state.get_observation_post_by_id(str(post_id))
+                if post and (location_name in post.connected_locations
+                             or location_id_str in post.connected_locations):
+                    post_to_recall = post_id
+                    break
+            if post_to_recall is not None:
+                player.spies_placed.remove(post_to_recall)
+                player.spies_available += 1
+                if self.game.board.intrigue_deck:
+                    gather_intel_card = self.game.board.intrigue_deck.pop(0)
+                    player.intrigue_cards.append(gather_intel_card)
 
         # Step 13c: Passive ability trigger — Staban Tuek "Smuggler's Trade"
         # Whenever ANY player places an agent on a Maker space, Staban gains 1 spice.

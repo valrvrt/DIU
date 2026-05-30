@@ -219,10 +219,15 @@ class GameState:
 
         accessible = []
         for post_id in player.spies_placed:
-            post = self.get_observation_post_by_id(post_id)
+            post = self.get_observation_post_by_id(str(post_id))
             if post:
-                for location_id in post.connected_locations:
-                    space = self.get_space_by_id(location_id)
+                for loc_ref in post.connected_locations:
+                    # connected_locations stores space NAMES, not IDs
+                    space = next(
+                        (s for s in self.game.board.spaces
+                         if s.name == loc_ref or str(s.id) == str(loc_ref)),
+                        None,
+                    )
                     if space and space not in accessible:
                         accessible.append(space)
 

@@ -106,6 +106,80 @@ function closeObjective() {
   document.getElementById("objective-modal").classList.add("hidden");
 }
 
+// ─────────────── leader modal ───────────────
+function showLeader() {
+  const human = G.state?.players?.find(p => p.player_id === G.state.viewer_player_id);
+  const leader = human?.leader;
+  if (!leader) return;
+
+  document.getElementById("leader-title").textContent = `👑 ${leader.name || "Your Leader"}`;
+  const content = document.getElementById("leader-content");
+
+  // ── Signet ability (current effects for the leader's training-track level) ──
+  const signetFx = leader.signet_effects && leader.signet_effects.length
+    ? leader.signet_effects
+    : (Array.isArray(leader.signet) ? leader.signet : []);
+  const signetHTML = leaderEffectsHTML(signetFx,
+    "No signet effect at your current training-track position.");
+
+  // ── Passive ability ──
+  const passive = leader.passive;
+  let passiveHTML;
+  if (passive) {
+    const pName = passive.name ? `<div class="leader-ability-name">${passive.name}</div>` : "";
+    const when  = passive.phase ? `<span class="leader-when">Triggers: ${_cap(passive.phase)} phase</span>` : "";
+    const desc  = passive.description ? `<div class="leader-desc">${passive.description}</div>` : "";
+    const cost  = _asArr(passive.cost);
+    const rew   = _asArr(passive.reward);
+    let effLine = "";
+    if (cost.length || rew.length) {
+      const costTxt = cost.map(x => describeEffectText(x, true)).filter(Boolean).join(", ");
+      const rewTxt  = rew.map(x => describeEffectText(x)).filter(Boolean).join(", ");
+      effLine = `<div class="leader-eff">${costTxt ? `${costTxt} → ` : ""}${rewTxt || ""}</div>`;
+    }
+    passiveHTML = `${pName}${desc}${effLine}${when}`;
+    if (!passiveHTML.trim()) passiveHTML = `<div class="leader-empty">See card.</div>`;
+  } else {
+    passiveHTML = `<div class="leader-empty">This leader has no passive ability.</div>`;
+  }
+
+  content.innerHTML = `
+    <div class="leader-section">
+      <div class="leader-section-title">💍 Signet Ring Ability</div>
+      <div class="leader-hint">Triggered when you play the <b>Signet Ring</b> card.</div>
+      ${signetHTML}
+    </div>
+    <div class="leader-section">
+      <div class="leader-section-title">✦ Passive Ability</div>
+      ${passiveHTML}
+    </div>
+  `;
+  document.getElementById("leader-modal").classList.remove("hidden");
+}
+
+function closeLeader() {
+  document.getElementById("leader-modal").classList.add("hidden");
+}
+
+/** Render a list of leader effects as readable lines, expanding choices into OR rows. */
+function leaderEffectsHTML(effects, emptyMsg) {
+  const arr = _asArr(effects);
+  if (!arr.length) return `<div class="leader-empty">${emptyMsg || "—"}</div>`;
+  const rows = [];
+  arr.forEach(e => {
+    if (e && e.type === "choice") {
+      const opts = (e.options || []).map(o => `<div class="leader-eff">${describeOptionText(o)}</div>`);
+      rows.push(`<div class="leader-eff-choice">Choose one:</div>` + opts.join(`<div class="leader-or">— OR —</div>`));
+    } else if (e && (e.type === "conditional_multi" || e.type === "conditional_bonuses")) {
+      const opts = (e.options || []).map(o => `<div class="leader-eff">${o.description || describeOptionText(o)}</div>`);
+      rows.push(opts.join(""));
+    } else {
+      rows.push(`<div class="leader-eff">${describeEffectText(e)}</div>`);
+    }
+  });
+  return rows.join("");
+}
+
 // ─────────────── api helpers ────────────────
 async function api(method, url, body) {
   try {
@@ -460,13 +534,34 @@ function agentIconLabel(icon) {
 }
 
 // ─────────────── COMBAT ZONE ────────────────
+const TAG_ICONS = { crysknife:"🗡", "desert-mouse":"🐭", ornithopter:"✈" };
+const TAG_LABELS = { crysknife:"Crysknife", "desert-mouse":"Desert Mouse", ornithopter:"Ornithopter" };
+
+function tagBadgeHTML(tag, extraClass) {
+  if (!tag) return "";
+  const icon  = TAG_ICONS[tag]  || "🏷";
+  const label = TAG_LABELS[tag] || tag;
+  return `<span class="cf-tag-badge${extraClass ? " " + extraClass : ""}" title="Conflict tag: ${label} — matching tags form pairs worth 1 VP each">${icon} ${label}</span>`;
+}
+
 function renderCombatZone(s) {
   const conflict = s.board?.current_conflict;
+  const human    = s.players.find(p => p.player_id === s.viewer_player_id);
   const cfEl = document.getElementById("current-conflict");
   if (conflict) {
+    // Count how many of this tag the human already holds
+    const existingCount = (human?.conflict_cards_won || []).filter(c => c.tag === conflict.tag).length;
+    const pairHint = conflict.tag && existingCount > 0
+      ? `<span class="cf-pair-hint" title="You already have ${existingCount} ${conflict.tag} card${existingCount>1?"s":""}. Win this → ${existingCount + 1} card${existingCount+1>1?"s":""}">` +
+        `${existingCount + 1} ${TAG_LABELS[conflict.tag] || conflict.tag}${existingCount + 1 >= 2 ? ` → +${Math.floor((existingCount + 1) / 2)} VP` : ""}</span>`
+      : "";
     cfEl.innerHTML = `
       <div class="cf-name">⚔ ${conflict.name}</div>
-      <div class="cf-lvl">Lvl ${conflict.level}</div>
+      <div class="cf-meta">
+        <span class="cf-lvl">Lvl ${conflict.level}</span>
+        ${conflict.tag ? tagBadgeHTML(conflict.tag) : ""}
+      </div>
+      ${pairHint}
       <div class="cf-reward">${renderConflictRewards(conflict.rewards)}</div>
     `;
   } else {
@@ -646,7 +741,7 @@ function renderPlayerArea(s) {
   const intEl = document.getElementById("intrigue-cards");
   intEl.innerHTML = "";
   (human.intrigue_cards || []).forEach(c => {
-    const div = buildIntrigueCard(c, aa.phase);
+    const div = buildIntrigueCard(c, aa.phase, human);
     intEl.appendChild(div);
   });
 
@@ -659,7 +754,7 @@ function renderPlayerArea(s) {
     acEl.appendChild(chip);
   });
 
-  // Discard piles
+  // Discard piles + Won Conflicts
   const discardStrip = document.getElementById("discard-piles-strip");
   discardStrip.innerHTML = "";
   s.players.forEach((p, i) => {
@@ -670,6 +765,16 @@ function renderPlayerArea(s) {
     btn.addEventListener("click", () => showDiscard(p, s));
     discardStrip.appendChild(btn);
   });
+
+  // Won Conflicts button (only shown when the human has won at least one conflict)
+  const wonCount = (human.conflict_cards_won || []).length;
+  if (wonCount > 0) {
+    const wonBtn = el("button","discard-pile-btn won-conflicts-btn");
+    wonBtn.textContent = `⚔ Won (${wonCount})`;
+    wonBtn.title = "Your won conflict cards — matching tags form pairs worth 1 VP each";
+    wonBtn.addEventListener("click", () => showWonConflicts(human));
+    discardStrip.appendChild(wonBtn);
+  }
 }
 
 // ─────────────── ACTION BUTTONS ─────────────
@@ -840,7 +945,9 @@ function getChoiceItems(choice) {
     return [{label:`✓ Pay ${costs} → ${rewards}`,value:"accept"},{label:"✗ Skip",value:"decline"}];
   }
   if (ctype==="trash_card"||ctype==="discard_card"||ctype==="trash_to_acquire") {
-    return (choice.available_cards||[]).map(item=>{const c=item.card||item;return{label:`${c.name} (${item.source||"hand"})`,value:c.id};});
+    const items = (choice.available_cards||[]).map(item=>{const c=item.card||item;return{label:`${c.name} (${item.source||"hand"})`,value:c.id};});
+    if (choice.can_skip) items.push({label: choice.skip_label||"Skip", value:"skip"});
+    return items;
   }
   if (ctype==="accept_contract") {
     const items = (choice.available_contracts||[]).map(c=>({label:`${c.name} — ${contractCondition(c)}`,value:c.id}));
@@ -881,6 +988,60 @@ function showDiscard(player, s) {
   modal.classList.remove("hidden");
 }
 function closeDiscard() { document.getElementById("discard-modal").classList.add("hidden"); }
+
+// ─────────────── WON CONFLICTS MODAL ────────
+function showWonConflicts(player) {
+  const cards = player.conflict_cards_won || [];
+  const modal = document.getElementById("won-conflicts-modal");
+  const title = document.getElementById("won-conflicts-title");
+  const body  = document.getElementById("won-conflicts-body");
+
+  // Count tags for pair summary
+  const tagCounts = {};
+  cards.forEach(c => { if (c.tag) tagCounts[c.tag] = (tagCounts[c.tag] || 0) + 1; });
+  const pairLines = Object.entries(tagCounts).map(([tag, n]) => {
+    const pairs = Math.floor(n / 2);
+    const icon  = TAG_ICONS[tag] || "🏷";
+    const label = TAG_LABELS[tag] || tag;
+    return `<span class="wcm-pair">${icon} ${label} ×${n}${pairs ? ` → <b>+${pairs} VP</b>` : ""}</span>`;
+  });
+
+  title.textContent = `⚔ Won Conflicts (${cards.length})`;
+  body.innerHTML = "";
+
+  if (pairLines.length) {
+    const summary = el("div","wcm-summary");
+    summary.innerHTML = `<span class="wcm-label">Tag pairs:</span> ` + pairLines.join(" &nbsp;·&nbsp; ");
+    body.appendChild(summary);
+  }
+
+  if (cards.length === 0) {
+    body.innerHTML += `<div style="color:var(--text-dim);padding:8px">No won conflicts yet.</div>`;
+  } else {
+    const grid = el("div","wcm-grid");
+    cards.forEach(c => grid.appendChild(buildConflictMini(c)));
+    body.appendChild(grid);
+  }
+
+  modal.classList.remove("hidden");
+}
+function closeWonConflicts() { document.getElementById("won-conflicts-modal").classList.add("hidden"); }
+
+function buildConflictMini(c) {
+  const div = el("div","conflict-mini");
+  const tag = c.tag || "";
+  const icon  = TAG_ICONS[tag]  || "";
+  const label = TAG_LABELS[tag] || tag;
+  div.innerHTML = `
+    <div class="cm-name">${c.name}</div>
+    <div class="cm-meta">
+      <span class="cf-tag-badge cm-tag">${icon ? icon + " " : ""}${label || "—"}</span>
+      <span class="cm-lvl">Lvl ${c.level}</span>
+    </div>
+    <div class="cm-rewards">${renderConflictRewards(c.rewards)}</div>
+  `;
+  return div;
+}
 
 // ─────────────── CARD BUILDER ───────────────
 function buildCard(card, extraClass, inAcquisition, persuasion) {
@@ -963,7 +1124,33 @@ function buildCard(card, extraClass, inAcquisition, persuasion) {
   return div;
 }
 
-function buildIntrigueCard(card, currentPhase) {
+// Returns true if the player meets all check conditions for an effect.
+function meetChecks(checks, player) {
+  if (!checks || !checks.length || !player) return true;
+  for (const chk of checks) {
+    const t = chk.type;
+    if (t === "council_seat") {
+      if (!!player.has_high_council_sit !== !!chk.value) return false;
+    } else if (t === "influence") {
+      const fac = chk.target;
+      const cur = (player.influence || {})[fac] || 0;
+      if (cur < (chk.amount || 0)) return false;
+    }
+    // Other check types not evaluated on the frontend — assume true
+  }
+  return true;
+}
+
+// Returns true if ALL the action-effect checks on a card are met.
+function intrigueConditionsMet(effects, player) {
+  if (!player) return true;
+  for (const e of (effects || [])) {
+    if (e.check && e.check.length && !meetChecks(e.check, player)) return false;
+  }
+  return true;
+}
+
+function buildIntrigueCard(card, currentPhase, player) {
   const div = el("div","card intrigue-card");
 
   // Header: name + phase tags
@@ -1001,9 +1188,19 @@ function buildIntrigueCard(card, currentPhase) {
   const isCombat = phases.includes("combat");
   const playableNow = (currentPhase === "agent_turn" && isPlot)
                    || (currentPhase === "combat" && isCombat);
+  const condsMet = intrigueConditionsMet(effects, player);
+
   if (playableNow) {
-    div.classList.add("selectable");
-    div.addEventListener("click", () => postAction({type:"play_intrigue",card_id:card.id}));
+    if (condsMet) {
+      div.classList.add("selectable");
+      div.addEventListener("click", () => postAction({type:"play_intrigue",card_id:card.id}));
+    } else {
+      // Playable phase but conditions not met — dim and show tooltip
+      div.style.opacity = ".6";
+      div.title = "Conditions for this card's effects are not currently met. Playing it will discard it with no benefit.";
+      div.classList.add("selectable", "intrigue-cond-fail");
+      div.addEventListener("click", () => postAction({type:"play_intrigue",card_id:card.id}));
+    }
   } else {
     div.style.opacity = ".55";
   }
@@ -1041,11 +1238,16 @@ function describeIntrigueEffect(e) {
     return parts.join(`<span style="color:var(--gold-dim);font-size:8px;margin:0 3px">OR</span>`);
   }
 
-  // Action with cost → reward
+  // Action with cost → reward (and optional check condition)
   if (t === "action" || (e.cost && e.reward)) {
     const costHTML = (e.cost||[]).map(x => describeEffectHTML(x)).join("") || "";
     const rwHTML   = (e.reward||[]).map(x => describeEffectHTML(x)).join(" ") || "";
-    return costHTML ? `<span class="ef-cost">${costHTML}&thinsp;→</span> ${rwHTML}` : rwHTML;
+    let mainHTML = costHTML ? `<span class="ef-cost">${costHTML}&thinsp;→</span> ${rwHTML}` : rwHTML;
+    if (e.check && e.check.length) {
+      const cond = e.check.map(describeCheckShort).join(" & ");
+      mainHTML = `<span class="ef-if">if ${cond}:</span> ${mainHTML}`;
+    }
+    return mainHTML;
   }
 
   // Conditional reward
@@ -1391,6 +1593,7 @@ function evClass(t) {
   if (["contract_completed"].includes(t)) return "contract";
   if (["new_round"].includes(t)) return "round";
   if (["bot_action","reveal"].includes(t)) return "bot";
+  if (t === "warning") return "warning";
   return "";
 }
 
@@ -1416,6 +1619,7 @@ function describeEvent(ev) {
   if (t === "recall")         return `${ev.player} recalls`;
   if (t === "new_round")      return `═══ Round ${ev.round} ═══`;
   if (t === "new_conflict")   return `Conflict: ${ev.conflict}`;
+  if (t === "warning")        return `⚠ ${ev.msg}`;
   return `${t}`;
 }
 

@@ -77,9 +77,23 @@ def _leader_card(card) -> Optional[Dict[str, Any]]:
     The engine uses the concrete `Leader` class hierarchy (PaulAtreides, etc.)
     which has `leader_id` and `name`. The LeaderCard dataclass has `id` and
     `name`. Handle both shapes.
+
+    `signet_effects` holds the CURRENT signet ability (resolved for the leader's
+    training-track position) so the UI can show the player exactly what their
+    Signet Ring will do right now.
     """
     if card is None:
         return None
+
+    # Resolve the current signet effects when the engine leader supports it.
+    signet_effects: list = []
+    getter = getattr(card, "get_current_signet_effects", None)
+    if callable(getter):
+        try:
+            signet_effects = getter() or []
+        except Exception:
+            signet_effects = []
+
     return {
         "id": getattr(card, "id", None) or str(getattr(card, "leader_id", "")),
         "name": getattr(card, "name", "Unknown"),
@@ -90,6 +104,7 @@ def _leader_card(card) -> Optional[Dict[str, Any]]:
             or getattr(card, "ring", None)
             or []
         ),
+        "signet_effects": signet_effects,
         "passive": getattr(card, "passive_ability", None),
         "training_track_position": getattr(card, "training_track_position", 0),
     }
@@ -220,12 +235,19 @@ def _player_public(player: Player) -> Dict[str, Any]:
 
         # Turn state
         "has_revealed_this_round": player.has_revealed_this_round,
+        "has_high_council_sit": player.has_high_council_sit,
         "combat_strength": (
             player.troops_in_conflict * 2
             + player.sandworms_in_conflict * 3
             + getattr(player, "temp_swords", 0)
         ) if (player.troops_in_conflict > 0 or player.sandworms_in_conflict > 0) else 0,
         "temp_swords": getattr(player, "temp_swords", 0),
+
+        # Won conflict cards (needed for tag-pair VP display)
+        "conflict_cards_won": [
+            _conflict_card(c)
+            for c in getattr(player, "conflict_cards_won", [])
+        ],
     }
 
 

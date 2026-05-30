@@ -19,9 +19,13 @@ from src.loaders.leader_loader import load_leaders
 
 
 def test_signet_agent_phase():
-    """Test that signet does nothing during agent phase."""
+    """Signet triggers the leader's ability during the agent phase.
+
+    The Signet Ring card carries the signet effect in its agent_effects, so
+    playing it to send an agent must fire the leader's Signet ability.
+    """
     print("\n" + "="*80)
-    print("TEST: Signet Ring - Agent Phase (Should Do Nothing)")
+    print("TEST: Signet Ring - Agent Phase (Should Trigger Leader Ability)")
     print("="*80)
 
     # Create game and leader
@@ -57,11 +61,11 @@ def test_signet_agent_phase():
     )
 
     print(f"\nResult: {result}")
-    print(f"Player solari: {player.solari} (should still be 0)")
+    print(f"Player solari: {player.solari} (should be 5)")
 
     assert result["success"], "Signet should succeed in agent phase"
-    assert player.solari == 0, "Signet should not give solari in agent phase"
-    print("✓ Signet does nothing in agent phase (correct!)")
+    assert player.solari == 5, "Signet should trigger leader ability in agent phase"
+    print("✓ Signet triggers leader ability in agent phase (correct!)")
     return True
 
 
