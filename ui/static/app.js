@@ -131,11 +131,14 @@ function showLeader() {
     const desc  = passive.description ? `<div class="leader-desc">${passive.description}</div>` : "";
     const cost  = _asArr(passive.cost);
     const rew   = _asArr(passive.reward);
+    const checks = _asArr(passive.check);
     let effLine = "";
     if (cost.length || rew.length) {
       const costTxt = cost.map(x => describeEffectText(x, true)).filter(Boolean).join(", ");
       const rewTxt  = rew.map(x => describeEffectText(x)).filter(Boolean).join(", ");
-      effLine = `<div class="leader-eff">${costTxt ? `${costTxt} → ` : ""}${rewTxt || ""}</div>`;
+      const condTxt = checks.map(describeCheckText).filter(Boolean).join(" and ");
+      const body    = `${costTxt ? `${costTxt} → ` : ""}${rewTxt || ""}`;
+      effLine = `<div class="leader-eff">${condTxt ? `If ${condTxt}: ` : ""}${body}</div>`;
     }
     passiveHTML = `${pName}${desc}${effLine}${when}`;
     if (!passiveHTML.trim()) passiveHTML = `<div class="leader-empty">See card.</div>`;
@@ -1295,6 +1298,7 @@ const CHECK_NAMES = {
   buy_imperium:"you bought an Imperium Row card", deploy_units:"units you deploy",
   flip_conflict:"conflicts you have won", spice_must_flow_tokens:"your Spice Must Flow cards",
   recall:"agents you recall", gained_resource_this_turn:"resources you gained this turn",
+  sandworm_in_conflict:"there is a sandworm in the Conflict",
 };
 
 function _plural(amt, word) { return amt === 1 ? word : word + "s"; }
@@ -1328,6 +1332,7 @@ const CHECK_SHORT = {
   buy_imperium:"card bought", deploy_units:"units deployed",
   flip_conflict:"conflicts won", spice_must_flow_tokens:"Spice Must Flow cards",
   recall:"agents recalled", gained_resource_this_turn:"resource gained",
+  sandworm_in_conflict:"sandworm in Conflict",
 };
 
 function _checkFaction(chk) {
