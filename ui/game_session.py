@@ -767,6 +767,13 @@ class GameSession:
                     # Queue any follow-up choices (e.g. deck_manip_discard after deck_manip_draw)
                     if result and result.get("choices_required"):
                         self._bot_resolve_choices(player, result["choices_required"])
+            elif ctype == "choose_reserve_card":
+                # Pick whichever reserve pile is available (Prepare the Way preferred)
+                prepare = self.game.board.reserve_prepare_the_way
+                spice = self.game.board.reserve_spice_must_flow
+                pile_id = "prepare_the_way" if prepare else ("spice_must_flow" if spice else None)
+                if pile_id:
+                    effect_resolver.execute_choice(player.player_id, choice_data, pile_id)
             elif ctype == "steal_intrigue":
                 targets = choice_data.get("valid_targets", [])
                 if targets:

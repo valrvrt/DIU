@@ -944,6 +944,7 @@ function choiceTitle(ctype) {
     manipulate:"Manipulate — Intrigue Deck",
     deck_manip_draw:"Long Live the Fighters — Draw a Card",
     deck_manip_discard:"Long Live the Fighters — Discard a Card",
+    choose_reserve_card:"Acquire a Reserve Card (Free)",
   };
   return map[ctype] || "Make a Choice";
 }
@@ -1016,6 +1017,19 @@ function getChoiceItems(choice) {
   if (ctype==="deck_manip_discard") {
     const drew = choice.drew ? ` (drew: ${choice.drew})` : "";
     return (choice.cards||[]).map(c=>({label:`Discard: ${c.name}${drew}`, value:String(c.id)}));
+  }
+  if (ctype==="choose_reserve_card") {
+    const board = G.state?.board || {};
+    const items = [];
+    if (board.reserve_prepare_the_way?.remaining > 0) {
+      const top = board.reserve_prepare_the_way.top;
+      items.push({label:`Prepare the Way${top ? ` — ${top.name}` : ""}`, value:"prepare_the_way"});
+    }
+    if (board.reserve_spice_must_flow?.remaining > 0) {
+      const top = board.reserve_spice_must_flow.top;
+      items.push({label:`Spice Must Flow${top ? ` — ${top.name}` : ""}`, value:"spice_must_flow"});
+    }
+    return items.length ? items : [{label:"No reserve cards available",value:"skip",disabled:true}];
   }
   return [{label:"OK",value:"ok"}];
 }

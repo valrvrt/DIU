@@ -897,32 +897,54 @@ class EffectResolver:
         opponents_affected = []
 
         if target == "all":
-            # All opponents must discard
+            # All opponents must discard. Bots discard randomly; human gets a choice.
+            human_opponent = None
+            affected_names = []
+
             for other_player in self.game.players:
                 if other_player.player_id == player_id:
                     continue
 
-                # Each opponent discards from their hand
-                cards_to_discard = min(amount, len(other_player.hand.cards))
-                if cards_to_discard > 0:
-                    opponents_affected.append({
-                        "player_id": other_player.player_id,
-                        "player_name": getattr(other_player, 'name', f'Player {other_player.player_id}'),
-                        "cards_to_discard": cards_to_discard
-                    })
+                n = min(amount, len(other_player.hand.cards))
+                if n == 0:
+                    continue
 
-            # This requires each opponent to choose which cards to discard
-            # For now, return success with info about who must discard
-            # Full implementation would need UI/bot logic for each opponent to choose
+                if getattr(other_player, "is_human", False):
+                    human_opponent = other_player
+                else:
+                    # Bot: discard randomly
+                    for _ in range(n):
+                        if not other_player.hand.cards:
+                            break
+                        card = random.choice(other_player.hand.cards)
+                        other_player.hand.remove(card)
+                        other_player.discard_pile.add_card(card)
+                    affected_names.append(getattr(other_player, "name", other_player.player_id))
+
+            if human_opponent and human_opponent.hand.cards:
+                n = min(amount, len(human_opponent.hand.cards))
+                return {
+                    "success": True,
+                    "choice_required": True,
+                    "choice_data": {
+                        "type": "discard_card",
+                        "available_cards": [
+                            {"card": c, "source": "hand"}
+                            for c in human_opponent.hand.cards
+                        ],
+                        "can_skip": False,
+                        "description": f"You must discard {n} card(s) — Covert Operation",
+                    }
+                }
+
             return {
                 "success": True,
                 "applied": {
                     "type": "opponent_discard",
                     "target": "all",
                     "amount": amount,
-                    "opponents_affected": opponents_affected
-                },
-                "note": "Each opponent must choose which cards to discard"
+                    "opponents_affected": affected_names,
+                }
             }
 
         elif target == "choose":
