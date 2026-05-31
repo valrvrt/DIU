@@ -941,6 +941,9 @@ function choiceTitle(ctype) {
     acquire_card:"Acquire Card (Free)", choose_opponent_discard:"Force Discard",
     play_spy_on_space:"Plant Spy", conditional_multi_choice:"Optional Bonuses",
     reveal_passive_choice:"Leader Passive",
+    manipulate:"Manipulate — Intrigue Deck",
+    deck_manip_draw:"Long Live the Fighters — Draw a Card",
+    deck_manip_discard:"Long Live the Fighters — Discard a Card",
   };
   return map[ctype] || "Make a Choice";
 }
@@ -999,6 +1002,20 @@ function getChoiceItems(choice) {
     const target=choice.card;
     const cards=target?row.filter(c=>c.name===target):row;
     return cards.map(c=>({label:`${c.name} (${c.cost})`,value:c.id}));
+  }
+  if (ctype==="manipulate") {
+    const name = choice.card_name || "Unknown Card";
+    return [
+      {label:`Keep "${name}" on top of the Intrigue deck`, value:"keep_top"},
+      {label:`Move "${name}" to the bottom of the Intrigue deck`, value:"move_bottom"},
+    ];
+  }
+  if (ctype==="deck_manip_draw") {
+    return (choice.cards||[]).map(c=>({label:`Draw: ${c.name}`, value:String(c.id)}));
+  }
+  if (ctype==="deck_manip_discard") {
+    const drew = choice.drew ? ` (drew: ${choice.drew})` : "";
+    return (choice.cards||[]).map(c=>({label:`Discard: ${c.name}${drew}`, value:String(c.id)}));
   }
   return [{label:"OK",value:"ok"}];
 }
