@@ -897,32 +897,54 @@ class EffectResolver:
         opponents_affected = []
 
         if target == "all":
-            # All opponents must discard
+            # All opponents must discard. Bots discard randomly; human gets a choice.
+            human_opponent = None
+            affected_names = []
+
             for other_player in self.game.players:
                 if other_player.player_id == player_id:
                     continue
 
-                # Each opponent discards from their hand
-                cards_to_discard = min(amount, len(other_player.hand.cards))
-                if cards_to_discard > 0:
-                    opponents_affected.append({
-                        "player_id": other_player.player_id,
-                        "player_name": getattr(other_player, 'name', f'Player {other_player.player_id}'),
-                        "cards_to_discard": cards_to_discard
-                    })
+                n = min(amount, len(other_player.hand.cards))
+                if n == 0:
+                    continue
 
-            # This requires each opponent to choose which cards to discard
-            # For now, return success with info about who must discard
-            # Full implementation would need UI/bot logic for each opponent to choose
+                if getattr(other_player, "is_human", False):
+                    human_opponent = other_player
+                else:
+                    # Bot: discard randomly
+                    for _ in range(n):
+                        if not other_player.hand.cards:
+                            break
+                        card = random.choice(other_player.hand.cards)
+                        other_player.hand.remove(card)
+                        other_player.discard_pile.add_card(card)
+                    affected_names.append(getattr(other_player, "name", other_player.player_id))
+
+            if human_opponent and human_opponent.hand.cards:
+                n = min(amount, len(human_opponent.hand.cards))
+                return {
+                    "success": True,
+                    "choice_required": True,
+                    "choice_data": {
+                        "type": "discard_card",
+                        "available_cards": [
+                            {"card": c, "source": "hand"}
+                            for c in human_opponent.hand.cards
+                        ],
+                        "can_skip": False,
+                        "description": f"You must discard {n} card(s) — Covert Operation",
+                    }
+                }
+
             return {
                 "success": True,
                 "applied": {
                     "type": "opponent_discard",
                     "target": "all",
                     "amount": amount,
-                    "opponents_affected": opponents_affected
-                },
-                "note": "Each opponent must choose which cards to discard"
+                    "opponents_affected": affected_names,
+                }
             }
 
         elif target == "choose":
@@ -1651,9 +1673,6 @@ class EffectResolver:
 
         Manipulate allows the player to look at the top card of the intrigue deck
         and either keep it on top or put it on the bottom.
-
-        For bots/testing: Auto-keeps on top
-        TODO: For human players, show card and allow choice
         """
         player = self.state.get_player_by_id(player_id)
 
@@ -1663,30 +1682,28 @@ class EffectResolver:
                 "error": "Intrigue deck is empty"
             }
 
-        # Look at top card
         top_card = self.game.board.intrigue_deck[0]
+        card_name = top_card.name if hasattr(top_card, "name") else str(top_card)
+        card_id   = str(top_card.id) if hasattr(top_card, "id") else ""
 
-        # For bots/testing: keep on top
-        # For humans: would show card and ask "Keep on top or move to bottom?"
-        action = "kept_on_top"
+        if player and player.is_human:
+            return {
+                "success": True,
+                "choice_required": True,
+                "choice_data": {
+                    "type": "manipulate",
+                    "card_name": card_name,
+                    "card_id": card_id,
+                }
+            }
 
-        # Uncomment for human choice:
-        # return {
-        #     "success": True,
-        #     "choice_required": True,
-        #     "choice_data": {
-        #         "type": "manipulate",
-        #         "card": top_card,
-        #         "options": ["keep_top", "move_bottom"]
-        #     }
-        # }
-
+        # Bot/testing: keep on top (no change needed)
         return {
             "success": True,
             "applied": {
                 "type": "manipulate",
-                "action": action,
-                "card_name": top_card.get("name", "Unknown") if isinstance(top_card, dict) else str(top_card)
+                "action": "kept_on_top",
+                "card_name": card_name,
             }
         }
 
@@ -2690,6 +2707,116 @@ class EffectResolver:
                     "type": "recall",
                     "unit": "spy",
                     "post": post_id
+                }
+            }
+
+        elif choice_type == "gather_intel":
+            # Optional Gather Intel: recall the spy from a connected post to
+            # draw 1 intrigue card, or keep the spy on the board.
+            player = self.state.get_player_by_id(player_id)
+            if selected_option_id == "skip":
+                return {"success": True, "applied": {"type": "gather_intel", "skipped": True}}
+            post_id = str(choice_data.get("post_id", ""))
+            if post_id not in player.spies_placed:
+                return {"success": False, "error": "No spy at that post"}
+            player.spies_placed.remove(post_id)
+            player.spies_available += 1
+            drawn = None
+            if self.game.board.intrigue_deck:
+                drawn = self.game.board.intrigue_deck.pop(0)
+                player.intrigue_cards.append(drawn)
+            return {
+                "success": True,
+                "applied": {
+                    "type": "gather_intel",
+                    "post": post_id,
+                    "card": getattr(drawn, "name", None),
+                }
+            }
+
+        elif choice_type == "manipulate":
+            # Player peeked at the top intrigue card and decides to keep or bury it.
+            deck = self.game.board.intrigue_deck
+            if not deck:
+                return {"success": True, "applied": {"type": "manipulate", "action": "empty_deck"}}
+            if selected_option_id == "move_bottom":
+                card = deck.pop(0)
+                deck.append(card)
+                return {"success": True, "applied": {"type": "manipulate", "action": "moved_to_bottom", "card": card.name}}
+            # "keep_top" — no change needed
+            return {"success": True, "applied": {"type": "manipulate", "action": "kept_on_top", "card": deck[0].name}}
+
+        elif choice_type == "deck_manip_draw":
+            # Step 1 of Long Live the Fighters: player picks which of the top 3 to draw.
+            player = self.state.get_player_by_id(player_id)
+            cards = choice_data.get("cards", [])
+            draw_id = selected_option_id
+
+            # Remove chosen card from deck (search from top = end of list)
+            drawn = None
+            for i in range(len(player.deck.cards) - 1, -1, -1):
+                if str(player.deck.cards[i].id) == str(draw_id):
+                    drawn = player.deck.cards.pop(i)
+                    break
+
+            if drawn is None:
+                return {"success": False, "error": f"Card {draw_id} not found in deck"}
+
+            player.hand.add_card(drawn)
+
+            # Build discard choice from the remaining 2 cards
+            remaining = [c for c in cards if str(c.get("id", "")) != str(draw_id)]
+            # (If there was a duplicate ID, keep all but one occurrence)
+            if len(remaining) > len(cards) - 1:
+                remaining = remaining[:len(cards) - 1]
+
+            if not remaining:
+                # Nothing left to discard/trash — we're done
+                return {"success": True, "applied": {"type": "deck_manip_draw", "drew": drawn.name}}
+
+            return {
+                "success": True,
+                "choices_required": [{
+                    "type": "deck_manip_discard",
+                    "cards": remaining,
+                    "drew": drawn.name,
+                }]
+            }
+
+        elif choice_type == "deck_manip_discard":
+            # Step 2 of Long Live the Fighters: player picks which of remaining 2 to discard;
+            # the last one is automatically trashed.
+            player = self.state.get_player_by_id(player_id)
+            cards = choice_data.get("cards", [])
+            discard_id = selected_option_id
+
+            # Remove and discard chosen card
+            discarded = None
+            for i in range(len(player.deck.cards) - 1, -1, -1):
+                if str(player.deck.cards[i].id) == str(discard_id):
+                    discarded = player.deck.cards.pop(i)
+                    break
+            if discarded:
+                player.discard_pile.add_card(discarded)
+
+            # Trash remaining cards (those in choice_data but not selected)
+            trashed_names = []
+            for card_info in cards:
+                tid = str(card_info.get("id", ""))
+                if tid == str(discard_id):
+                    continue
+                for i in range(len(player.deck.cards) - 1, -1, -1):
+                    if str(player.deck.cards[i].id) == str(tid):
+                        card = player.deck.cards.pop(i)
+                        trashed_names.append(card.name)
+                        break
+
+            return {
+                "success": True,
+                "applied": {
+                    "type": "deck_manip_discard",
+                    "discarded": discarded.name if discarded else None,
+                    "trashed": trashed_names,
                 }
             }
 
@@ -4036,45 +4163,45 @@ class EffectResolver:
                 "effects_applied": ["No cards in deck to manipulate"]
             }
 
-        # For AI/bot: make random choices
-        # For human: this would require a choice prompt
-        # TODO: Implement choice system for human players
+        # Human: present step-by-step choices (draw then discard; last is auto-trashed)
+        if player.is_human:
+            card_dicts = [{"id": str(c.id), "name": c.name} for c in top_cards]
+            return {
+                "success": True,
+                "choice_required": True,
+                "choice_data": {
+                    "type": "deck_manip_draw",
+                    "cards": card_dicts,
+                }
+            }
 
-        # Remove cards from deck
+        # Bot: make random choices
+        import random
         for card in top_cards:
             if card in player.deck.cards:
                 player.deck.cards.remove(card)
 
-        # Random selection for bot
-        import random
         remaining_cards = top_cards.copy()
 
-        # Draw one
         if draw_count > 0 and remaining_cards:
             drawn_card = random.choice(remaining_cards)
             remaining_cards.remove(drawn_card)
             player.hand.add_card(drawn_card)
 
-        # Discard one
         if discard_count > 0 and remaining_cards:
             discarded_card = random.choice(remaining_cards)
             remaining_cards.remove(discarded_card)
             player.discard_pile.add_card(discarded_card)
 
-        # Trash one
         if trash_count > 0 and remaining_cards:
-            trashed_card = random.choice(remaining_cards)
-            remaining_cards.remove(trashed_card)
-            # Trashed cards removed from game (don't add anywhere)
+            remaining_cards.pop()  # trashed — removed from game
 
-        # Put remaining cards back on top of deck
         for card in remaining_cards:
             player.deck.cards.append(card)
 
         return {
             "success": True,
             "effects_applied": [f"Manipulated top {len(top_cards)} cards (drew/discarded/trashed)"],
-            "choices_required": []  # TODO: Add choice for human players
         }
 
     def _handle_influence_double(

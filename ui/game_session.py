@@ -59,6 +59,18 @@ def _make_choice_json_safe(choice_data: Dict) -> Dict:
             for c in result["available_contracts"]
         ]
 
+    # cards: list of ImperiumCard objects (deck_manip_draw / deck_manip_discard choices)
+    if "cards" in result:
+        safe_cards = []
+        for c in result["cards"]:
+            if isinstance(c, dict):
+                safe_cards.append(c)  # Already serialized
+            elif hasattr(c, "id") and hasattr(c, "name"):
+                safe_cards.append({"id": str(c.id), "name": c.name, "cost": getattr(c, "cost", 0)})
+            else:
+                safe_cards.append({"id": str(c), "name": str(c)})
+        result["cards"] = safe_cards
+
     return result
 
 
@@ -519,7 +531,10 @@ class GameSession:
         effect_resolver = self.managers["effect_resolver"]
 
         try:
-            effect_resolver.execute_choice(self.human_player_id, choice_data, option_id)
+            result = effect_resolver.execute_choice(self.human_player_id, choice_data, option_id)
+            # Queue any follow-up choices generated during resolution (e.g. deck_manip multi-step)
+            if result and result.get("choices_required"):
+                self._queue_choices(result["choices_required"])
         except Exception as e:
             return {"error": str(e), **self.snapshot()}
 
@@ -733,6 +748,32 @@ class GameSession:
                 locs = choice_data.get("placed_locations", [])
                 if locs:
                     effect_resolver.execute_choice(player.player_id, choice_data, locs[0])
+            elif ctype == "recall_spy":
+                posts = choice_data.get("placed_posts", [])
+                if posts:
+                    effect_resolver.execute_choice(player.player_id, choice_data, str(posts[0]))
+            elif ctype == "gather_intel":
+                # Bots take the intrigue draw (the executor normally auto-resolves
+                # this for bots, but handle it here too for safety).
+                effect_resolver.execute_choice(player.player_id, choice_data, "draw")
+            elif ctype == "manipulate":
+                effect_resolver.execute_choice(player.player_id, choice_data, "keep_top")
+            elif ctype in ("deck_manip_draw", "deck_manip_discard"):
+                cards = choice_data.get("cards", [])
+                if cards:
+                    chosen = _random.choice(cards)
+                    cid = chosen.get("id", "") if isinstance(chosen, dict) else str(getattr(chosen, "id", chosen))
+                    result = effect_resolver.execute_choice(player.player_id, choice_data, str(cid))
+                    # Queue any follow-up choices (e.g. deck_manip_discard after deck_manip_draw)
+                    if result and result.get("choices_required"):
+                        self._bot_resolve_choices(player, result["choices_required"])
+            elif ctype == "choose_reserve_card":
+                # Pick whichever reserve pile is available (Prepare the Way preferred)
+                prepare = self.game.board.reserve_prepare_the_way
+                spice = self.game.board.reserve_spice_must_flow
+                pile_id = "prepare_the_way" if prepare else ("spice_must_flow" if spice else None)
+                if pile_id:
+                    effect_resolver.execute_choice(player.player_id, choice_data, pile_id)
             elif ctype == "steal_intrigue":
                 targets = choice_data.get("valid_targets", [])
                 if targets:
