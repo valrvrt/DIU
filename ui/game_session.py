@@ -774,6 +774,31 @@ class GameSession:
                 pile_id = "prepare_the_way" if prepare else ("spice_must_flow" if spice else None)
                 if pile_id:
                     effect_resolver.execute_choice(player.player_id, choice_data, pile_id)
+            elif ctype == "conditional_multi_choice":
+                # Pick the first available non-"none" option, or "none" 40% of the time
+                opts = [o for o in choice_data.get("options", []) if o.get("id") != "none"]
+                if opts and _random.random() > 0.4:
+                    effect_resolver.execute_choice(player.player_id, choice_data, opts[0]["id"])
+                else:
+                    effect_resolver.execute_choice(player.player_id, choice_data, "none")
+            elif ctype == "reveal_passive_choice":
+                # Always take the beneficial option (first non-skip option)
+                opts = [o for o in choice_data.get("options", []) if o.get("id") not in ("no", "skip")]
+                if opts:
+                    effect_resolver.execute_choice(player.player_id, choice_data, opts[0]["id"])
+                else:
+                    effect_resolver.execute_choice(player.player_id, choice_data, "no")
+            elif ctype == "choose_opponent_discard":
+                targets = choice_data.get("valid_targets", [])
+                if targets:
+                    t = _random.choice(targets)
+                    effect_resolver.execute_choice(player.player_id, choice_data, t["player_id"])
+            elif ctype == "play_spy_on_space":
+                spaces = choice_data.get("eligible_spaces", [])
+                if spaces:
+                    sp = _random.choice(spaces)
+                    sid = sp.get("space_id") if isinstance(sp, dict) else str(sp)
+                    effect_resolver.execute_choice(player.player_id, choice_data, sid)
             elif ctype == "steal_intrigue":
                 targets = choice_data.get("valid_targets", [])
                 if targets:

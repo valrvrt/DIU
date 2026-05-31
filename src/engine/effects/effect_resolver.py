@@ -3222,6 +3222,51 @@ class EffectResolver:
                 }
             }
 
+        elif choice_type == "conditional_multi_choice":
+            # Player selects one optional bonus from a list; "none" = skip all.
+            if selected_option_id == "none":
+                return {"success": True, "applied": {"type": "conditional_multi", "chosen": "none"}}
+
+            options = choice_data.get("options", [])
+            selected = next((o for o in options if o.get("id") == selected_option_id), None)
+            if not selected:
+                return {"success": False, "error": f"Unknown option: {selected_option_id}"}
+
+            cost = selected.get("cost", [])
+            reward = selected.get("reward", [])
+            if cost:
+                cost_result = self.apply_costs(player_id, cost)
+                if not cost_result.get("success"):
+                    return cost_result
+            if reward:
+                return self.resolve_effects(player_id, reward)
+            return {"success": True, "applied": {"type": "conditional_multi", "chosen": selected_option_id}}
+
+        elif choice_type == "reveal_passive_choice":
+            # Leader reveal passive choices (e.g. Feyd Rautha: recall spy → +2 swords).
+            if selected_option_id == "no" or selected_option_id == "skip":
+                return {"success": True, "applied": {"type": "reveal_passive", "chosen": "skip"}}
+
+            leader_name = choice_data.get("leader", "")
+            player = self.state.get_player_by_id(player_id)
+
+            if leader_name == "Feyd Rautha Harkonnen":
+                # Recall one spy → +2 swords
+                if player.spies_placed:
+                    recalled_post = player.spies_placed.pop(0)
+                    player.spies_available += 1
+                if not hasattr(player, "temp_swords"):
+                    player.temp_swords = 0
+                player.temp_swords += 2
+                return {"success": True, "applied": {"type": "reveal_passive", "leader": leader_name, "swords": 2}}
+
+            # Generic: resolve any reward from the selected option
+            options = choice_data.get("options", [])
+            selected = next((o for o in options if o.get("id") == selected_option_id), None)
+            if selected and selected.get("reward"):
+                return self.resolve_effects(player_id, selected["reward"])
+            return {"success": True, "applied": {"type": "reveal_passive", "chosen": selected_option_id}}
+
         else:
             return {
                 "success": False,
@@ -4779,36 +4824,71 @@ class EffectResolver:
 
     def _handle_cost(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Handle cost/reward pattern - pay a cost to get a reward.
+        Handle cost/reward pattern — pay a cost to get a reward.
 
-        Format:
-        {
-            "type": "cost",
-            "payment": {"type": "trash_intrigue", "amount": 1},
-            "reward": [...]
-        }
+        Converts the payment dict into standard effect(s), resolves the cost,
+        then grants the reward.  If the cost requires a player choice (e.g. trash
+        a card), the reward is deferred via pending_reward on the choice data.
+
+        Supported payment/cost formats:
+          {"type": "trash_intrigue", "amount": N}      → trash N intrigue cards
+          {"type": "trash", "deck": "imperium", ...}   → trash N imperium cards from hand/played
+          {"type": "discard", "deck": [...], ...}      → discard N cards
+          {"type": "recall", "unit": "spy", ...}       → recall N spies
+          {"type": "influence", "target": "any", ...}  → spend N influence
         """
-        player = self.state.get_player_by_id(player_id)
-        if not player:
-            return {"success": False, "error": f"Player {player_id} not found"}
-
-        payment = effect.get('payment', {})
+        payment = effect.get('payment') or effect.get('cost') or {}
         reward = effect.get('reward', [])
 
-        # Try to pay the cost
-        # For now, just mark it as optional choice (player can choose to pay or not)
-        # TODO: Implement actual payment validation
-        payment_result = {"success": True, "effects_applied": ["Cost payment (stub)"]}
+        payment_type = payment.get('type', '')
+        amount = payment.get('amount', 1)
 
-        # If payment succeeded, give reward
-        if payment_result.get('success'):
-            reward_result = self.resolve_effects(player_id, reward, context)
-            return {
-                "success": True,
-                "effects_applied": payment_result.get('effects_applied', []) + reward_result.get('effects_applied', [])
-            }
+        # Map payment type → standard effect(s) that resolve_effects can handle
+        if payment_type == 'trash_intrigue':
+            cost_effects = [{"type": "trash", "deck": "owned_intrigue", "amount": amount}]
+        elif payment_type == 'trash':
+            deck = payment.get('deck', 'hand')
+            # "imperium" means trash any imperium card from hand or played area
+            if deck == 'imperium':
+                cost_effects = [{"type": "trash", "deck": ["hand", "played"], "amount": amount}]
+            else:
+                cost_effects = [{"type": "trash", "deck": deck, "amount": amount}]
+        elif payment_type == 'discard':
+            deck = payment.get('deck', 'hand')
+            # If deck is a list, pick the first non-empty source for the discard handler
+            if isinstance(deck, list):
+                deck = deck[0] if deck else 'hand'
+            cost_effects = [{"type": "discard", "deck": deck, "amount": amount}]
+        elif payment_type == 'recall':
+            cost_effects = [{"type": "recall", "unit": payment.get('unit', 'spy'), "amount": amount}]
+        elif payment_type == 'influence':
+            # Spend influence — currently complex (requires faction choice); skip for now
+            cost_effects = []
+        elif payment:
+            cost_effects = [payment]
+        else:
+            cost_effects = []
 
-        return {"success": False, "error": "Payment failed"}
+        if not cost_effects:
+            # No actionable cost — give reward freely
+            return self.resolve_effects(player_id, reward, context or {})
+
+        cost_result = self.resolve_effects(player_id, cost_effects, context or {})
+        if not cost_result.get('success'):
+            # Cost failed (can't afford) — treat as optional, skip silently
+            return {"success": True, "effects_applied": []}
+
+        pending_choices = cost_result.get('choices_required', [])
+        if pending_choices:
+            # Defer the reward until the player resolves the cost choice
+            first_choice = pending_choices[0]
+            first_choice['pending_reward'] = reward
+            first_choice['can_skip'] = True
+            first_choice['skip_label'] = "Skip (don't pay)"
+            return {"success": True, "choice_required": True, "choice_data": first_choice}
+
+        # Cost resolved immediately — give reward now
+        return self.resolve_effects(player_id, reward, context or {})
 
     def _handle_exchange(self, player_id: str, effect: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
